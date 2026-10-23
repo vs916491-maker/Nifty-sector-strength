@@ -75,20 +75,26 @@ def keys_extract(d):
     if isinstance(data, list) and data:
         return f"rows={len(data)} keys={list(data[0])[:14]}"
     return str(d)[:120]
-for name, url in [
-    ("OI spurts underlyings", f"{base}/live-analysis-oi-spurts-underlyings"),
-    ("OI spurts contracts", f"{base}/live-analysis-oi-spurts-contracts"),
-    ("F&O securities prices", f"{base}/equity-stockIndices?index=SECURITIES%20IN%20F%26O"),
-    ("underlying info", f"{base}/underlying-information"),
-    ("master quote", f"{base}/master-quote"),
-    ("quote-derivative RELIANCE", f"{base}/quote-derivative?symbol=RELIANCE"),
-    ("most active fut", f"{base}/liveEquity-derivatives?index=top20_contracts"),
-]:
-    time.sleep(1)
-    try:
-        summarize(name, s.get(url, timeout=25), keys_extract)
-    except Exception as exc:  # noqa: BLE001
-        lines.append(f"{name}: FAIL {exc}"[:200])
+def deriv_extract(d):
+    body = d if isinstance(d, dict) else {}
+    data = body.get("data") or body.get("stocks") or body
+    if isinstance(data, list) and data:
+        futs = [x for x in data if "FUT" in str(x.get("instrumentType", x)).upper()]
+        r = futs[0] if futs else data[0]
+        return f"rows={len(data)} futs={len(futs)} sample_keys={list(r)[:25]}"
+    return "keys=" + str(list(body)[:10]) + " " + str(body)[:200]
+for sym in ("HDFCBANK", "APOLLOHOSP", "IREDA"):
+    time.sleep(1.5)
+    summarize(f"NextApi {sym}", s.get(f"{base}/NextApi/apiClient/GetQuoteApi",
+              params={"functionName": "getSymbolDerivativesData", "symbol": sym}, timeout=25), deriv_extract)
+time.sleep(1.5)
+r = s.get(f"{base}/NextApi/apiClient/GetQuoteApi", params={"functionName": "getSymbolDerivativesData", "symbol": "HDFCBANK"}, timeout=25)
+try:
+    d = r.json(); data = d.get("data") or d
+    futs = [x for x in data if "FUT" in str(x.get("instrumentType", "")).upper()][:1]
+    lines.append("HDFCBANK fut row: " + json.dumps(futs[0])[:700] if futs else "no fut row: " + json.dumps(data[:1])[:500])
+except Exception as exc:  # noqa: BLE001
+    lines.append(f"detail parse fail {exc}: {r.text[:200]!r}")
 
 msg = "\n".join(lines)
 print(msg)
