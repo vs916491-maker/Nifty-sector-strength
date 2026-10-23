@@ -29,6 +29,11 @@ BENCHMARKS = [
      "slugs": ["ind_nifty50list"]},
     {"key": "NIFTY500", "name": "Nifty 500", "aliases": ["Nifty 500"],
      "slugs": ["ind_nifty500list"]},
+    # Broadest universe (Nifty 500 + Microcap 250); used only to decide
+    # which stocks to store.
+    {"key": "TOTALMKT", "name": "Nifty Total Market",
+     "aliases": ["Nifty Total Market"],
+     "slugs": ["ind_niftytotalmarket_list", "ind_niftytotalmarketlist"]},
 ]
 
 SECTORS = [

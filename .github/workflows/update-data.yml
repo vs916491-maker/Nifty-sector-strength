@@ -13,6 +13,10 @@ on:
         description: "Optional: re-fetch from this date (YYYY-MM-DD). Leave empty for normal update."
         required: false
         default: ""
+      compact:
+        description: "One-off clean-up of stored stock files"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,12 +43,12 @@ jobs:
       - name: Fetch new NSE data
         env:
           START: ${{ github.event.inputs.start }}
+          COMPACT: ${{ github.event.inputs.compact }}
         run: |
-          if [ -n "$START" ]; then
-            python -m collector.update --start "$START"
-          else
-            python -m collector.update
-          fi
+          ARGS=""
+          if [ -n "$START" ]; then ARGS="--start $START"; fi
+          if [ "$COMPACT" = "true" ]; then ARGS="$ARGS --compact"; fi
+          python -m collector.update $ARGS
 
       - name: Save data to the repo
         if: always()

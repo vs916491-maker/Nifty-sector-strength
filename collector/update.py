@@ -62,10 +62,48 @@ def merge_month(folder: Path, month: str, new: pd.DataFrame, key: list[str]) -> 
     new.to_csv(path, index=False, float_format="%.2f")
 
 
+# Stocks kept from the bhavcopy: constituents of every tracked index
+# (incl. Nifty Total Market) plus F&O stocks. Empty set = keep all.
+UNIVERSE: set[str] = set()
+MIN_UNIVERSE = 500  # sanity check: below this the lists did not download
+
+
+def build_universe() -> set[str]:
+    symbols: set[str] = set()
+    for path in CON_DIR.glob("*.csv"):
+        symbols |= set(pd.read_csv(path, dtype=str)["symbol"].dropna().str.strip())
+    fno = META / "fno_symbols.csv"
+    if fno.exists():
+        symbols |= set(pd.read_csv(fno, dtype=str)["symbol"].dropna().str.strip())
+    return symbols if len(symbols) >= MIN_UNIVERSE else set()
+
+
+def compact_stocks() -> dict:
+    """One-off clean-up of stored stock files: drop non-trading days (dates
+    with no index data) and stocks outside the universe."""
+    trading_days: set[str] = set()
+    for path in IDX_DIR.glob("*.csv"):
+        trading_days |= set(pd.read_csv(path, usecols=["date"])["date"])
+    before = after = 0
+    for path in sorted(STK_DIR.glob("*.csv")):
+        df = pd.read_csv(path)
+        before += len(df)
+        df = df[df["date"].isin(trading_days)]
+        if UNIVERSE:
+            df = df[df["symbol"].isin(UNIVERSE)]
+        after += len(df)
+        df.to_csv(path, index=False, float_format="%.2f")
+    return {"rows_before": before, "rows_after": after}
+
+
 # ----------------------------------------------------------------- parsers
 def parse_index_file(text: str, day: dt.date) -> pd.DataFrame:
     df = pd.read_csv(io.StringIO(text))
     df.columns = [c.strip() for c in df.columns]
+    if "Index Date" in df.columns:
+        dates = pd.to_datetime(df["Index Date"].astype(str).str.strip(),
+                               format="%d-%m-%Y", errors="coerce").dt.date
+        df = df[dates == day]
     out = pd.DataFrame({
         "date": day.isoformat(),
         "index": df["Index Name"].astype(str).str.strip(),
@@ -86,6 +124,13 @@ def parse_bhavcopy(text: str, day: dt.date) -> pd.DataFrame:
     df.columns = [c.strip() for c in df.columns]
     df["SERIES"] = df["SERIES"].str.strip()
     df = df[df["SERIES"].isin(config.STOCK_SERIES)]
+    # NSE serves a copy of the previous session's file for some holidays
+    # and Sundays; DATE1 tells the real trading date.
+    dates = pd.to_datetime(df["DATE1"].str.strip(), format="%d-%b-%Y",
+                           errors="coerce").dt.date
+    df = df[dates == day]
+    if UNIVERSE:
+        df = df[df["SYMBOL"].str.strip().isin(UNIVERSE)]
     out = pd.DataFrame({
         "date": day.isoformat(),
         "symbol": df["SYMBOL"].str.strip(),
@@ -114,8 +159,12 @@ def collect_daily(client: NSEClient, folder: Path, url_tpl: str, parser,
         text = client.get_text(url_tpl.format(ddmmyyyy=day.strftime("%d%m%Y")))
         if text is not None:
             try:
-                by_month.setdefault(day.strftime("%Y-%m"), []).append(parser(text, day))
-                found.append(day.isoformat())
+                frame = parser(text, day)
+                if len(frame):
+                    by_month.setdefault(day.strftime("%Y-%m"), []).append(frame)
+                    found.append(day.isoformat())
+                else:
+                    missing += 1
             except Exception as exc:  # noqa: BLE001 - one bad file must not stop the run
                 bad.append(f"{day}: {type(exc).__name__}: {exc}"[:200])
         else:
@@ -216,6 +265,8 @@ def index_name_check() -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", type=dt.date.fromisoformat, default=None)
+    ap.add_argument("--compact", action="store_true",
+                    help="clean stored stock files (non-trading days, universe)")
     args = ap.parse_args()
 
     today = dt.datetime.now(IST).date()
@@ -232,6 +283,12 @@ def main() -> int:
         status["fno"] = {"ok": False}
         problems.append(f"F&O list: {type(exc).__name__}: {exc}"[:200])
 
+    global UNIVERSE
+    UNIVERSE = build_universe()
+    status["universe_size"] = len(UNIVERSE)
+    if not UNIVERSE:
+        problems.append("Stock universe incomplete - keeping all stocks this run")
+
     for label, folder, url, parser, key in [
         ("indices", IDX_DIR, config.INDEX_CLOSE_URL, parse_index_file, ["date", "index"]),
         ("stocks", STK_DIR, config.BHAVCOPY_URL, parse_bhavcopy, ["date", "symbol"]),
@@ -245,6 +302,10 @@ def main() -> int:
             problems.append(f"{label}: {exc}")
             status[label] = {"error": str(exc)}
         status[label]["latest_stored"] = str(last_stored_date(folder))
+
+    if args.compact:
+        status["compact"] = compact_stocks()
+        print("compact:", status["compact"])
 
     status["index_name_match"] = index_name_check()
     missing_names = [k for k, v in status["index_name_match"].items() if v is None]
