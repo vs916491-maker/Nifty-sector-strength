@@ -107,14 +107,17 @@ def parse_bhavcopy(text: str, day: dt.date) -> pd.DataFrame:
 def collect_daily(client: NSEClient, folder: Path, url_tpl: str, parser,
                   key: list[str], start: dt.date, end: dt.date) -> dict:
     """Fetch every calendar day in [start, end]; missing files are skipped."""
-    found, missing = [], 0
+    found, missing, bad = [], 0, []
     by_month: dict[str, list[pd.DataFrame]] = {}
     day = start
     while day <= end:
         text = client.get_text(url_tpl.format(ddmmyyyy=day.strftime("%d%m%Y")))
         if text is not None:
-            by_month.setdefault(day.strftime("%Y-%m"), []).append(parser(text, day))
-            found.append(day.isoformat())
+            try:
+                by_month.setdefault(day.strftime("%Y-%m"), []).append(parser(text, day))
+                found.append(day.isoformat())
+            except Exception as exc:  # noqa: BLE001 - one bad file must not stop the run
+                bad.append(f"{day}: {type(exc).__name__}: {exc}"[:200])
         else:
             missing += 1
         # flush a finished month so a crash later keeps earlier work
@@ -125,7 +128,8 @@ def collect_daily(client: NSEClient, folder: Path, url_tpl: str, parser,
             print(f"  {folder.name}: saved {month}")
         day = nxt
     return {"days_added": len(found), "first": found[0] if found else None,
-            "last": found[-1] if found else None, "days_without_file": missing}
+            "last": found[-1] if found else None, "days_without_file": missing,
+            "unreadable_files": bad}
 
 
 def collect_constituents(client: NSEClient) -> dict:
@@ -230,6 +234,9 @@ def main() -> int:
     status["index_name_match"] = index_name_check()
     missing_names = [k for k, v in status["index_name_match"].items() if v is None]
     missing_cons = [k for k, v in status["constituents"].items() if not v["ok"]]
+    for label in ("indices", "stocks"):
+        for b in status[label].get("unreadable_files", [])[:5]:
+            problems.append(f"{label} unreadable {b}")
     if missing_names:
         problems.append("Index not found in NSE file: " + ", ".join(missing_names))
     if missing_cons:
@@ -258,5 +265,17 @@ def main() -> int:
     return 1 if ("error" in status["indices"] and "error" in status["stocks"]) else 0
 
 
+def run() -> int:
+    try:
+        return main()
+    except Exception:  # noqa: BLE001 - surface the error in the GitHub UI
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print("::error title=Collector crashed::" + tb[-3000:].replace("%", "%25").replace("\n", "%0A"))
+        return 1
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run())
