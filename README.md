@@ -14,7 +14,7 @@ inside the leading sectors.
 |---|---|---|
 | 1 | Data source feasibility test | Done - NSE archive files work from GitHub Actions |
 | 2 | Data collector + 2-year backfill | Done - Oct 2024 onwards, updated every weekday evening |
-| 3 | Sector scoring + Relative Rotation Graph (RRG) | Pending |
+| 3 | Sector scoring + Relative Rotation Graph (RRG) | Done - `analysis/`, outputs in `site/data/` |
 | 4 | Stock drill-down inside leading sectors | Pending |
 | 5 | Website + daily schedule | Pending |
 | 6 | Validation (did top-ranked sectors outperform?) | Pending |
@@ -41,6 +41,27 @@ overnight drops that no adjustment explains (`price_jump_check` in
 
 Tracked indices are listed in `collector/config.py`. Run locally with
 `pip install -r requirements.txt` then `python -m collector.update`.
+
+## Sector scoring (Phase 3)
+
+`python -m analysis.build` (run after every data update) scores the 15
+sectoral and 13 thematic indices against **Nifty 500** (default) and
+**Nifty 50**, and writes `site/data/sectors.json` and
+`site/data/sector_history.json` for the website. Method and weights are
+documented at the top of `analysis/sectors.py`:
+
+| Component | Weight | What it measures |
+|---|---|---|
+| RS trend | 30% | Relative strength vs its 50-day average, its 150-day average, and whether the 50-day average is rising |
+| RS momentum | 20% | 10-day change in relative strength, and whether the gap to its 50-day average is widening |
+| Excess return | 20% | 1-month and 3-month return minus the benchmark's |
+| Trend | 20% | Price above 50/150/200-day averages, 50 above 200, 50 rising |
+| Breadth | 10% | % of the sector's stocks above their own 50-day average |
+
+Ranked parts are percentile ranks within the same tab (sectoral or
+thematic). The Relative Rotation Graph uses weekly data: RS-Ratio = relative
+strength vs its 10-week average (x100), RS-Momentum = its week-on-week change
+(x100).
 
 ## Phase 1: data source test
 

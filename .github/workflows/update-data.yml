@@ -50,12 +50,15 @@ jobs:
           if [ "$COMPACT" = "true" ]; then ARGS="$ARGS --compact"; fi
           python -m collector.update $ARGS
 
+      - name: Compute sector scores
+        run: python -m analysis.build
+
       - name: Save data to the repo
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
+          git add data site/data
           if git diff --cached --quiet; then
             echo "No new data."
             exit 0
