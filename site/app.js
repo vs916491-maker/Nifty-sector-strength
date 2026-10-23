@@ -124,6 +124,19 @@ function stat(k, v, d) {
   return h("div", { class: "stat" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v), d ? h("div", { class: "d" }, d) : null);
 }
 
+
+// ------------------------------------------------------------------ results calendar flags
+/* r = {date, days} from stocks.json "results"; days < 0 means already out */
+function resultsFlag(r, compact) {
+  if (!r || !isNum(r.days)) return null;
+  const d = fmtDate(r.date, { day: "numeric", month: "short" });
+  if (r.days >= 0 && r.days <= 7) return h("span", { class: "flag warn", title: `Quarterly results on ${fmtDate(r.date)}: a gap through the stop is possible` },
+    r.days === 0 ? "Results today" : compact ? `Results ${d}` : `Results in ${r.days}d (${d})`);
+  if (r.days < 0) return h("span", { class: "flag", title: `Results announced on ${fmtDate(r.date)}` }, `Results out ${d}`);
+  return null;
+}
+const isResultsFlag = (f) => f.startsWith("Results");
+
 // ------------------------------------------------------------------ chart: scales and ticks
 function niceTicks(min, max, count = 4) {
   if (!isFinite(min) || !isFinite(max)) return [];
@@ -671,7 +684,8 @@ function stockTable(rows, cols, sort, rerender, showVia, leadCols = []) {
       h("td", { class: "l name" }, x.sym, h("small", null, x.company || x.industry || "")),
       cols.map(([k, , fn, cls]) => h("td", { class: cls ? cls(x[k]) : null }, fn(x))),
       h("td", { class: "l" },
-        (x.flags || []).filter((f) => f !== "F&O").map((f) => h("span", { class: "flag" }, f)),
+        (x.flags || []).filter((f) => f !== "F&O" && !isResultsFlag(f)).map((f) => h("span", { class: "flag" }, f)),
+        resultsFlag(x.results_date ? { date: x.results_date, days: x.results_days } : null),
         x.fno ? h("span", { class: "flag fno" }, "F&O") : null,
         showVia && x.via === "industry" ? h("span", { class: "flag" }, "peer") : null)))));
 }
@@ -799,7 +813,7 @@ function nextLeadersSection(ld, st, sec) {
           h("td", null, fmtPct(x.rs_vs_high)),
           h("td", null, fmtPct(x.from_high)),
           h("td", null, fmtNum(x.updown_volume, 2)),
-          h("td", { class: "l" },
+          h("td", { class: "l" }, resultsFlag(st.results?.[x.symbol]),
             x.rs_leads_price ? h("span", { class: "flag", title: "RS line at a new high while the price is still 5%+ below its high" }, "RS leads price") : null,
             setupSyms.has(x.symbol) ? h("span", { class: "flag fno" }, "Setup today") : null,
             x.info.fno ? h("span", { class: "flag fno" }, "F&O") : null)))))) : h("p", { class: "empty" }, "No stocks match."),
@@ -860,7 +874,7 @@ function setupsSection(st, sec, rg) {
             ps.qty != null ? [`₹${fmtCompact(ps.value)} · ${ps.pct.toFixed(0)}%`, ps.capped ? h("sup", null, " cap") : null] : "–"),
           h("td", null, fmtNum(x.rs_rating)),
           h("td", null, fmtNum(x.score)),
-          h("td", { class: "l" }, x.rs_at_high ? h("span", { class: "flag" }, "RS at high") : null,
+          h("td", { class: "l" }, resultsFlag(st.results?.[x.sym]), x.rs_at_high ? h("span", { class: "flag" }, "RS at high") : null,
             x.fno ? h("span", { class: "flag fno" }, "F&O") : null,
             (x.flags || []).includes("Extended") ? h("span", { class: "flag" }, "Extended") : null),
           h("td", null, h("button", { class: "btn small", type: "button", onclick: () => takeTrade({
@@ -884,6 +898,7 @@ function setupsSection(st, sec, rg) {
           : h("p", { class: "empty" }, total ? "No setups match these filters. Untick A-grade only to see the rest." : "No stock formed a positional setup today."),
         h("p", { class: "note" }, `Qty risks ${state.riskPct}% of your capital (₹${fmtCompact(state.capital * state.riskPct / 100)}) between the buy price and the stop, with no stock above ${state.maxPos}% of capital ("cap" marks a trimmed position). Grade A = RS rating ${rules.a_grade_rs ?? 90}+ or relative strength at a 52-week high; in the `,
           h("a", { href: "#/record" }, "track record"), " only A-grade setups made money."),
+        h("p", { class: "note" }, "An amber “Results” flag means quarterly results are due within 7 days (NSE board-meeting calendar). Buying just before results is close to a coin toss: the price can gap straight through the stop. Many traders wait for the results, or take a smaller position."),
         h("details", { class: "rules" }, h("summary", null, "Setup, stop and exit rules"),
           h("ul", null,
             h("li", null, h("b", null, "All setups: "), `long-term uptrend (above the 200-day average, 50-day above 200-day, 200-day rising), within ${rules.trend?.near_high_pct ?? 25}% of the 52-week high, RS rating ${rules.trend?.min_rs_rating ?? 70}+.`),
@@ -1101,8 +1116,18 @@ function tradeDialog(prefill, onSaved) {
   const field = (label, name, attrs = {}, wide = false) =>
     h("label", { class: wide ? "wide" : null }, label, h("input", { name, value: t[name] ?? "", ...attrs }));
   const err = h("p", { class: "err", role: "alert" });
+  const warn = h("p", { class: "warn-box", role: "status", hidden: true });
+  const checkResults = async (sym) => {
+    const st = await load("stocks").catch(() => null);
+    const r = st?.results?.[String(sym || "").trim().toUpperCase()];
+    if (r && r.days >= 0 && r.days <= 7) {
+      warn.textContent = `${String(sym).toUpperCase()} announces quarterly results ${r.days === 0 ? "today" : `on ${fmtDate(r.date)} (in ${r.days} day${r.days > 1 ? "s" : ""})`}. The price can gap through your stop on the news; consider waiting or a smaller position.`;
+      warn.hidden = false;
+    } else warn.hidden = true;
+  };
   const form = h("form", { method: "dialog" },
     h("h2", null, t.id ? `Edit ${t.symbol}` : t.symbol ? `I took this trade: ${t.symbol}` : "Add a trade"),
+    warn,
     h("p", { class: "note" }, `Cash-market buy (delivery). P&L = (exit − buy) × quantity − charges; if you leave charges empty, ${COST_PCT}% of the buy value is deducted.`),
     h("div", { class: "form-grid" },
       field("Symbol (NSE)", "symbol", { required: true, autocapitalize: "characters" }),
@@ -1120,6 +1145,8 @@ function tradeDialog(prefill, onSaved) {
     h("div", { class: "btn-row" },
       h("button", { class: "btn primary", type: "submit" }, "Save trade"),
       h("button", { class: "btn", type: "button", onclick: () => dlg.close() }, "Cancel")));
+  form.querySelector("input[name=symbol]").addEventListener("change", (e) => checkResults(e.target.value));
+  if (t.symbol && t.status !== "closed") checkResults(t.symbol);
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(form).entries());
@@ -1282,7 +1309,8 @@ async function viewTrades(app) {
         h("td", { class: isNum(px) && isNum(t.sma50) && px < t.sma50 ? "neg" : null }, fmtNum(t.sma50, 2)),
         h("td", null, isNum(t.sessions_held) ? `${t.sessions_held}d` : "–"),
         h("td", { class: "l" }, h("span", { class: "rule" }, { system: "Setup rules", stop_target: "Stop/target", manual: "Manual" }[t.exit_rule] || "–"),
-          t.alert ? h("span", { class: "alert" }, t.alert) : null),
+          t.alert ? h("span", { class: "alert" }, t.alert) : null,
+          (() => { const r = st?.results?.[t.symbol]; return r && r.days >= 0 ? h("span", { class: r.days <= 7 ? "alert" : "rule" }, `Results ${fmtDate(r.date, { day: "numeric", month: "short" })}`) : null; })()),
         actions(t, true));
     })));
   const closedTable = h("table", { class: "static" },

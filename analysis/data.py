@@ -107,3 +107,11 @@ def mcap() -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame(columns=["symbol", "mcap_cr"])
     return pd.read_csv(path, usecols=["symbol", "mcap_cr"])
+
+
+def results_calendar() -> pd.DataFrame:
+    """Board meetings for financial results: symbol, date (ISO), purpose."""
+    path = DATA / "meta" / "results_calendar.csv"
+    if not path.exists():
+        return pd.DataFrame(columns=["symbol", "date", "purpose"])
+    return pd.read_csv(path, dtype=str).dropna(subset=["symbol", "date"])

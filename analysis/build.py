@@ -30,6 +30,9 @@ from . import breadth as breadth_mod, data, leaders as leaders_mod, regime as re
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
 HISTORY_DAYS = 260
+RESULTS_AHEAD_FLAG = 7      # flag results due within this many calendar days
+RESULTS_RECENT = 5          # and results announced in the last 5 days
+RESULTS_AHEAD_LIST = 45     # results dates kept for My Trades
 
 
 def clean(obj):
@@ -122,6 +125,28 @@ def main() -> int:
     for sym, v in stock_out["stocks"].items():
         if sym in ind["close"].columns and bool(ind["rs_at_high"].at[last, sym]):
             v["flags"].append("RS at high")
+    # quarterly results: flag stocks with results due in the next 7 days or just out
+    res_cal = data.results_calendar()
+    as_of_d = dt.date.fromisoformat(as_of)
+    near = {}
+    for sym, grp in res_cal.groupby("symbol"):
+        days = [(dt.date.fromisoformat(d) - as_of_d).days for d in grp["date"]]
+        upcoming = [d for d in days if d >= 0]
+        recent = [d for d in days if d < 0]
+        pick = min(upcoming) if upcoming else (max(recent) if recent else None)
+        if pick is not None and -RESULTS_RECENT <= pick <= RESULTS_AHEAD_LIST:
+            near[sym] = {"date": (as_of_d + dt.timedelta(days=pick)).isoformat(), "days": pick}
+    stock_out["results"] = near
+    stock_out["results_rules"] = {"ahead_flag": RESULTS_AHEAD_FLAG, "recent": RESULTS_RECENT}
+    for sym, v in stock_out["stocks"].items():
+        r = near.get(sym)
+        if not r:
+            continue
+        v["results_date"], v["results_days"] = r["date"], r["days"]
+        if 0 <= r["days"] <= RESULTS_AHEAD_FLAG:
+            v["flags"].append("Results today" if r["days"] == 0 else f"Results in {r['days']}d")
+        elif r["days"] < 0:
+            v["flags"].append(f"Results {-r['days']}d ago")
     stock_out["setups"] = setups_mod.today(ind, sets, stock_out["stocks"], eligible)
     stock_out["leaders"] = setups_mod.leaders(ind, eligible)
     stock_out["setup_rules"] = {"trend": setups_mod.TREND, "breakout": setups_mod.BREAKOUT,

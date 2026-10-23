@@ -32,6 +32,12 @@ from . import sectors as S, setups as SU, stocks as SM
 HORIZONS = {"1M": 21, "3M": 63}
 
 
+def _spearman(a: pd.Series, b: pd.Series) -> float:
+    """Rank correlation without scipy: Pearson correlation of the ranks."""
+    df = pd.concat([pd.Series(a), pd.Series(b)], axis=1).dropna()
+    return float(df.rank().corr().iloc[0, 1]) if len(df) > 2 else float("nan")
+
+
 def _agg(x: pd.Series) -> dict:
     return {"avg": float(x.mean()), "median": float(x.median()),
             "hit": float((x > 0).mean() * 100), "n": int(len(x))}
@@ -220,13 +226,11 @@ def leadership_test(idx: pd.DataFrame, st: dict, cons: dict, groups: dict, res: 
             **LD.describe(d), "eval_date": b.index[i].date().isoformat(), "fwd_days": int(j - i),
             "complete": bool(j - i >= FWD),
             "groups": {k: _agg(v) for k, v in groups_out.items() if len(v)},
-            "corr_next": float(df.nl.corr(df.fwd, method="spearman")),
-            "corr_old": float(df.old.corr(df.fwd, method="spearman")) if df.old.notna().sum() > 20 else None,
+            "corr_next": float(_spearman(df.nl, df.fwd)),
+            "corr_old": float(_spearman(df.old, df.fwd)) if df.old.notna().sum() > 20 else None,
             "sectors_by_status": by_status,
-            "sector_corr_next": float(pd.Series({r["key"]: r["nl_rank"] for r in sector_rows}).corr(
-                pd.Series({r["key"]: r["fwd"] for r in sector_rows}), method="spearman") * -1) if sector_rows else None,
-            "sector_corr_old": float(pd.Series({r["key"]: r["rank_at_peak"] for r in sector_rows}).corr(
-                pd.Series({r["key"]: r["fwd"] for r in sector_rows}), method="spearman") * -1) if sector_rows else None,
+            "sector_corr_next": float(_spearman(pd.Series({r["key"]: r["nl_rank"] for r in sector_rows}), pd.Series({r["key"]: r["fwd"] for r in sector_rows})) * -1) if sector_rows else None,
+            "sector_corr_old": float(_spearman(pd.Series({r["key"]: r["rank_at_peak"] for r in sector_rows}), pd.Series({r["key"]: r["fwd"] for r in sector_rows})) * -1) if sector_rows else None,
             "top_next": df.sort_values("nl", ascending=False).head(10).index.tolist(),
         })
     return {"rules": {"fall": EPISODE_FALL, "bounce": EPISODE_BOUNCE, "forward": FWD}, "episodes": out}
