@@ -18,6 +18,7 @@ import datetime as dt
 import io
 import json
 import os
+import zipfile
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -282,6 +283,32 @@ def collect_constituents(client: NSEClient) -> dict:
     return status
 
 
+def collect_mcap(client: NSEClient) -> dict:
+    """Latest market-cap snapshot (Rs crore) for every EQ/BE stock."""
+    day = last_stored_date(STK_DIR) or dt.datetime.now(IST).date()
+    for _ in range(7):
+        blob = client.get_bytes(config.PR_ZIP_URL.format(ddmmyy=day.strftime("%d%m%y")), timeout=60)
+        if blob and blob[:2] == b"PK":
+            zf = zipfile.ZipFile(io.BytesIO(blob))
+            name = next((n for n in zf.namelist() if n.lower().startswith("mcap")), None)
+            if name:
+                df = pd.read_csv(io.BytesIO(zf.read(name)), dtype=str)
+                df.columns = [c.strip() for c in df.columns]
+                df = df[df["Series"].str.strip().isin(config.STOCK_SERIES)]
+                out = pd.DataFrame({
+                    "symbol": df["Symbol"].str.strip(),
+                    "mcap_cr": num(df["Market Cap(Rs.)"]) / 1e7,
+                    "shares": num(df["Issue Size"]),
+                }).dropna(subset=["mcap_cr"])
+                out = out.sort_values("mcap_cr", ascending=False).drop_duplicates("symbol")
+                out.insert(0, "date", day.isoformat())
+                META.mkdir(parents=True, exist_ok=True)
+                out.to_csv(META / "mcap.csv", index=False, float_format="%.2f")
+                return {"ok": True, "date": day.isoformat(), "stocks": len(out)}
+        day -= dt.timedelta(days=1)
+    return {"ok": False}
+
+
 def collect_fno(client: NSEClient) -> dict:
     text = client.get_text(config.FNO_LOTS_URL)
     if not text:
@@ -361,6 +388,13 @@ def main() -> int:
             problems.append(f"{label}: {exc}")
             status[label] = {"error": str(exc)}
         status[label]["latest_stored"] = str(last_stored_date(folder))
+
+    print("Market cap ...")
+    try:
+        status["mcap"] = collect_mcap(client)
+    except Exception as exc:  # noqa: BLE001 - keep yesterday's snapshot
+        status["mcap"] = {"ok": False}
+        problems.append(f"Market cap: {type(exc).__name__}: {exc}"[:200])
 
     if args.compact:
         status["compact"] = compact_stocks()

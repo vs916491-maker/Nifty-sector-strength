@@ -15,7 +15,7 @@ inside the leading sectors.
 | 1 | Data source feasibility test | Done - NSE archive files work from GitHub Actions |
 | 2 | Data collector + 2-year backfill | Done - Oct 2024 onwards, updated every weekday evening |
 | 3 | Sector scoring + Relative Rotation Graph (RRG) | Done - `analysis/`, outputs in `site/data/` |
-| 4 | Stock drill-down inside leading sectors | Pending |
+| 4 | Stock drill-down inside leading sectors | Done - `analysis/stocks.py`, output `site/data/stocks.json` |
 | 5 | Website + daily schedule | Pending |
 | 6 | Validation (did top-ranked sectors outperform?) | Pending |
 
@@ -62,6 +62,30 @@ Ranked parts are percentile ranks within the same tab (sectoral or
 thematic). The Relative Rotation Graph uses weekly data: RS-Ratio = relative
 strength vs its 10-week average (x100), RS-Momentum = its week-on-week change
 (x100).
+
+## Stock drill-down (Phase 4)
+
+**Focus sectors** (per tab and benchmark): every sector in the Leading or
+Improving RRG quadrant, plus the top 5 by score.
+
+**Universe:** Nifty Total Market (~750 largest stocks) plus all tracked index
+constituents. Sectoral indices with a clear NSE industry (Auto, Financial
+Services, FMCG, Healthcare, IT, Media, Metal, Realty, Consumer Durables,
+Oil & Gas, Chemicals) also include every other Total Market stock of that
+industry. Bank, Private Bank, PSU Bank, Pharma and all thematic indices use
+their official constituents only.
+
+| Stock score component | Weight | What it measures |
+|---|---|---|
+| RS rating | 35% | Weighted 3/6/9/12-month return, ranked across the universe (1-99) |
+| Trend | 25% | Above 50/150/200-day averages, 50 above 200, 200 rising |
+| Near 52-week high | 15% | 100 at the high, 0 at 25% or more below |
+| Recent RS | 15% | 1-month return, ranked across the universe |
+| Accumulation | 10% | Up-day vs down-day volume (50 days), rising delivery % |
+
+**Picks:** up to 5 per focus sector, with market cap >= Rs 500 cr (NSE daily
+market-cap file), 20-day traded value >= Rs 5 cr, 6+ months of history and
+score >= 60. Flags: F&O, Extended (>25% above 50-DMA or RSI > 78), New listing.
 
 ## Phase 1: data source test
 

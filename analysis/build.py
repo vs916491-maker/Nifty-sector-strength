@@ -5,6 +5,7 @@ Run:  python -m analysis.build
 Writes:
   site/data/sectors.json         latest scores, ranks, RRG tails per benchmark
   site/data/sector_history.json  ~1 year of RS lines, scores and prices
+  site/data/stocks.json          stock scores, sector members, focus-sector picks
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import pandas as pd
 
 from collector import config
 
-from . import data, sectors
+from . import data, sectors, stocks as stock_mod
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
@@ -46,7 +47,8 @@ def series_dict(df: pd.DataFrame) -> dict[str, list]:
 def main() -> int:
     idx = data.index_closes()
     stocks = data.stock_tables()
-    members = {k: list(v["symbol"]) for k, v in data.constituents().items()}
+    cons = data.constituents()
+    members = {k: list(v["symbol"]) for k, v in cons.items()}
     brd = sectors.breadth(stocks["close"], members)
 
     groups = {
@@ -78,6 +80,7 @@ def main() -> int:
         "sma200": series_dict(sectors.sma(px, 200).loc[tail]),
     }
     hist["breadth50"] = series_dict(brd[keys].loc[tail])
+    focus_by_bench = {}
 
     for b in BENCHMARKS:
         res = sectors.analyse(idx, groups, b, brd)
@@ -97,12 +100,19 @@ def main() -> int:
             "score": series_dict(res["score"].loc[tail]),
             "rank": series_dict(res["rank"].loc[tail]),
         }
+        focus_by_bench[b] = stock_mod.focus_sectors(res["rows"], groups)
+
+    stock_out = stock_mod.build(stocks, idx, cons, data.fno_symbols(), data.mcap(),
+                                keys, focus_by_bench)
+    stock_out["as_of"] = as_of
 
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "sectors.json").write_text(json.dumps(clean(out), separators=(",", ":")),
                                       encoding="utf-8")
     (OUT / "sector_history.json").write_text(json.dumps(clean(hist), separators=(",", ":")),
                                              encoding="utf-8")
+    (OUT / "stocks.json").write_text(json.dumps(clean(stock_out), separators=(",", ":")),
+                                     encoding="utf-8")
     top = sorted(out["benchmarks"][BENCHMARKS[0]]["rows"].items(),
                  key=lambda kv: kv[1]["rank"] if kv[0] in groups["Sectoral"] else 99)[:3]
     print(f"Sector scores as of {as_of}. Top sectoral: "

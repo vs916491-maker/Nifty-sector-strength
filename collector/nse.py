@@ -38,6 +38,16 @@ class NSEClient:
         except requests.RequestException:
             pass
 
+    def get_bytes(self, url: str, timeout: int | None = None) -> bytes | None:
+        """Raw bytes of a binary file (e.g. a zip), None on 404/error."""
+        time.sleep(self.pause)
+        self.requests_made += 1
+        try:
+            resp = self.session.get(url, timeout=timeout or self.timeout)
+        except requests.RequestException:
+            return None
+        return resp.content if resp.status_code == 200 else None
+
     def get_text(self, url: str, attempts: int = 3) -> str | None:
         """Return the file's text, or None if it does not exist (404).
 

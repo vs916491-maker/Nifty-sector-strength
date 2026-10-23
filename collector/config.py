@@ -16,6 +16,8 @@ CONSTITUENT_URLS = [
     "https://www.niftyindices.com/IndexConstituent/{slug}.csv",
 ]
 FNO_LOTS_URL = ARCHIVE + "/content/fo/fo_mktlots.csv"
+# Daily "PR" zip; its mcapDDMMYYYY.csv has market cap for every listed stock.
+PR_ZIP_URL = ARCHIVE + "/archives/equities/bhavcopy/pr/PR{ddmmyy}.zip"
 
 # Stock series kept from the bhavcopy (EQ = normal, BE = trade-for-trade).
 STOCK_SERIES = {"EQ", "BE"}

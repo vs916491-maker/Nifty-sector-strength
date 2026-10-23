@@ -99,3 +99,11 @@ def constituents() -> dict[str, pd.DataFrame]:
 def fno_symbols() -> set[str]:
     path = DATA / "meta" / "fno_symbols.csv"
     return set(pd.read_csv(path, dtype=str)["symbol"]) if path.exists() else set()
+
+
+def mcap() -> pd.DataFrame:
+    """Latest market cap snapshot: symbol, mcap_cr (empty if not collected yet)."""
+    path = DATA / "meta" / "mcap.csv"
+    if not path.exists():
+        return pd.DataFrame(columns=["symbol", "mcap_cr"])
+    return pd.read_csv(path, usecols=["symbol", "mcap_cr"])
