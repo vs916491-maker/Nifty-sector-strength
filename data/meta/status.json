@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-23T12:07:06+05:30",
+  "run_at_ist": "2026-10-23T12:09:40+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -161,6 +161,11 @@
     "ok": true,
     "symbols": 219
   },
+  "corporate_actions": {
+    "ok": true,
+    "events": 207,
+    "fetched": 211
+  },
   "universe_size": 767,
   "indices": {
     "days_added": 0,
@@ -178,9 +183,20 @@
     "unreadable_files": [],
     "latest_stored": "2026-10-22"
   },
-  "compact": {
-    "rows_before": 1565992,
-    "rows_after": 360466
+  "price_jump_check": {
+    "big_drops": 83,
+    "explained_by_split_bonus": 74,
+    "unexplained": [
+      "2025-05-22 ABFRL 0.33",
+      "2025-06-16 BAJFINANCE 0.10",
+      "2026-09-02 INDIAGLYCO 0.21",
+      "2025-09-26 NAZARA 0.25",
+      "2026-09-24 POLICYBZR 0.64",
+      "2025-04-15 QUESS 0.49",
+      "2025-04-07 SIEMENS 0.57",
+      "2024-12-06 STAR 0.46",
+      "2026-04-30 VEDL 0.35"
+    ]
   },
   "index_name_match": {
     "NIFTY50": "Nifty 50",
@@ -216,5 +232,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 37
+  "requests_made": 46
 }
