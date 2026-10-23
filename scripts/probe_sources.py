@@ -202,6 +202,11 @@ def main() -> int:
         md.append("- Neither source is fully usable: needs a different approach.")
     text = "\n".join(md)
     print(text)
+    # Also emit the report as a workflow annotation so it is readable via the
+    # GitHub API (check-run annotations) without downloading logs.
+    if os.environ.get("GITHUB_ACTIONS"):
+        enc = text.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+        print(f"::notice title=Data source test ({passed}/{len(checks)} working)::{enc}")
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a", encoding="utf-8") as fh:
