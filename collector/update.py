@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from . import config, corporate_actions
+from . import config, corporate_actions, results_calendar
 from .nse import BlockedError, NSEClient
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -424,6 +424,13 @@ def main() -> int:
         status["corporate_actions"] = {"ok": False}
         problems.append(f"Corporate actions: {type(exc).__name__}: {exc}"[:200])
 
+    print("Results calendar ...")
+    try:
+        status["results_calendar"] = results_calendar.update(client, META / "results_calendar.csv", today)
+    except Exception as exc:  # noqa: BLE001 - optional data, keep the stored list
+        status["results_calendar"] = {"ok": False}
+        problems.append(f"Results calendar: {type(exc).__name__}: {exc}"[:200])
+
     global UNIVERSE
     UNIVERSE = build_universe()
     status["universe_size"] = len(UNIVERSE)
@@ -485,6 +492,8 @@ def main() -> int:
         f"constituent lists {len(status['constituents']) - len(missing_cons)}"
         f"/{len(status['constituents'])}; problems: {len(problems)}"
         f"; split/bonus events {status['corporate_actions'].get('events')}"
+        f"; results calendar {status['results_calendar'].get('upcoming')} upcoming"
+        f" ({status['results_calendar'].get('next_7_days')} in 7 days)"
         f"; big drops explained {status['price_jump_check']['explained_by_split_bonus']}"
         f"/{status['price_jump_check']['big_drops']}"
     )
