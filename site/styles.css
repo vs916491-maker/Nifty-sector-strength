@@ -124,7 +124,8 @@ button, input { font: inherit; color: inherit; }
 .brand { display: flex; flex-direction: column; line-height: 1.2; }
 .brand strong { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .brand span { font-size: 13px; color: var(--muted); }
-.nav { display: flex; gap: 4px; margin-left: auto; }
+.nav { display: flex; gap: 4px; margin-left: auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.nav a { white-space: nowrap; }
 .nav a {
   text-decoration: none; padding: 6px 12px; border-radius: 6px;
   color: var(--ink-2); font-weight: 500;
@@ -323,5 +324,42 @@ th.c { text-align: center; }
 .bar-track b { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
 .bar-track .zero { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
 .bar-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* ---------- my trades ---------- */
+.btn {
+  border: 1px solid var(--hair); background: var(--surface); border-radius: 6px; padding: 6px 12px;
+  cursor: pointer; color: var(--ink); font-weight: 500; font-size: 14px;
+}
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn.small { padding: 3px 9px; font-size: 13px; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+dialog { border: 1px solid var(--hair); border-radius: 12px; padding: 0; background: var(--surface); color: var(--ink); width: min(560px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(10, 15, 20, 0.45); }
+dialog form { padding: 18px 20px 20px; }
+dialog h2 { margin: 0 0 4px; font-size: 18px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 14px 0; }
+.form-grid label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.form-grid label.wide { grid-column: 1 / -1; }
+.form-grid input, .form-grid select, .form-grid textarea, .signin input {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis);
+  border-radius: 6px; padding: 7px 9px; width: 100%;
+}
+.form-grid textarea { min-height: 60px; resize: vertical; }
+.err { color: var(--neg-text); font-size: 13px; }
+.signin { max-width: 420px; margin: 50px auto; display: block; }
+.signin h1 { font-size: 24px; margin: 0 0 6px; }
+.signin label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.signin input[type="checkbox"] { width: 16px; height: 16px; padding: 0; }
+.page-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 20px 0 4px; }
+.page-head h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.page-head .who { font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+.stats.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .stats.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .stats.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat .v.pos { color: var(--pos-text); }
+.stat .v.neg { color: var(--neg-text); }
+.alert { font-size: 12px; color: var(--neg-text); display: block; white-space: normal; max-width: 220px; }
+.rule { font-size: 12px; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

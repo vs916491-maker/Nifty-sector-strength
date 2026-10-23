@@ -25,6 +25,7 @@
         <a href="#/" data-page="overview">Overview</a>
         <a href="#/picks" data-page="picks">Stock picks</a>
         <a href="#/record" data-page="record">Track record</a>
+        <a href="#/trades" data-page="trades">My Trades</a>
       </nav>
       <button class="theme-btn" id="theme" type="button" aria-label="Switch light or dark theme">Theme</button>
     </div>
@@ -39,6 +40,10 @@
     <p>For personal analysis only. Scores and picks are screening results from a rules-based model, not investment advice.</p>
   </footer>
 
+  <dialog id="dlg" aria-label="Trade"></dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

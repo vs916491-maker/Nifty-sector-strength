@@ -1,6 +1,7 @@
 /* Sector Strength - static site.
    Reads JSON produced by analysis/build.py from ./data/ and renders three
-   views with hash routing: #/ (overview), #/sector/KEY, #/picks, #/record.
+   views with hash routing: #/ (overview), #/sector/KEY, #/picks, #/record,
+   #/trades (My Trades: private trade log in Supabase, needs sign-in).
    Charts are hand-built SVG so the page has no dependencies. */
 "use strict";
 
@@ -17,6 +18,7 @@ const state = {
   capital: 1000000,          // position sizing
   riskPct: 1,
   maxPos: 20,                // max % of capital in one stock
+  pendingTrade: null,        // "I took this trade" waiting for sign-in
 };
 const cache = {};
 const QUAD = ["Leading", "Weakening", "Lagging", "Improving"];
@@ -839,7 +841,7 @@ function setupsSection(st, sec, rg) {
         h("th", { class: "l" }, "Grade"), h("th", { class: "l" }, "Stock"), h("th", { class: "l" }, "Setup"),
         h("th", { class: "l" }, "Sector"), h("th", null, "Close"), h("th", null, "Buy"), h("th", null, "Stop"),
         h("th", null, "Risk"), h("th", null, "Qty"), h("th", null, "Position"),
-        h("th", { title: "RS rating 1–99 across ~750 stocks" }, "RS"), h("th", null, "Score"), h("th", { class: "l" }, "Flags"))),
+        h("th", { title: "RS rating 1–99 across ~750 stocks" }, "RS"), h("th", null, "Score"), h("th", { class: "l" }, "Flags"), h("th", null, ""))),
       h("tbody", null, rows.map((x) => {
         const entry = x.trigger ?? x.entry_ref;
         const ps = positionSize(entry, x.stop);
@@ -860,7 +862,11 @@ function setupsSection(st, sec, rg) {
           h("td", null, fmtNum(x.score)),
           h("td", { class: "l" }, x.rs_at_high ? h("span", { class: "flag" }, "RS at high") : null,
             x.fno ? h("span", { class: "flag fno" }, "F&O") : null,
-            (x.flags || []).includes("Extended") ? h("span", { class: "flag" }, "Extended") : null));
+            (x.flags || []).includes("Extended") ? h("span", { class: "flag" }, "Extended") : null),
+          h("td", null, h("button", { class: "btn small", type: "button", onclick: () => takeTrade({
+            symbol: x.sym, entry: +entry.toFixed(2), stop: +x.stop.toFixed(2), qty: ps.qty || null, exit_rule: "system",
+            setup: x.name, grade: x.grade, sector: secs[0] || null, source: "setup",
+            notes: `${x.name} setup on ${fmtDate(st.as_of)}${x.trigger ? `; buy above ${fmtNum(x.trigger, 2)}` : ""}.` }) }, "I took this trade")));
       })));
     box.replaceChildren(
       h("div", { class: "section-head" }, h("h2", null, "Positional setups today"),
@@ -1049,12 +1055,284 @@ async function viewRecord(app) {
         h("p", { class: "note" }, "Here the column is Nifty 500's own return, not the excess over it."))));
 }
 
+
+// ------------------------------------------------------------------ My Trades (private, Supabase)
+const CFG = window.SS_CONFIG || {};
+const SB_READY = Boolean(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
+const sb = SB_READY ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+}) : null;
+const COST_PCT = 0.25;              // default delivery costs when no charges are entered
+const RULES = {
+  system: "Setup rules: stop, target, first close below 50-day, or 120 sessions",
+  stop_target: "Stop or target only",
+  manual: "I close it myself",
+};
+const inr = (v) => (isNum(v) ? `${v < 0 ? "−" : ""}₹${Math.abs(v).toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "–");
+const todayISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+async function session() {
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  return data.session;
+}
+async function tradesQuery(fn) {
+  const { data, error } = await fn(sb.from("cash_trades"));
+  if (error) throw new Error(/relation .* does not exist|cash_trades/i.test(error.message)
+    ? "the cash_trades table is not set up yet (run supabase/003_cash_trades.sql in Supabase)" : error.message);
+  return data;
+}
+function netOf(t, exit) {
+  const qty = +t.qty, entry = +t.entry;
+  const cost = isNum(t.charges) ? t.charges : entry * qty * COST_PCT / 100;
+  const net = (exit - entry) * qty - cost;
+  return { pnl_inr: +net.toFixed(2), net_pct: +((net / (entry * qty)) * 100).toFixed(3) };
+}
+
+/* Open the add/edit dialog. If not signed in, remember the trade and go to My Trades. */
+async function takeTrade(prefill) {
+  if (!(await session())) { state.pendingTrade = prefill; location.hash = "#/trades"; return; }
+  tradeDialog(prefill, () => { if (location.hash !== "#/trades") location.hash = "#/trades"; else route(); });
+}
+
+function tradeDialog(prefill, onSaved) {
+  const dlg = document.getElementById("dlg");
+  const t = { exit_rule: "system", entry_date: todayISO(), ...prefill };
+  const field = (label, name, attrs = {}, wide = false) =>
+    h("label", { class: wide ? "wide" : null }, label, h("input", { name, value: t[name] ?? "", ...attrs }));
+  const err = h("p", { class: "err", role: "alert" });
+  const form = h("form", { method: "dialog" },
+    h("h2", null, t.id ? `Edit ${t.symbol}` : t.symbol ? `I took this trade: ${t.symbol}` : "Add a trade"),
+    h("p", { class: "note" }, `Cash-market buy (delivery). P&L = (exit − buy) × quantity − charges; if you leave charges empty, ${COST_PCT}% of the buy value is deducted.`),
+    h("div", { class: "form-grid" },
+      field("Symbol (NSE)", "symbol", { required: true, autocapitalize: "characters" }),
+      field("Buy date", "entry_date", { type: "date", required: true }),
+      field("Buy price", "entry", { type: "number", step: "any", min: "0", required: true }),
+      field("Quantity", "qty", { type: "number", step: "1", min: "1", required: true }),
+      field("Stop", "stop", { type: "number", step: "any", min: "0" }),
+      field("Target (optional)", "target", { type: "number", step: "any", min: "0" }),
+      h("label", { class: "wide" }, "Exit rule", h("select", { name: "exit_rule" },
+        Object.entries(RULES).map(([k, l]) => h("option", { value: k, selected: t.exit_rule === k || null }, l)))),
+      field("Setup", "setup", { placeholder: "e.g. Breakout, Pullback" }),
+      field("Charges ₹ (optional)", "charges", { type: "number", step: "any", min: "0" }),
+      h("label", { class: "wide" }, "Notes", h("textarea", { name: "notes" }, t.notes || ""))),
+    err,
+    h("div", { class: "btn-row" },
+      h("button", { class: "btn primary", type: "submit" }, "Save trade"),
+      h("button", { class: "btn", type: "button", onclick: () => dlg.close() }, "Cancel")));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(form).entries());
+    const row = {
+      symbol: v.symbol.trim().toUpperCase(), entry_date: v.entry_date, entry: +v.entry, qty: +v.qty,
+      stop: v.stop ? +v.stop : null, target: v.target ? +v.target : null, exit_rule: v.exit_rule,
+      setup: v.setup || null, charges: v.charges !== "" ? +v.charges : null, notes: v.notes || null,
+    };
+    if (row.stop && row.stop >= row.entry) { err.textContent = "The stop must be below the buy price."; return; }
+    try {
+      if (t.id) {
+        if (t.status === "closed" && isNum(t.exit)) Object.assign(row, netOf({ ...t, ...row }, t.exit));
+        await tradesQuery((q) => q.update(row).eq("id", t.id));
+      } else {
+        await tradesQuery((q) => q.insert({ ...row, status: "open", grade: t.grade || null, sector: t.sector || null, source: t.source || "manual" }));
+      }
+      dlg.close();
+      onSaved && onSaved();
+    } catch (ex) { err.textContent = `Could not save: ${ex.message}`; }
+  });
+  dlg.replaceChildren(form);
+  if (!dlg.open) dlg.showModal();
+}
+
+function closeTradeDialog(t, onSaved) {
+  const dlg = document.getElementById("dlg");
+  const err = h("p", { class: "err", role: "alert" });
+  const form = h("form", { method: "dialog" },
+    h("h2", null, `Sell ${t.symbol}`),
+    h("p", { class: "note" }, `Bought ${fmtNum(t.qty)} at ${fmtNum(t.entry, 2)} on ${fmtDate(t.entry_date)}.`),
+    h("div", { class: "form-grid" },
+      h("label", null, "Sell price", h("input", { name: "exit", type: "number", step: "any", min: "0", required: true, value: t.last_close ?? "" })),
+      h("label", null, "Sell date", h("input", { name: "exit_date", type: "date", value: todayISO(), required: true })),
+      h("label", { class: "wide" }, "Reason", h("input", { name: "exit_reason", value: "Sold by hand" }))),
+    err,
+    h("div", { class: "btn-row" }, h("button", { class: "btn primary", type: "submit" }, "Close trade"),
+      h("button", { class: "btn", type: "button", onclick: () => dlg.close() }, "Cancel")));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(form).entries());
+    const exit = +v.exit;
+    try {
+      await tradesQuery((q) => q.update({ exit, exit_date: v.exit_date, exit_reason: v.exit_reason, status: "closed", alert: null, ...netOf(t, exit) }).eq("id", t.id));
+      dlg.close(); onSaved && onSaved();
+    } catch (ex) { err.textContent = ex.message; }
+  });
+  dlg.replaceChildren(form);
+  dlg.showModal();
+}
+
+function signInView(app, message) {
+  const email = h("input", { type: "email", value: CFG.email || "", required: true, autocomplete: "username" });
+  const pass = h("input", { type: "password", required: true, autocomplete: "current-password" });
+  const msg = h("p", { class: "err", role: "status" }, message || "");
+  const btn = h("button", { class: "btn primary", type: "submit" }, "Sign in");
+  const form = h("form", { class: "panel signin" },
+    h("h1", null, "My Trades"),
+    h("p", { class: "sub" }, "Your trade log is private. Sign in with the same email and password as the F&O Desk; you stay signed in on this device."),
+    h("label", null, "Email", email), h("div", { style: "height:10px" }),
+    h("label", null, "Password", pass),
+    h("label", { class: "toggle", style: "margin-top:8px;display:inline-flex" },
+      h("input", { type: "checkbox", onchange: (e) => { pass.type = e.target.checked ? "text" : "password"; } }), "Show password"),
+    h("div", { style: "height:14px" }), btn, msg);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    btn.disabled = true; msg.textContent = "";
+    const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: pass.value });
+    btn.disabled = false;
+    if (error) msg.textContent = /invalid/i.test(error.message) ? "Email or password is wrong." : `Could not sign in: ${error.message}`;
+    else route();
+  });
+  app.replaceChildren(form);
+}
+
+function bigStat(k, v, d, cls) {
+  return h("div", { class: "stat" }, h("div", { class: "k" }, k), h("div", { class: `v ${cls || ""}` }, v), d ? h("div", { class: "d" }, d) : null);
+}
+
+async function viewTrades(app) {
+  if (!SB_READY) { app.replaceChildren(h("p", { class: "empty" }, "My Trades needs the database settings in config.js.")); return; }
+  const ses = await session();
+  if (!ses) return signInView(app);
+  if (CFG.email && ses.user.email.toLowerCase() !== CFG.email.toLowerCase()) return signInView(app, `${ses.user.email} does not have access.`);
+  if (state.pendingTrade) { const p = state.pendingTrade; state.pendingTrade = null; setTimeout(() => takeTrade(p), 0); }
+
+  const [rows, st] = await Promise.all([
+    tradesQuery((q) => q.select("*").order("entry_date", { ascending: false }).order("id", { ascending: false })),
+    load("stocks").catch(() => null)]);
+  const rerender = () => route();
+  const open = rows.filter((t) => t.status === "open"), closed = rows.filter((t) => t.status === "closed");
+
+  // latest price: the evening check's close, or the site's own close if that is newer
+  const price = (t) => {
+    const s = st?.stocks?.[t.symbol];
+    if (s && isNum(s.close) && (!t.last_date || st.as_of > t.last_date)) return { px: s.close, date: st.as_of };
+    return { px: t.last_close, date: t.last_date };
+  };
+  let invested = 0, openPnl = 0;
+  for (const t of open) {
+    const { px } = price(t);
+    invested += t.entry * t.qty;
+    if (isNum(px)) openPnl += (px - t.entry) * t.qty;
+  }
+  const pcts = closed.map((t) => t.net_pct).filter(isNum);
+  const wins = pcts.filter((v) => v > 0), losses = pcts.filter((v) => v <= 0);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const inrClosed = closed.map((t) => t.pnl_inr).filter(isNum);
+  const invClosed = sum(closed.map((t) => t.entry * t.qty));
+  const pf = losses.length ? sum(wins) / Math.abs(sum(losses)) : null;
+  const stats = h("div", { class: "stats six" },
+    bigStat("Closed trades", fmtNum(closed.length), `${open.length} open`),
+    bigStat("Win rate", pcts.length ? `${Math.round((wins.length / pcts.length) * 100)}%` : "–", `${wins.length} won, ${losses.length} lost`),
+    bigStat("Net P&L in ₹", inrClosed.length ? inr(sum(inrClosed)) : "–", "Closed trades, after charges", sign(sum(inrClosed))),
+    bigStat("Net P&L in %", invClosed ? fmtPct((sum(inrClosed) / invClosed) * 100, 2) : "–", "Of the money put into closed trades", sign(sum(inrClosed))),
+    bigStat("Avg win / loss", wins.length || losses.length ? `${fmtPct(wins.length ? sum(wins) / wins.length : null)} / ${fmtPct(losses.length ? sum(losses) / losses.length : null)}` : "–",
+      isNum(pf) ? `Profit factor ${pf.toFixed(2)}` : "Net % per trade"),
+    bigStat("Open positions", inr(invested), open.length ? h("span", { class: sign(openPnl) }, `Unrealised ${inr(openPnl)} (${fmtPct(invested ? (openPnl / invested) * 100 : null)})`) : "Nothing open"));
+
+  // month by month, by the month the trade was closed
+  const months = {};
+  for (const t of closed) {
+    const m = String(t.exit_date || t.entry_date).slice(0, 7);
+    const g = (months[m] ||= { n: 0, w: 0, inr: 0, inv: 0, pcts: [] });
+    g.n += 1; g.inv += t.entry * t.qty;
+    if (isNum(t.net_pct)) { g.pcts.push(t.net_pct); if (t.net_pct > 0) g.w += 1; }
+    if (isNum(t.pnl_inr)) g.inr += t.pnl_inr;
+  }
+  const monthTable = h("table", { class: "static" },
+    h("thead", null, h("tr", null, ["Month", "Trades", "Won / lost", "Win rate", "Net ₹", "Net %", "Avg per trade"].map((c, i) => h("th", { class: i ? null : "l" }, c)))),
+    h("tbody", null, Object.keys(months).sort().reverse().map((m) => {
+      const g = months[m];
+      return h("tr", null, h("td", { class: "l name" }, fmtDate(`${m}-01`, { month: "short", year: "numeric" })), h("td", null, g.n),
+        h("td", null, `${g.w} / ${g.n - g.w}`), h("td", null, g.pcts.length ? `${Math.round((g.w / g.pcts.length) * 100)}%` : "–"),
+        h("td", { class: sign(g.inr) }, inr(g.inr)), h("td", { class: sign(g.inr) }, g.inv ? fmtPct((g.inr / g.inv) * 100, 2) : "–"),
+        h("td", { class: sign(sum(g.pcts)) }, g.pcts.length ? fmtPct(sum(g.pcts) / g.pcts.length, 2) : "–"));
+    })));
+
+  const actions = (t, isOpen) => h("td", { class: "l" }, h("div", { class: "btn-row" },
+    isOpen ? h("button", { class: "btn small", type: "button", onclick: () => closeTradeDialog(t, rerender) }, "Sell") : null,
+    h("button", { class: "btn small", type: "button", onclick: () => tradeDialog(t, rerender) }, "Edit"),
+    h("button", { class: "btn small", type: "button", onclick: async () => {
+      if (confirm(`Delete the ${t.symbol} trade? This cannot be undone.`)) { await tradesQuery((q) => q.delete().eq("id", t.id)); rerender(); }
+    } }, "Delete")));
+  const nameCell = (t) => h("td", { class: "l name" }, t.symbol,
+    h("small", null, [t.setup, t.grade ? `grade ${t.grade}` : null, t.sector].filter(Boolean).join(" · ") || "manual"));
+
+  const openTable = h("table", { class: "static" },
+    h("thead", null, h("tr", null, ["Bought", "Stock", "Qty", "Buy", "Last close", "P&L ₹", "P&L %", "Stop", "To stop", "50-day avg", "Held", "Exit rule", ""].map((c, i) =>
+      h("th", { class: [0, 1, 11, 12].includes(i) ? "l" : null }, c)))),
+    h("tbody", null, open.map((t) => {
+      const { px, date } = price(t);
+      const p = isNum(px) ? (px - t.entry) * t.qty : null;
+      return h("tr", null,
+        h("td", { class: "l" }, fmtDate(t.entry_date, { day: "numeric", month: "short", year: "2-digit" })),
+        nameCell(t), h("td", null, fmtNum(t.qty)), h("td", null, fmtNum(t.entry, 2)),
+        h("td", { title: date ? `Close on ${fmtDate(date)}` : null }, fmtNum(px, 2)),
+        h("td", { class: sign(p) }, inr(p)), h("td", { class: sign(p) }, isNum(px) ? fmtPct((px / t.entry - 1) * 100, 2) : "–"),
+        h("td", null, fmtNum(t.stop, 2)),
+        h("td", null, isNum(px) && isNum(t.stop) ? fmtPct((t.stop / px - 1) * 100, 1) : "–"),
+        h("td", { class: isNum(px) && isNum(t.sma50) && px < t.sma50 ? "neg" : null }, fmtNum(t.sma50, 2)),
+        h("td", null, isNum(t.sessions_held) ? `${t.sessions_held}d` : "–"),
+        h("td", { class: "l" }, h("span", { class: "rule" }, { system: "Setup rules", stop_target: "Stop/target", manual: "Manual" }[t.exit_rule] || "–"),
+          t.alert ? h("span", { class: "alert" }, t.alert) : null),
+        actions(t, true));
+    })));
+  const closedTable = h("table", { class: "static" },
+    h("thead", null, h("tr", null, ["Bought", "Sold", "Stock", "Qty", "Buy", "Sell", "Net ₹", "Net %", "Days", "Why", ""].map((c, i) =>
+      h("th", { class: [0, 1, 2, 9, 10].includes(i) ? "l" : null }, c)))),
+    h("tbody", null, closed.map((t) => {
+      const days = t.exit_date ? Math.round((new Date(t.exit_date) - new Date(t.entry_date)) / 86400000) : null;
+      return h("tr", null,
+        h("td", { class: "l" }, fmtDate(t.entry_date, { day: "numeric", month: "short", year: "2-digit" })),
+        h("td", { class: "l" }, fmtDate(t.exit_date, { day: "numeric", month: "short", year: "2-digit" })),
+        nameCell(t), h("td", null, fmtNum(t.qty)), h("td", null, fmtNum(t.entry, 2)), h("td", null, fmtNum(t.exit, 2)),
+        h("td", { class: sign(t.pnl_inr) }, inr(t.pnl_inr)), h("td", { class: sign(t.net_pct) }, fmtPct(t.net_pct, 2)),
+        h("td", null, isNum(days) ? fmtNum(days) : "–"), h("td", { class: "l muted" }, t.exit_reason || "–"),
+        actions(t, false));
+    })));
+
+  app.replaceChildren(
+    h("div", { class: "page-head" }, h("h1", null, "My Trades"),
+      h("div", { class: "who" }, h("span", null, ses.user.email),
+        h("button", { class: "btn small", type: "button", onclick: async () => { await sb.auth.signOut(); route(); } }, "Sign out"))),
+    h("p", { class: "sub", style: "color:var(--muted);font-size:13px;margin:0 0 10px" },
+      "Cash-market positional trades, saved privately. Every weekday evening open trades get the latest close and 50-day average, and are closed automatically when their exit rule says so."),
+    h("div", { class: "filters" },
+      h("button", { class: "btn primary", type: "button", onclick: () => tradeDialog({}, rerender) }, "Add a trade"),
+      h("button", { class: "btn", type: "button", onclick: () => exportTrades(rows) }, "Export CSV"),
+      h("span", { class: "note", style: "margin:0" }, "Or use “I took this trade” on a setup in Stock picks.")),
+    stats,
+    h("section", null, h("div", { class: "section-head" }, h("h2", null, `Open (${open.length})`)),
+      open.length ? h("div", { class: "panel" }, h("div", { class: "table-scroll" }, openTable)) : h("p", { class: "empty" }, "No open trades.")),
+    Object.keys(months).length ? h("section", null, h("div", { class: "section-head" }, h("h2", null, "Month by month"), h("p", null, "Closed trades, by the month they were sold")),
+      h("div", { class: "panel" }, h("div", { class: "table-scroll" }, monthTable))) : null,
+    h("section", null, h("div", { class: "section-head" }, h("h2", null, `Closed (${closed.length})`)),
+      closed.length ? h("div", { class: "panel" }, h("div", { class: "table-scroll" }, closedTable)) : h("p", { class: "empty" }, "No closed trades yet.")));
+}
+
+function exportTrades(rows) {
+  const cols = ["symbol", "entry_date", "entry", "qty", "stop", "target", "exit_rule", "setup", "grade", "sector", "charges",
+    "status", "exit_date", "exit", "exit_reason", "pnl_inr", "net_pct", "last_close", "last_date", "notes"];
+  const esc = (v) => (v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
+  const a = h("a", { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: "my_trades_cash.csv" });
+  document.body.append(a); a.click(); a.remove();
+}
+
 // ------------------------------------------------------------------ routing
 async function route() {
   const app = document.getElementById("app");
   const hash = location.hash || "#/";
   const m = hash.match(/^#\/sector\/([A-Z0-9]+)/);
-  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : "overview";
+  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : hash.startsWith("#/trades") ? "trades" : "overview";
   document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.page === page));
   document.querySelectorAll(".nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); });
   try {
@@ -1063,9 +1341,12 @@ async function route() {
     if (page === "sector") await viewSector(app, m[1]);
     else if (page === "picks") await viewPicks(app);
     else if (page === "record") await viewRecord(app);
+    else if (page === "trades") await viewTrades(app);
     else await viewOverview(app);
   } catch (err) {
-    app.replaceChildren(h("p", { class: "empty" }, `The data could not be loaded (${err.message}). Refresh the page; if it persists, the daily update may have failed.`));
+    app.replaceChildren(h("p", { class: "empty" }, page === "trades"
+      ? `Your trades could not be loaded: ${err.message}. Refresh to try again.`
+      : `The data could not be loaded (${err.message}). Refresh the page; if it persists, the daily update may have failed.`));
   }
 }
 window.addEventListener("hashchange", () => { window.scrollTo(0, 0); route(); });

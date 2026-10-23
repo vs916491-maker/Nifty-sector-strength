@@ -20,6 +20,7 @@ inside the leading sectors.
 | 6 | Validation (did top-ranked sectors outperform?) | Done - `analysis/validate.py`, *Track record* page |
 | 7 | Market regime light + positional setups | Done - `analysis/regime.py`, `analysis/setups.py` |
 | 8 | Next leaders + sector rotation in corrections | Done - `analysis/leaders.py` |
+| 9 | My Trades (private cash-trade log) | Done - `site/app.js` (#/trades), checker in the fno-desk repo |
 
 ## Data (Phase 2)
 
@@ -128,6 +129,20 @@ http://localhost:8000.
 - **Track record** (`analysis/validate.py`, `site/data/validation.json`):
   forward returns of sector ranks, stock score bands, the picks, every
   historical setup, and the regime light, rebuilt every evening.
+
+## My Trades (Phase 9)
+
+`#/trades` is a private log of cash-market positional trades, stored in the
+same Supabase database as the F&O Desk (table `cash_trades`, created by
+`fno-desk/supabase/003_cash_trades.sql`; only the owner's email can read or
+write it). Sign in with the F&O Desk email and password. "I took this trade"
+on a setup in Stock picks pre-fills the buy price, stop, quantity and setup.
+
+Every weekday evening the fno-desk workflow *Cash trades check* updates each
+open trade's last close, 50-day average and sessions held, and closes it by
+its exit rule: setup rules (stop, target, first close below the 50-day
+average, 120 sessions), stop/target only, or manual. P&L = (sell - buy) x
+quantity - charges (0.25% of the buy value if no charges are entered).
 
 ## Phase 1: data source test
 
