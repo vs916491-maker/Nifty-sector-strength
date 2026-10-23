@@ -7,6 +7,8 @@ Writes:
   site/data/sector_history.json  ~1 year of RS lines, scores and prices
   site/data/stocks.json          stock scores, sector members, focus-sector picks
   site/data/breadth.json         market breadth: A/D line, % above DMAs, highs/lows
+  site/data/regime.json          market regime light and its history
+  site/data/validation.json      Phase 6: how the model's choices did afterwards
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ import pandas as pd
 
 from collector import config
 
-from . import breadth as breadth_mod, data, sectors, stocks as stock_mod
+from . import breadth as breadth_mod, data, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
@@ -82,9 +84,11 @@ def main() -> int:
     }
     hist["breadth50"] = series_dict(brd[keys].loc[tail])
     focus_by_bench = {}
+    res_by_bench = {}
 
     for b in BENCHMARKS:
         res = sectors.analyse(idx, groups, b, brd)
+        res_by_bench[b] = res
         bench = idx[b]
         out["benchmarks"][b] = {
             "name": names[b],
@@ -107,6 +111,24 @@ def main() -> int:
                                 keys, focus_by_bench)
     stock_out["as_of"] = as_of
 
+    # regime light, positional setups and the Phase 6 track record
+    rg = regime_mod.series(idx, stocks["close"], cons)
+    ind = setups_mod.indicators(stocks, idx["NIFTY500"])
+    sets = setups_mod.detect(ind)
+    last = ind["close"].index[-1]
+    eligible = {s for s, v in stock_out["stocks"].items() if v.get("eligible")}
+    for sym, v in stock_out["stocks"].items():
+        if sym in ind["close"].columns and bool(ind["rs_at_high"].at[last, sym]):
+            v["flags"].append("RS at high")
+    stock_out["setups"] = setups_mod.today(ind, sets, stock_out["stocks"], eligible)
+    stock_out["leaders"] = setups_mod.leaders(ind, eligible)
+    stock_out["setup_rules"] = {"trend": setups_mod.TREND, "breakout": setups_mod.BREAKOUT,
+                                "tight": setups_mod.TIGHT, "pullback": setups_mod.PULLBACK,
+                                "stop": setups_mod.STOP, "exit": setups_mod.EXIT,
+                                "a_grade_rs": setups_mod.A_GRADE_RS}
+    trades = setups_mod.simulate(ind, sets, rg["light"])
+    val = validate.build(idx, stocks, cons, groups, res_by_bench["NIFTY500"], ind, trades, rg)
+
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "sectors.json").write_text(json.dumps(clean(out), separators=(",", ":")),
                                       encoding="utf-8")
@@ -115,6 +137,9 @@ def main() -> int:
     mkt = breadth_mod.build(idx, stocks["close"], cons)
     (OUT / "breadth.json").write_text(json.dumps(clean(mkt), separators=(",", ":")),
                                       encoding="utf-8")
+    (OUT / "regime.json").write_text(json.dumps(clean(regime_mod.latest(rg)), separators=(",", ":")),
+                                     encoding="utf-8")
+    (OUT / "validation.json").write_text(json.dumps(clean(val), separators=(",", ":")), encoding="utf-8")
     (OUT / "stocks.json").write_text(json.dumps(clean(stock_out), separators=(",", ":")),
                                      encoding="utf-8")
     top = sorted(out["benchmarks"][BENCHMARKS[0]]["rows"].items(),

@@ -67,21 +67,21 @@ def adjustment_table() -> pd.DataFrame:
 def stock_tables() -> dict[str, pd.DataFrame]:
     """Wide tables of stock data, prices adjusted for splits/bonuses/demergers.
 
-    Returns close, high, volume, deliv_pct (dates x symbols). Volume is
+    Returns open, high, low, close, volume, deliv_pct (dates x symbols). Volume is
     adjusted inversely so volume x price stays comparable.
     """
     raw = _read_months(DATA / "stocks",
-                       ["date", "symbol", "high", "close", "volume", "deliv_pct"])
+                       ["date", "symbol", "open", "high", "low", "close", "volume", "deliv_pct"])
     raw["date"] = pd.to_datetime(raw["date"])
     out = {c: raw.pivot(index="date", columns="symbol", values=c).sort_index()
-           for c in ("close", "high", "volume", "deliv_pct")}
+           for c in ("open", "high", "low", "close", "volume", "deliv_pct")}
     # cumulative factor per symbol: product of factors of all LATER ex-dates
     adj = pd.DataFrame(1.0, index=out["close"].index, columns=out["close"].columns)
     for r in adjustment_table().itertuples():
         if r.symbol in adj.columns:
             adj.loc[adj.index < r.ex_date, r.symbol] *= r.factor
-    out["close"] = out["close"] * adj
-    out["high"] = out["high"] * adj
+    for c in ("open", "high", "low", "close"):
+        out[c] = out[c] * adj
     out["volume"] = out["volume"] / adj
     return out
 

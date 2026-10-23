@@ -17,7 +17,8 @@ inside the leading sectors.
 | 3 | Sector scoring + Relative Rotation Graph (RRG) | Done - `analysis/`, outputs in `site/data/` |
 | 4 | Stock drill-down inside leading sectors | Done - `analysis/stocks.py`, output `site/data/stocks.json` |
 | 5 | Website + daily schedule | Done - `site/`, published to GitHub Pages after every update |
-| 6 | Validation (did top-ranked sectors outperform?) | Pending |
+| 6 | Validation (did top-ranked sectors outperform?) | Done - `analysis/validate.py`, *Track record* page |
+| 7 | Market regime light + positional setups | Done - `analysis/regime.py`, `analysis/setups.py` |
 
 ## Data (Phase 2)
 
@@ -104,6 +105,22 @@ GitHub Pages whenever the site changes and after every *Daily data update*.
 
 Preview locally: `cd site && python -m http.server`, then open
 http://localhost:8000.
+
+## Market regime, setups and track record (Phases 6-7)
+
+- **Regime light** (`analysis/regime.py`, Overview): six checks on Nifty 500's
+  trend and breadth. Green 5-6, Amber 3-4, Red 0-2. Washout (<20% of stocks
+  above their 50-day average) and breadth thrust (<20% to >50% within 15
+  sessions) are flagged separately.
+- **Positional setups** (`analysis/setups.py`, Stock picks): breakout, tight
+  base and pullback to the 50-day average, for stocks in a long-term uptrend
+  with RS rating 70+. Stop at the recent swing low (max 8%), exit on the first
+  close below the 50-day average or after 120 sessions. Grade A = RS rating
+  90+ or RS line at a 52-week high. Position size from capital, risk per
+  trade and a max-per-stock cap (saved in the browser).
+- **Track record** (`analysis/validate.py`, `site/data/validation.json`):
+  forward returns of sector ranks, stock score bands, the picks, every
+  historical setup, and the regime light, rebuilt every evening.
 
 ## Phase 1: data source test
 

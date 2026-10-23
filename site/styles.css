@@ -262,4 +262,56 @@ footer p { margin: 4px 0; max-width: 80ch; }
 .loading { padding: 60px 0; color: var(--muted); }
 .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
 
+/* ---------- regime ---------- */
+.regime { margin-bottom: 18px; }
+.regime-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.regime-head .sub { margin-bottom: 8px; }
+.light { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; }
+.light i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.light.big { font-size: 18px; padding: 6px 14px; border: 1px solid var(--hair); border-radius: 999px; background: var(--surface-2); }
+.light.big i { width: 14px; height: 14px; }
+.guidance { font-size: 15px; margin: 0 0 10px; max-width: 75ch; }
+.checks { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; font-size: 13.5px; }
+@media (max-width: 700px) { .checks { grid-template-columns: minmax(0, 1fr); } }
+.checks li { display: flex; gap: 8px; align-items: baseline; color: var(--ink-2); }
+.checks .mark { font-weight: 700; width: 1em; text-align: center; }
+.checks li.ok .mark { color: var(--pos-text); }
+.checks li.no .mark { color: var(--neg-text); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.note { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; max-width: 90ch; }
+.note.good b { color: var(--pos-text); }
+.strip svg { display: block; width: 100%; }
+.regime-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; padding: 8px 12px; background: var(--surface-2); border-radius: 8px; }
+
+/* ---------- setups ---------- */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-bottom: 10px; }
+.field { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); }
+.field input { width: 120px; padding: 5px 8px; border: 1px solid var(--hair); border-radius: 6px; background: var(--surface); font-variant-numeric: tabular-nums; }
+.grade { display: inline-block; min-width: 22px; text-align: center; font-weight: 700; font-size: 12.5px; border-radius: 4px; padding: 1px 6px; }
+.grade.gA { background: var(--ink); color: var(--surface); }
+.grade.gB { border: 1px solid var(--hair); color: var(--ink-2); }
+td.small { font-size: 12.5px; color: var(--ink-2); }
+details.rules { margin-top: 12px; font-size: 13.5px; color: var(--ink-2); }
+details.rules summary { cursor: pointer; color: var(--ink); font-weight: 500; }
+details.rules ul { margin: 8px 0 0; padding-left: 18px; max-width: 95ch; }
+details.rules li { margin: 3px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; gap: 8px; align-items: baseline; border: 1px solid var(--hair); border-radius: 8px; padding: 5px 10px; font-size: 13px; background: var(--surface-2); }
+.chip span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip em { font-style: normal; font-size: 11px; font-weight: 600; }
+
+/* ---------- track record ---------- */
+table.static tbody tr { cursor: default; }
+th.c { text-align: center; }
+.findings { margin: 8px 0 0; padding-left: 18px; max-width: 95ch; }
+.findings li { margin: 6px 0; }
+.h3 { font-size: 14px; font-weight: 600; margin: 18px 0 6px; }
+.bars { display: grid; gap: 10px; margin-top: 6px; }
+.bar-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 64px; align-items: center; gap: 10px; font-size: 13.5px; }
+.bar-label { color: var(--ink-2); }
+.bar-track { position: relative; height: 14px; background: var(--grid); border-radius: 4px; }
+.bar-track b { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.bar-track .zero { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+.bar-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

@@ -1,6 +1,6 @@
 /* Sector Strength - static site.
    Reads JSON produced by analysis/build.py from ./data/ and renders three
-   views with hash routing: #/ (overview), #/sector/KEY, #/picks.
+   views with hash routing: #/ (overview), #/sector/KEY, #/picks, #/record.
    Charts are hand-built SVG so the page has no dependencies. */
 "use strict";
 
@@ -13,9 +13,14 @@ const state = {
   tail: 4,                   // RRG tail length in weeks
   pickSort: { key: "score", dir: -1 },
   memberSort: { key: "score", dir: -1 },
+  aOnly: true,               // setups: A-grade only
+  capital: 1000000,          // position sizing
+  riskPct: 1,
+  maxPos: 20,                // max % of capital in one stock
 };
 const cache = {};
 const QUAD = ["Leading", "Weakening", "Lagging", "Improving"];
+const LVAR = { Green: "--q-leading", Amber: "--q-weakening", Red: "--q-lagging" };
 const QVAR = { Leading: "--q-leading", Weakening: "--q-weakening", Lagging: "--q-lagging", Improving: "--q-improving" };
 
 function store(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage off */ } }
@@ -24,6 +29,10 @@ function recall(key) { try { return localStorage.getItem(key); } catch (e) { ret
   const b = recall("ss-bench"); if (b === "NIFTY500" || b === "NIFTY50") state.bench = b;
   const g = recall("ss-group"); if (g === "Sectoral" || g === "Thematic") state.group = g;
   state.fnoOnly = recall("ss-fno") === "1";
+  state.aOnly = recall("ss-aonly") !== "0";
+  const cap = parseFloat(recall("ss-capital")); if (cap > 0) state.capital = cap;
+  const rp = parseFloat(recall("ss-risk")); if (rp > 0 && rp <= 10) state.riskPct = rp;
+  const mp = parseFloat(recall("ss-maxpos")); if (mp > 0 && mp <= 100) state.maxPos = mp;
 })();
 
 async function load(name) {
@@ -62,7 +71,11 @@ function s(tag, attrs, ...kids) {
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const isNum = (v) => typeof v === "number" && isFinite(v);
 const fmtNum = (v, d = 0) => (isNum(v) ? v.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }) : "–");
-const fmtPct = (v, d = 1, signed = true) => (isNum(v) ? `${signed && v > 0 ? "+" : ""}${v.toFixed(d)}%` : "–");
+const fmtPct = (v, d = 1, signed = true) => {
+  if (!isNum(v)) return "–";
+  if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0;          // no "-0.0%"
+  return `${signed && v > 0 ? "+" : ""}${v.toFixed(d)}%`;
+};
 const sign = (v) => (isNum(v) ? (v > 0 ? "pos" : v < 0 ? "neg" : "") : "muted");
 function fmtDate(iso, opts = { day: "numeric", month: "short", year: "numeric" }) {
   if (!iso) return "–";
@@ -355,9 +368,94 @@ function rrgChart(keys, tails, names, onPick) {
   return box;
 }
 
+
+// ------------------------------------------------------------------ market regime
+function lightChip(l, big) {
+  if (!l) return h("span", { class: "muted" }, "–");
+  return h("span", { class: `light${big ? " big" : ""}` }, h("i", { style: `background:var(${LVAR[l]})` }), l);
+}
+
+/* One coloured cell per session: the light's history, with a hover tooltip. */
+function regimeStrip(hist) {
+  const plot = h("div", { class: "plot strip" });
+  const tip = h("div", { class: "tip", role: "status" });
+  plot.append(tip);
+  const D = hist.dates, n = D.length;
+  function draw(W) {
+    plot.querySelector("svg")?.remove();
+    const H = 46, m = { l: 0, r: 0, t: 4, b: 18 }, ih = H - m.t - m.b;
+    const cw = W / n;
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+      "aria-label": `Regime light over the last ${n} sessions` });
+    let i0 = 0;
+    for (let i = 1; i <= n; i++) {        // merge runs of the same light into one rect
+      if (i < n && hist.light[i] === hist.light[i0]) continue;
+      const l = hist.light[i0];
+      svg.append(s("rect", { x: i0 * cw, y: m.t, width: Math.max(1, (i - i0) * cw - (i < n ? 1 : 0)), height: ih,
+        rx: 2, fill: l ? css(LVAR[l]) : css("--grid") }));
+      i0 = i;
+    }
+    for (const i of monthTicks(D, Math.max(3, Math.floor(W / 70)))) {
+      svg.append(s("text", { x: i * cw, y: H - 4, "text-anchor": "middle", class: "axis-text" }, fmtDate(D[i], { month: "short" })));
+    }
+    const cursor = s("rect", { y: m.t - 2, width: Math.max(2, cw), height: ih + 4, fill: "none", stroke: css("--ink"), "stroke-width": 1.5, visibility: "hidden", rx: 1 });
+    const hit = s("rect", { x: 0, y: 0, width: W, height: H, fill: "transparent", tabindex: 0 });
+    svg.append(cursor, hit);
+    let cur = n - 1;
+    const show = (i) => {
+      i = Math.max(0, Math.min(n - 1, i)); cur = i;
+      cursor.setAttribute("x", i * cw); cursor.setAttribute("visibility", "visible");
+      tip.replaceChildren(h("div", { class: "t-date" }, fmtDate(D[i])),
+        h("div", { class: "t-row" }, h("span", null, "Light"), h("b", null, hist.light[i] || "–")),
+        h("div", { class: "t-row" }, h("span", null, "Checks passed"), h("b", null, isNum(hist.points[i]) ? `${hist.points[i]} of 6` : "–")));
+      tip.style.display = "block";
+      const px = i * cw, tw = tip.offsetWidth;
+      tip.style.left = `${px + 12 + tw > W ? px - tw - 12 : px + 12}px`;
+      tip.style.top = "-6px";
+    };
+    const hide = () => { cursor.setAttribute("visibility", "hidden"); tip.style.display = "none"; };
+    hit.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); show(Math.floor(((e.clientX - r.left) / r.width) * n)); });
+    hit.addEventListener("pointerleave", hide);
+    hit.addEventListener("focus", () => show(cur));
+    hit.addEventListener("blur", hide);
+    hit.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { show(cur - 1); e.preventDefault(); }
+      if (e.key === "ArrowRight") { show(cur + 1); e.preventDefault(); }
+    });
+    plot.prepend(svg);
+  }
+  onResize(plot, draw);
+  return plot;
+}
+
+function regimePanel(rg) {
+  if (!rg || !rg.light) return null;
+  const notes = [];
+  if (rg.washout) notes.push(h("p", { class: "note" }, h("b", null, "Washout. "),
+    `Only ${Math.round(rg.pct_above_50)}% of Nifty 500 stocks are above their 50-day average (since ${fmtDate(rg.washout_since, { day: "numeric", month: "short" })}). `,
+    `Washouts often come before a recovery. The signal to watch is a breadth thrust: the share jumping from under 20% to over 50% within 15 sessions.`,
+    rg.last_thrust ? ` The last one was on ${fmtDate(rg.last_thrust)}.` : ""));
+  if (rg.thrust_active) notes.push(h("p", { class: "note good" }, h("b", null, "Breadth thrust. "),
+    `The share of stocks above their 50-day average jumped from under 20% to over 50% within 15 sessions (${fmtDate(rg.last_thrust, { day: "numeric", month: "short" })}). This often marks the start of a new advance, before the light turns green.`));
+  return h("div", { class: "panel regime" },
+    h("div", { class: "regime-head" },
+      h("div", null, h("h2", null, "Market regime"),
+        h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`)),
+      lightChip(rg.light, true)),
+    h("p", { class: "guidance" }, rg.guidance),
+    h("ul", { class: "checks" }, rg.checks.map((c) => h("li", { class: c.ok ? "ok" : "no" },
+      h("span", { class: "mark", "aria-hidden": "true" }, c.ok ? "✓" : "✕"), h("span", { class: "sr" }, c.ok ? "Yes: " : "No: "), c.label))),
+    notes,
+    h("div", { class: "chart", style: "margin-top:12px" },
+      h("p", null, `The light over the last ${rg.history.dates.length} sessions`),
+      regimeStrip(rg.history),
+      h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l)))),
+    h("p", { class: "note" }, "How the light and the picks have done since 2025: ", h("a", { href: "#/record" }, "Track record"), "."));
+}
+
 // ------------------------------------------------------------------ views
 async function viewOverview(app) {
-  const [sec, br, st] = await Promise.all([load("sectors"), load("breadth"), load("stocks")]);
+  const [sec, br, st, rg] = await Promise.all([load("sectors"), load("breadth"), load("stocks"), load("regime")]);
   const B = sec.benchmarks[state.bench];
   const keys = sec.groups[state.group];
   const rows = keys.map((k) => ({ key: k, ...B.rows[k] })).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
@@ -463,7 +561,7 @@ async function viewOverview(app) {
         h("span", null, Math.round(st.stocks[sym].score)), st.stocks[sym].fno ? h("span", { class: "flag fno" }, "F&O") : null)))
         : h("p", { class: "empty" }, "No stock passes the filters right now.")))) : h("p", { class: "empty" }, "No focus sectors today."));
 
-  app.replaceChildren(filtersRow(), lede, main, breadth, focusSec);
+  app.replaceChildren(filtersRow(), lede, regimePanel(rg), main, breadth, focusSec);
   if (state.sel) highlight(null);
 }
 
@@ -577,7 +675,7 @@ function stockTable(rows, cols, sort, rerender, showVia, leadCols = []) {
 }
 
 async function viewPicks(app) {
-  const [sec, st] = await Promise.all([load("sectors"), load("stocks")]);
+  const [sec, st, rg] = await Promise.all([load("sectors"), load("stocks"), load("regime")]);
   const focus = (st.focus[state.bench] || {})[state.group] || [];
   const B = sec.benchmarks[state.bench];
   const holder = h("div", null);
@@ -605,14 +703,239 @@ async function viewPicks(app) {
     holder.replaceChildren(
       h("div", { class: "panel" },
         h("h2", null, state.group === "Sectoral" ? "Top stocks in focus sectors" : "Top stocks in focus themes"),
-        h("p", { class: "sub" }, `Up to ${st.picks_per_sector} per sector with score ${st.filters.min_pick_score}+, market cap ₹${st.filters.min_mcap_cr} cr+, traded value ₹${st.filters.min_traded_value_cr} cr+ a day. Focus sectors are those Leading or Improving vs ${B.name}, plus the top 5.`),
+        h("p", { class: "sub" }, `Up to ${st.picks_per_sector} per sector with score ${st.filters.min_pick_score}+, market cap ₹${st.filters.min_mcap_cr} cr+, traded value ₹${st.filters.min_traded_value_cr} cr+ a day. Focus sectors are those Leading or Improving vs ${B.name}, plus the top 5. A strong stock is a candidate, not a buy, until it forms a setup.`),
         rows.length ? h("div", { class: "table-scroll" }, stockTable(rows, cols, state.pickSort, render, false, lead)) : h("p", { class: "empty" }, "No stocks match these filters.")));
   };
   render();
+  const setupsBox = setupsSection(st, sec, rg);
   app.replaceChildren(
     filtersRow(h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: state.fnoOnly || null,
-      onchange: (e) => { state.fnoOnly = e.target.checked; store("ss-fno", state.fnoOnly ? "1" : "0"); render(); } }), "F&O stocks only")),
-    h("div", { style: "height:10px" }), holder);
+      onchange: (e) => { state.fnoOnly = e.target.checked; store("ss-fno", state.fnoOnly ? "1" : "0"); route(); } }), "F&O stocks only")),
+    setupsBox, leadersSection(st, sec), h("div", { style: "height:12px" }), holder);
+}
+
+// ------------------------------------------------------------------ positional setups
+const SETUP_HELP = {
+  Breakout: "Closed above its 40-session high on 1.5x+ normal volume. Buy near the close, but not more than 5% above the pivot.",
+  "Tight base": "Coiling near its highs on drying volume. Buy only if it trades above the trigger price within the next 10 sessions.",
+  Pullback: "A recent leader that pulled back to its rising 50-day average on light volume and turned up. Buy near the close.",
+};
+const SETUP_NAME = { breakout: "Breakout", tight: "Tight base", pullback: "Pullback" };
+
+function positionSize(entry, stop) {
+  const risk = entry - stop;
+  if (!(risk > 0)) return { qty: null };
+  let qty = Math.floor((state.capital * state.riskPct / 100) / risk);
+  let capped = false;
+  const maxValue = state.capital * state.maxPos / 100;
+  if (qty * entry > maxValue) { qty = Math.floor(maxValue / entry); capped = true; }
+  return { qty, value: qty * entry, pct: (qty * entry / state.capital) * 100, capped };
+}
+
+function setupsSection(st, sec, rg) {
+  const box = h("section", null);
+  const rules = st.setup_rules || {};
+  box.refresh = () => {
+    let rows = (st.setups || []).map((x) => ({ ...x, ...st.stocks[x.symbol], sym: x.symbol, name: SETUP_NAME[x.setup] }));
+    const total = rows.length, aCount = rows.filter((x) => x.grade === "A").length;
+    if (state.aOnly) rows = rows.filter((x) => x.grade === "A");
+    if (state.fnoOnly) rows = rows.filter((x) => x.fno);
+    const num = (label, key, value, attrs) => h("label", { class: "field" }, h("span", null, label),
+      h("input", { type: "number", value, inputmode: "decimal", ...attrs,
+        onchange: (e) => { const v = parseFloat(e.target.value); if (v > 0) { state[key] = v; store({ capital: "ss-capital", riskPct: "ss-risk", maxPos: "ss-maxpos" }[key], v); box.refresh(); } } }));
+    const table = h("table", null,
+      h("thead", null, h("tr", null,
+        h("th", { class: "l" }, "Grade"), h("th", { class: "l" }, "Stock"), h("th", { class: "l" }, "Setup"),
+        h("th", { class: "l" }, "Sector"), h("th", null, "Close"), h("th", null, "Buy"), h("th", null, "Stop"),
+        h("th", null, "Risk"), h("th", null, "Qty"), h("th", null, "Position"),
+        h("th", { title: "RS rating 1–99 across ~750 stocks" }, "RS"), h("th", null, "Score"), h("th", { class: "l" }, "Flags"))),
+      h("tbody", null, rows.map((x) => {
+        const entry = x.trigger ?? x.entry_ref;
+        const ps = positionSize(entry, x.stop);
+        const secs = (x.sectors || []).map((k) => sec.names[k]).filter(Boolean);
+        return h("tr", { style: "cursor:default" },
+          h("td", { class: "l" }, h("span", { class: `grade g${x.grade}` }, x.grade)),
+          h("td", { class: "l name" }, x.sym, h("small", null, x.company || x.industry || "")),
+          h("td", { class: "l", title: SETUP_HELP[x.name] }, x.name),
+          h("td", { class: "l small" }, secs.slice(0, 2).join(", ") || "–"),
+          h("td", null, fmtNum(x.close, 2)),
+          h("td", null, x.trigger ? h("span", null, h("span", { class: "muted" }, "above "), fmtNum(x.trigger, 2)) : fmtNum(x.entry_ref, 2)),
+          h("td", null, fmtNum(x.stop, 2)),
+          h("td", null, fmtPct(x.risk_pct, 1, false)),
+          h("td", null, ps.qty != null ? fmtNum(ps.qty) : "–"),
+          h("td", { title: ps.capped ? `Capped at ${state.maxPos}% of capital; the risk is then below ${state.riskPct}%` : null },
+            ps.qty != null ? [`₹${fmtCompact(ps.value)} · ${ps.pct.toFixed(0)}%`, ps.capped ? h("sup", null, " cap") : null] : "–"),
+          h("td", null, fmtNum(x.rs_rating)),
+          h("td", null, fmtNum(x.score)),
+          h("td", { class: "l" }, x.rs_at_high ? h("span", { class: "flag" }, "RS at high") : null,
+            x.fno ? h("span", { class: "flag fno" }, "F&O") : null,
+            (x.flags || []).includes("Extended") ? h("span", { class: "flag" }, "Extended") : null));
+      })));
+    box.replaceChildren(
+      h("div", { class: "section-head" }, h("h2", null, "Positional setups today"),
+        h("p", null, `For holding weeks to months · ${fmtDate(st.as_of)}`)),
+      h("div", { class: "panel" },
+        rg && rg.light ? h("p", { class: "regime-line" }, lightChip(rg.light), ` ${rg.guidance} `, h("a", { href: "#/" }, "Market regime")) : null,
+        h("div", { class: "controls" },
+          h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: state.aOnly || null,
+            onchange: (e) => { state.aOnly = e.target.checked; store("ss-aonly", state.aOnly ? "1" : "0"); box.refresh(); } }),
+            `A-grade only (${aCount} of ${total})`),
+          num("Capital ₹", "capital", state.capital, { min: 1000, step: 1000 }),
+          num("Risk per trade %", "riskPct", state.riskPct, { min: 0.1, max: 10, step: 0.1 }),
+          num("Max per stock %", "maxPos", state.maxPos, { min: 1, max: 100, step: 1 })),
+        rows.length ? h("div", { class: "table-scroll" }, table)
+          : h("p", { class: "empty" }, total ? "No setups match these filters. Untick A-grade only to see the rest." : "No stock formed a positional setup today."),
+        h("p", { class: "note" }, `Qty risks ${state.riskPct}% of your capital (₹${fmtCompact(state.capital * state.riskPct / 100)}) between the buy price and the stop, with no stock above ${state.maxPos}% of capital ("cap" marks a trimmed position). Grade A = RS rating ${rules.a_grade_rs ?? 90}+ or relative strength at a 52-week high; in the `,
+          h("a", { href: "#/record" }, "track record"), " only A-grade setups made money."),
+        h("details", { class: "rules" }, h("summary", null, "Setup, stop and exit rules"),
+          h("ul", null,
+            h("li", null, h("b", null, "All setups: "), `long-term uptrend (above the 200-day average, 50-day above 200-day, 200-day rising), within ${rules.trend?.near_high_pct ?? 25}% of the 52-week high, RS rating ${rules.trend?.min_rs_rating ?? 70}+.`),
+            Object.entries(SETUP_HELP).map(([k, v]) => h("li", null, h("b", null, `${k}: `), v)),
+            h("li", null, h("b", null, "Stop: "), `below the recent swing low (10 sessions; 5 sessions or the 50-day average for a pullback), never more than ${rules.stop?.max_risk ?? 8}% below the buy price.`),
+            h("li", null, h("b", null, "Exit: "), `the stop, or the first close below the 50-day average, or after ${rules.exit?.max_days ?? 120} sessions. No fixed target, so winners can run for months.`)))));
+  };
+  box.refresh();
+  return box;
+}
+
+function leadersSection(st, sec) {
+  const syms = (st.leaders || []).filter((x) => !state.fnoOnly || st.stocks[x]?.fno);
+  return h("section", null,
+    h("div", { class: "section-head" }, h("h2", null, "Holding up best"),
+      h("p", null, "Relative strength at a 52-week high, price within 15% of its high: the watchlist for when the market turns")),
+    h("div", { class: "panel" },
+      syms.length ? h("div", { class: "chips" }, syms.map((x) => {
+        const v = st.stocks[x] || {};
+        return h("span", { class: "chip", title: `${v.company || ""} · RS rating ${fmtNum(v.rs_rating)} · ${fmtPct(v.pct_from_52w_high)} from high` },
+          h("b", null, x), h("span", null, `RS ${fmtNum(v.rs_rating)}`), h("span", null, fmtPct(v.pct_from_52w_high)), v.fno ? h("em", null, "F&O") : null);
+      })) : h("p", { class: "empty" }, "No stock meets this today.")));
+}
+
+
+// ------------------------------------------------------------------ track record (Phase 6)
+const fmtX = (v) => (isNum(v) ? v.toFixed(2) : "–");
+function aggCells(a) {
+  return a && a.n ? [h("td", { class: sign(a.avg) }, fmtPct(a.avg)), h("td", null, `${Math.round(a.hit)}%`)]
+    : [h("td", { class: "muted" }, "–"), h("td", { class: "muted" }, "–")];
+}
+function fwdTable(firstCol, groups, labels) {
+  // groups: {"1M": {label: agg}, "3M": {...}}
+  return h("table", { class: "static" },
+    h("thead", null,
+      h("tr", null, h("th", { class: "l", rowspan: 2 }, firstCol), h("th", { colspan: 2, class: "c" }, "Next 1 month"), h("th", { colspan: 2, class: "c" }, "Next 3 months"), h("th", { rowspan: 2 }, "Samples")),
+      h("tr", null, h("th", null, "Avg vs Nifty 500"), h("th", null, "Beat it"), h("th", null, "Avg vs Nifty 500"), h("th", null, "Beat it"))),
+    h("tbody", null, labels.map((l) => h("tr", null,
+      h("td", { class: "l name" }, l), aggCells(groups["1M"][l]), aggCells(groups["3M"][l]),
+      h("td", { class: "muted" }, fmtNum(groups["3M"][l]?.n ?? groups["1M"][l]?.n))))));
+}
+function setupRows(entries) {
+  return h("table", { class: "static" },
+    h("thead", null, h("tr", null, h("th", { class: "l" }, "Group"), h("th", null, "Trades"), h("th", null, "Win rate"),
+      h("th", null, "Avg win"), h("th", null, "Avg loss"), h("th", { title: "Total gains ÷ total losses; above 1 means it made money" }, "Profit factor"),
+      h("th", null, "Avg per trade"), h("th", null, "Avg days held"))),
+    h("tbody", null, entries.map(([label, b]) => h("tr", null,
+      h("td", { class: "l name" }, label),
+      h("td", null, fmtNum(b?.closed)),
+      h("td", null, isNum(b?.win_rate) ? `${Math.round(b.win_rate)}%` : "–"),
+      h("td", { class: "pos" }, fmtPct(b?.avg_win)), h("td", { class: "neg" }, fmtPct(b?.avg_loss)),
+      h("td", { class: isNum(b?.profit_factor) ? (b.profit_factor >= 1 ? "pos" : "neg") : "muted" }, fmtX(b?.profit_factor)),
+      h("td", { class: sign(b?.avg_return) }, fmtPct(b?.avg_return)),
+      h("td", null, fmtNum(b?.avg_days))))));
+}
+
+/* Horizontal bars, one per group, single measure (avg excess return). */
+function barList(items, fmt) {
+  const max = Math.max(1e-9, ...items.map((x) => Math.abs(x.value || 0)));
+  const hasNeg = items.some((x) => x.value < 0);
+  return h("div", { class: "bars", role: "list" }, items.map((x) => {
+    const w = (Math.abs(x.value || 0) / max) * (hasNeg ? 50 : 100);
+    const left = hasNeg ? (x.value >= 0 ? 50 : 50 - w) : 0;
+    return h("div", { class: "bar-row", role: "listitem", title: x.tip || "" },
+      h("span", { class: "bar-label" }, x.label),
+      h("span", { class: "bar-track" }, hasNeg ? h("i", { class: "zero" }) : null,
+        h("b", { style: `left:${left}%;width:${Math.max(0.5, w)}%;background:${x.value >= 0 ? css("--up") : css("--down")}` })),
+      h("span", { class: `bar-val ${sign(x.value)}` }, fmt(x.value)));
+  }));
+}
+
+async function viewRecord(app) {
+  const v = await load("validation");
+  const SB = v.stocks.by_score, SP = v.stocks.picks, SS = v.setups.summary || {}, G = v.setups.by_grade || {};
+  const secS = v.sectors.Sectoral, secT = v.sectors.Thematic;
+  const R = v.regime;
+  const pf = (b) => (isNum(b?.profit_factor) ? b.profit_factor.toFixed(2) : "–");
+
+  // plain-English findings, computed from the numbers
+  const find = [];
+  const top = SB["3M"]["80+"], low = SB["3M"]["Below 40"];
+  if (top && low) find.push(`Stocks scoring 80+ beat Nifty 500 by ${fmtPct(top.avg)} on average over the next 3 months, against ${fmtPct(low.avg)} for stocks scoring below 40. The stock score works, modestly.`);
+  if (SP["3M"]) find.push(`The picks beat Nifty 500 by ${fmtPct(SP["3M"].Picks.avg)} over 3 months (${Math.round(SP["3M"].Picks.hit)}% of them beat it), against ${fmtPct(SP["3M"]["All other stocks"].avg)} for all other stocks.`);
+  if (G.A && G.B) find.push(`A-grade setups ${G.A.profit_factor >= 1 ? "made" : "lost"} money (profit factor ${pf(G.A)}, ${fmtPct(G.A.avg_return)} per trade); B-grade setups ${G.B.profit_factor >= 1 ? "made" : "lost"} money (${pf(G.B)}, ${fmtPct(G.B.avg_return)}). Only ${Math.round(G.A.win_rate)}% of A-grade trades won, but the average win (${fmtPct(G.A.avg_win)}) was ${(G.A.avg_win / -G.A.avg_loss).toFixed(1)} times the average loss (${fmtPct(G.A.avg_loss)}), so expect several small losses for each big winner.`);
+  const t3 = secS["3M"].by_rank["Top 3"], b3 = secS["3M"].by_rank["Bottom 3"];
+  find.push(`The top 3 sectoral indices beat Nifty 500 by ${fmtPct(t3.avg)} over 3 months, the bottom 3 by ${fmtPct(b3.avg)}. A small edge. For thematic indices and for the RRG quadrants the edge is not reliable.`);
+  find.push(`The regime light did not help in this period: Nifty 500 averaged ${fmtPct(R["3M"].Green.avg, 1)} in the 3 months after Green days and ${fmtPct(R["3M"].Red.avg, 1)} after Red days. The test window has no long bear market, which is when such a filter earns its keep, so treat the light as a sizing guide, not a buy/sell signal.`);
+
+  const quarters = (v.setups.by_quarter || []).map((q) => [q.quarter, q.all, q.A]);
+  const recent = v.setups.recent || [];
+
+  app.replaceChildren(
+    h("div", { class: "sector-title", style: "margin-top:18px" }, h("h1", null, "Track record")),
+    h("p", { class: "lede" }, `How the model's choices did afterwards, using only data available on each test date. Tests run from ${fmtDate(v.period.tests_from)} to ${fmtDate(v.as_of)}; the latest 1–3 months can't be scored yet.`),
+    h("div", { class: "panel" }, h("h2", null, "What the test says"),
+      h("ul", { class: "findings" }, find.map((f) => h("li", null, f))),
+      h("p", { class: "note" }, "Limits: about 17 months of tests, covering one rally, one correction and one recovery but no long bear market. The universe is today's Nifty Total Market list, so stocks that dropped out are missing; that flatters every group equally, which is why the comparisons between groups matter more than the absolute numbers. Past results do not guarantee future ones.")),
+
+    h("section", null, h("div", { class: "section-head" }, h("h2", null, "Stock score"), h("p", null, `Every stock scored on the first session of each month (${v.stocks.rebalances} months)`)),
+      h("div", { class: "grid-main" },
+        h("div", { class: "panel" }, h("h2", null, "Next 3 months vs Nifty 500, by score"),
+          h("p", { class: "sub" }, "Average return minus Nifty 500's"),
+          barList(["80+", "60–80", "40–60", "Below 40"].map((b) => ({ label: `Score ${b}`, value: SB["3M"][b]?.avg, tip: `${SB["3M"][b]?.n} samples, ${Math.round(SB["3M"][b]?.hit)}% beat Nifty 500` })), (x) => fmtPct(x))),
+        h("div", { class: "panel" }, h("h2", null, "Detail"),
+          h("div", { class: "table-scroll" }, fwdTable("Score", SB, ["80+", "60–80", "40–60", "Below 40"])),
+          h("div", { class: "table-scroll", style: "margin-top:14px" }, fwdTable("Group", SP, ["Picks", "All other stocks"]))))),
+
+    h("section", null, h("div", { class: "section-head" }, h("h2", null, "Positional setups"),
+      h("p", null, SS.first_signal ? `${fmtNum(SS.all?.trades)} setups, ${fmtDate(SS.first_signal)} to ${fmtDate(SS.last_signal)}, walked forward with the stop and exit rules` : "")),
+      h("div", { class: "panel" },
+        h("div", { class: "table-scroll" }, setupRows([
+          ["Grade A", G.A], ["Grade B", G.B], ["All setups", SS.all],
+          ...Object.entries(SS.by_setup || {}).map(([k, b]) => [k, b]),
+          ...["Green", "Amber", "Red"].map((l) => [`Light ${l} at signal`, SS.by_light?.[l]])])),
+        h("p", { class: "note" }, "Profit factor = total gains ÷ total losses. Each trade buys at the next open (tight base: when the price clears the trigger), exits at the stop, the first close below the 50-day average, or after 120 sessions. No costs included; about 0.2–0.3% per round trip for delivery trades."),
+        h("h3", { class: "h3" }, "By quarter of the signal"),
+        h("div", { class: "table-scroll" }, h("table", { class: "static" },
+          h("thead", null, h("tr", null, h("th", { class: "l" }, "Quarter"), h("th", null, "All: trades"), h("th", null, "All: profit factor"), h("th", null, "All: avg"), h("th", null, "A-grade: trades"), h("th", null, "A-grade: profit factor"), h("th", null, "A-grade: avg"))),
+          h("tbody", null, quarters.map(([q, a, b]) => h("tr", null, h("td", { class: "l name" }, q),
+            h("td", null, fmtNum(a?.closed)), h("td", { class: isNum(a?.profit_factor) ? (a.profit_factor >= 1 ? "pos" : "neg") : "muted" }, pf(a)), h("td", { class: sign(a?.avg_return) }, fmtPct(a?.avg_return)),
+            h("td", null, fmtNum(b?.closed)), h("td", { class: isNum(b?.profit_factor) ? (b.profit_factor >= 1 ? "pos" : "neg") : "muted" }, pf(b)), h("td", { class: sign(b?.avg_return) }, fmtPct(b?.avg_return))))))),
+        h("p", { class: "note" }, "Results swing with the market: strong after a breadth thrust (2026 Q2), weak in a falling market (2026 Q3–Q4). The latest quarter only holds trades that have already closed, which are mostly losers; the winners are still open."),
+        h("h3", { class: "h3" }, "Latest closed trades"),
+        h("div", { class: "table-scroll" }, h("table", { class: "static" },
+          h("thead", null, h("tr", null, ["Stock", "Setup", "Grade", "Bought", "Sold", "Buy", "Stop", "Exit", "Return", "R", "Days", "Why it closed"].map((c, i) => h("th", { class: i < 3 || i === 11 ? "l" : null }, c)))),
+          h("tbody", null, recent.map((x) => h("tr", null,
+            h("td", { class: "l name" }, x.symbol), h("td", { class: "l" }, x.setup), h("td", { class: "l" }, h("span", { class: `grade g${x.grade}` }, x.grade)),
+            h("td", null, fmtDate(x.entry_date, { day: "numeric", month: "short", year: "2-digit" })), h("td", null, fmtDate(x.exit_date, { day: "numeric", month: "short", year: "2-digit" })),
+            h("td", null, fmtNum(x.entry, 2)), h("td", null, fmtNum(x.stop, 2)), h("td", null, fmtNum(x.exit, 2)),
+            h("td", { class: sign(x.return_pct) }, fmtPct(x.return_pct)), h("td", { class: sign(x.r) }, fmtX(x.r)),
+            h("td", null, fmtNum(x.days)), h("td", { class: "l muted" }, x.exit_reason)))))))),
+
+    h("section", null, h("div", { class: "section-head" }, h("h2", null, "Sector ranking"), h("p", null, "Tested every 5th session")),
+      h("div", { class: "grid-main" },
+        h("div", { class: "panel" }, h("h2", null, "Sectoral indices"),
+          h("div", { class: "table-scroll" }, fwdTable("Rank that day", { "1M": secS["1M"].by_rank, "3M": secS["3M"].by_rank }, ["Top 3", "Middle", "Bottom 3"])),
+          h("div", { class: "table-scroll", style: "margin-top:14px" }, fwdTable("RRG quadrant", { "1M": secS["1M"].by_quadrant, "3M": secS["3M"].by_quadrant }, ["Leading", "Improving", "Weakening", "Lagging"]))),
+        h("div", { class: "panel" }, h("h2", null, "Thematic indices"),
+          h("div", { class: "table-scroll" }, fwdTable("Rank that day", { "1M": secT["1M"].by_rank, "3M": secT["3M"].by_rank }, ["Top 3", "Middle", "Bottom 3"])),
+          h("div", { class: "table-scroll", style: "margin-top:14px" }, fwdTable("RRG quadrant", { "1M": secT["1M"].by_quadrant, "3M": secT["3M"].by_quadrant }, ["Leading", "Improving", "Weakening", "Lagging"]))))),
+
+    h("section", null, h("div", { class: "section-head" }, h("h2", null, "Regime light"), h("p", null, "Nifty 500's own return after each light")),
+      h("div", { class: "panel" },
+        h("div", { class: "table-scroll" }, h("table", { class: "static" },
+          h("thead", null, h("tr", null, h("th", { class: "l" }, "Light"), h("th", null, "Days"), h("th", null, "Next 1 month"), h("th", null, "Rose"), h("th", null, "Next 3 months"), h("th", null, "Rose"))),
+          h("tbody", null, ["Green", "Amber", "Red"].map((l) => h("tr", null, h("td", { class: "l" }, lightChip(l)), h("td", null, fmtNum(R.days[l])),
+            h("td", { class: sign(R["1M"][l]?.avg) }, fmtPct(R["1M"][l]?.avg)), h("td", null, isNum(R["1M"][l]?.hit) ? `${Math.round(R["1M"][l].hit)}%` : "–"),
+            h("td", { class: sign(R["3M"][l]?.avg) }, fmtPct(R["3M"][l]?.avg)), h("td", null, isNum(R["3M"][l]?.hit) ? `${Math.round(R["3M"][l].hit)}%` : "–")))))),
+        h("p", { class: "note" }, "Here the column is Nifty 500's own return, not the excess over it."))));
 }
 
 // ------------------------------------------------------------------ routing
@@ -620,7 +943,7 @@ async function route() {
   const app = document.getElementById("app");
   const hash = location.hash || "#/";
   const m = hash.match(/^#\/sector\/([A-Z0-9]+)/);
-  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : "overview";
+  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : "overview";
   document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.page === page));
   document.querySelectorAll(".nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); });
   try {
@@ -628,6 +951,7 @@ async function route() {
     document.getElementById("asof").textContent = `NSE end-of-day data, ${fmtDate(sec.as_of)}`;
     if (page === "sector") await viewSector(app, m[1]);
     else if (page === "picks") await viewPicks(app);
+    else if (page === "record") await viewRecord(app);
     else await viewOverview(app);
   } catch (err) {
     app.replaceChildren(h("p", { class: "empty" }, `The data could not be loaded (${err.message}). Refresh the page; if it persists, the daily update may have failed.`));
