@@ -1,11 +1,4 @@
-"""Probe: can we get market cap and industry for every NSE stock for free?
-
-Checks (from GitHub Actions):
-  1. NSE quote API per stock (industry classification + issued shares)
-  2. NSE daily "PR" zip (may contain a market-cap file for all companies)
-  3. NSE equity master list (EQUITY_L.csv)
-Reports via a workflow annotation.
-"""
+"""Probe: market-cap coverage, and BSE's scrip list as an industry source."""
 
 from __future__ import annotations
 
@@ -15,53 +8,59 @@ import json
 import os
 import zipfile
 
+import pandas as pd
+
 from collector.nse import NSEClient
 
 client = NSEClient(pause=0.6)
 lines = []
 
-# 1. Quote API
-for sym in ["RELIANCE", "TATAELXSI", "KPITTECH"]:
-    try:
-        text = client.get_text(f"https://www.nseindia.com/api/quote-equity?symbol={sym}")
-        d = json.loads(text) if text else {}
-        ind = d.get("industryInfo", {})
-        info = d.get("securityInfo", {})
-        price = d.get("priceInfo", {})
-        lines.append(f"quote {sym}: industryInfo={ind} issuedSize={info.get('issuedSize')} "
-                     f"lastPrice={price.get('lastPrice')} keys={list(d)[:8]}")
-    except Exception as exc:  # noqa: BLE001
-        lines.append(f"quote {sym}: FAIL {type(exc).__name__}: {exc}"[:200])
-
-# 2. PR zip for the last few weekdays
+# Market cap snapshot from the NSE PR zip
 day = dt.date.today() - dt.timedelta(days=1)
+mcap = None
 for _ in range(5):
     while day.weekday() >= 5:
         day -= dt.timedelta(days=1)
     url = f"https://nsearchives.nseindia.com/archives/equities/bhavcopy/pr/PR{day:%d%m%y}.zip"
-    try:
-        resp = client.session.get(url, timeout=30)
-        if resp.status_code == 200 and resp.content[:2] == b"PK":
-            zf = zipfile.ZipFile(io.BytesIO(resp.content))
-            names = zf.namelist()
-            lines.append(f"PR zip {day}: {names}")
-            mc = [n for n in names if "mcap" in n.lower()]
-            if mc:
-                head = zf.read(mc[0]).decode("utf-8", "replace").splitlines()
-                lines.append(f"  {mc[0]}: rows={len(head)} | {head[0][:200]} | {head[1][:200]}")
-            break
-        lines.append(f"PR zip {day}: HTTP {resp.status_code}")
-    except Exception as exc:  # noqa: BLE001
-        lines.append(f"PR zip {day}: FAIL {exc}"[:200])
+    resp = client.session.get(url, timeout=30)
+    if resp.status_code == 200 and resp.content[:2] == b"PK":
+        zf = zipfile.ZipFile(io.BytesIO(resp.content))
+        name = next(n for n in zf.namelist() if n.lower().startswith("mcap"))
+        mcap = pd.read_csv(io.BytesIO(zf.read(name)), dtype=str)
+        break
     day -= dt.timedelta(days=1)
 
-# 3. Equity master list
-try:
-    text = client.get_text("https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv")
-    rows = text.splitlines() if text else []
-    lines.append(f"EQUITY_L: rows={len(rows)} | {rows[0][:200] if rows else ''}")
-except Exception as exc:  # noqa: BLE001
-    lines.append(f"EQUITY_L: FAIL {exc}"[:200])
+tm = set(pd.read_csv("data/constituents/TOTALMKT.csv", dtype=str)["symbol"])
+if mcap is not None:
+    mcap.columns = [c.strip() for c in mcap.columns]
+    mcap = mcap[mcap["Series"].str.strip().isin(["EQ", "BE"])]
+    mcap["sym"] = mcap["Symbol"].str.strip()
+    mcap["cr"] = pd.to_numeric(mcap["Market Cap(Rs.)"].str.strip(), errors="coerce") / 1e7
+    above = mcap[mcap["cr"] >= 500]
+    in_tm = mcap[mcap["sym"].isin(tm)]
+    lines.append(f"Stocks (EQ/BE): {len(mcap)}; mcap >= 500 cr: {len(above)}; "
+                 f"of these outside Total Market: {(~above['sym'].isin(tm)).sum()}")
+    lines.append(f"Smallest Total Market stock: {in_tm['cr'].min():.0f} cr; "
+                 f"10th pct {in_tm['cr'].quantile(0.1):.0f} cr")
+    lines.append(f"Count by mcap band (cr): " + str(pd.cut(mcap['cr'], [0, 500, 1000, 2000, 5000, 1e9]).value_counts().sort_index().to_dict()))
+
+# BSE scrip list with industry
+for url in [
+    "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w?Group=&Scripcode=&industry=&segment=Equity&status=Active",
+]:
+    try:
+        resp = client.session.get(url, timeout=40, headers={
+            "Referer": "https://www.bseindia.com/", "Origin": "https://www.bseindia.com"})
+        txt = resp.text
+        lines.append(f"BSE scrip list: HTTP {resp.status_code}, {len(txt)} bytes")
+        data = json.loads(txt) if resp.status_code == 200 and txt.strip().startswith(("[", "{")) else []
+        if isinstance(data, dict):
+            data = data.get("Table", [])
+        if data:
+            lines.append(f"  rows={len(data)} keys={list(data[0])}")
+            lines.append(f"  sample={ {k: data[0][k] for k in list(data[0])[:12]} }")
+    except Exception as exc:  # noqa: BLE001
+        lines.append(f"BSE scrip list: FAIL {type(exc).__name__}: {exc}"[:200])
 
 msg = "\n".join(lines)
 print(msg)
