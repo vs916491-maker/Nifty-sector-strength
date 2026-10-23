@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from . import config
+from . import config, corporate_actions
 from .nse import BlockedError, NSEClient
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -94,6 +94,45 @@ def compact_stocks() -> dict:
         after += len(df)
         df.to_csv(path, index=False, float_format="%.2f")
     return {"rows_before": before, "rows_after": after}
+
+
+def update_corporate_actions(client: NSEClient, today: dt.date) -> dict:
+    path = META / "corporate_actions.csv"
+    old = pd.read_csv(path, dtype={"factor": float}) if path.exists() else None
+    start = config.BACKFILL_START
+    if old is not None and len(old):
+        start = max(start, today - dt.timedelta(days=120))
+    new = corporate_actions.fetch(client, start, today + dt.timedelta(days=60))
+    df = new if old is None else pd.concat([old, new], ignore_index=True)
+    df = df.drop_duplicates(subset=["symbol", "ex_date", "subject"], keep="last")
+    df = df.sort_values(["ex_date", "symbol"])
+    META.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+    return {"ok": True, "events": int(df["factor"].notna().sum()), "fetched": len(new)}
+
+
+def check_price_jumps() -> dict:
+    """Self-check: big overnight drops (> 30%) should mostly be explained by a
+    split/bonus. Unexplained ones are listed for review (demergers, crashes,
+    or a missing corporate action)."""
+    ca_path = META / "corporate_actions.csv"
+    ca = pd.read_csv(ca_path) if ca_path.exists() else pd.DataFrame(
+        columns=["symbol", "ex_date", "factor"])
+    events = {(r.symbol, r.ex_date): r.factor for r in ca.dropna(subset=["factor"]).itertuples()}
+    stk = pd.concat(pd.read_csv(f, usecols=["date", "symbol", "close"])
+                    for f in sorted(STK_DIR.glob("*.csv")))
+    stk = stk.sort_values(["symbol", "date"])
+    stk["ratio"] = stk["close"] / stk.groupby("symbol")["close"].shift()
+    drops = stk[stk["ratio"] < 0.7]
+    explained, unexplained = 0, []
+    for r in drops.itertuples():
+        f = events.get((r.symbol, r.date))
+        if f is not None and abs(r.ratio / f - 1) < 0.25:
+            explained += 1
+        else:
+            unexplained.append(f"{r.date} {r.symbol} {r.ratio:.2f}")
+    return {"big_drops": len(drops), "explained_by_split_bonus": explained,
+            "unexplained": unexplained[:40]}
 
 
 # ----------------------------------------------------------------- parsers
@@ -283,6 +322,13 @@ def main() -> int:
         status["fno"] = {"ok": False}
         problems.append(f"F&O list: {type(exc).__name__}: {exc}"[:200])
 
+    print("Corporate actions ...")
+    try:
+        status["corporate_actions"] = update_corporate_actions(client, today)
+    except Exception as exc:  # noqa: BLE001 - not fatal; retried next run
+        status["corporate_actions"] = {"ok": False}
+        problems.append(f"Corporate actions: {type(exc).__name__}: {exc}"[:200])
+
     global UNIVERSE
     UNIVERSE = build_universe()
     status["universe_size"] = len(UNIVERSE)
@@ -307,6 +353,7 @@ def main() -> int:
         status["compact"] = compact_stocks()
         print("compact:", status["compact"])
 
+    status["price_jump_check"] = check_price_jumps()
     status["index_name_match"] = index_name_check()
     missing_names = [k for k, v in status["index_name_match"].items() if v is None]
     missing_cons = [k for k, v in status["constituents"].items() if not v["ok"]]
@@ -330,6 +377,9 @@ def main() -> int:
         f"(+{status['stocks'].get('days_added', 0)} days); "
         f"constituent lists {len(status['constituents']) - len(missing_cons)}"
         f"/{len(status['constituents'])}; problems: {len(problems)}"
+        f"; split/bonus events {status['corporate_actions'].get('events')}"
+        f"; big drops explained {status['price_jump_check']['explained_by_split_bonus']}"
+        f"/{status['price_jump_check']['big_drops']}"
     )
     print(summary)
     for p in problems:
