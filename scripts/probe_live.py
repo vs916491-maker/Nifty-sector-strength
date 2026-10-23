@@ -66,59 +66,29 @@ def fut_extract(d):
     return f"keys={list(d)[:6]}"
 
 
-for mode in (False, True):
-    tag = "curl_cffi" if mode else "requests"
+s = nse_session(False)
+base = "https://www.nseindia.com/api"
+def keys_extract(d):
+    data = d.get("data", d) if isinstance(d, dict) else d
+    if isinstance(data, dict):
+        return "dict keys=" + str(list(data)[:8])
+    if isinstance(data, list) and data:
+        return f"rows={len(data)} keys={list(data[0])[:14]}"
+    return str(d)[:120]
+for name, url in [
+    ("OI spurts underlyings", f"{base}/live-analysis-oi-spurts-underlyings"),
+    ("OI spurts contracts", f"{base}/live-analysis-oi-spurts-contracts"),
+    ("F&O securities prices", f"{base}/equity-stockIndices?index=SECURITIES%20IN%20F%26O"),
+    ("underlying info", f"{base}/underlying-information"),
+    ("master quote", f"{base}/master-quote"),
+    ("quote-derivative RELIANCE", f"{base}/quote-derivative?symbol=RELIANCE"),
+    ("most active fut", f"{base}/liveEquity-derivatives?index=top20_contracts"),
+]:
+    time.sleep(1)
     try:
-        s = nse_session(mode)
+        summarize(name, s.get(url, timeout=25), keys_extract)
     except Exception as exc:  # noqa: BLE001
-        lines.append(f"[{tag}] session FAIL {exc}"[:200])
-        continue
-    base = "https://www.nseindia.com/api"
-    summarize(f"[{tag}] OC indices NIFTY (old)", s.get(f"{base}/option-chain-indices?symbol=NIFTY", timeout=25), oc_extract)
-    time.sleep(1)
-    r = s.get(f"{base}/option-chain-contract-info?symbol=NIFTY", timeout=25)
-    exp = None
-    try:
-        exp = r.json().get("expiryDates", [None])[0]
-    except Exception:  # noqa: BLE001
-        pass
-    summarize(f"[{tag}] OC contract-info NIFTY", r, lambda d: f"expiries={d.get('expiryDates', [])[:3]}")
-    if exp:
-        time.sleep(1)
-        summarize(f"[{tag}] OC v3 NIFTY {exp}",
-                  s.get(f"{base}/option-chain-v3?type=Indices&symbol=NIFTY&expiry={exp}", timeout=25), oc_extract)
-    for key in ("nse50_fut", "nifty_bank_fut", "finnifty_fut", "niftymidcap_fut", "stock_fut"):
-        time.sleep(1)
-        summarize(f"[{tag}] futures {key}", s.get(f"{base}/liveEquity-derivatives?index={key}", timeout=25), fut_extract)
-    time.sleep(1)
-    summarize(f"[{tag}] allIndices", s.get(f"{base}/allIndices", timeout=25),
-              lambda d: f"rows={len(d.get('data', []))}")
-
-# BSE SENSEX option chain
-try:
-    from curl_cffi import requests as creq
-    b = creq.Session(impersonate="chrome")
-    b.headers.update({"Referer": "https://www.bseindia.com/", "Origin": "https://www.bseindia.com"})
-    b.get("https://www.bseindia.com/", timeout=20)
-    r = b.get("https://api.bseindia.com/BseIndiaAPI/api/ddlExpiry_IV/w?ProductType=IO&scrip_cd=1", timeout=25)
-    summarize("[bse] SENSEX expiries", r, lambda d: str(d)[:120])
-    try:
-        tbl = r.json().get("Table1") or r.json().get("Table") or []
-        exp = (tbl[0].get("ExpiryDate") if tbl else None)
-    except Exception:  # noqa: BLE001
-        exp = None
-    if exp:
-        summarize(f"[bse] SENSEX chain {exp}", b.get(
-            f"https://api.bseindia.com/BseIndiaAPI/api/DerivOptionChain_IV/w?Expiry={exp}&scrip_cd=1&strprice=0",
-            timeout=25), lambda d: f"rows={len(d.get('Table', []))}")
-except Exception as exc:  # noqa: BLE001
-    lines.append(f"[bse] FAIL {exc}"[:200])
-
-# Yahoo hourly candles
-summarize("[yahoo] RELIANCE.NS 60m", requests.get(
-    "https://query1.finance.yahoo.com/v8/finance/chart/RELIANCE.NS?range=1mo&interval=60m",
-    headers={"User-Agent": UA}, timeout=25),
-    lambda d: f"candles={len(d['chart']['result'][0]['timestamp'])} last={time.strftime('%H:%M', time.gmtime(d['chart']['result'][0]['timestamp'][-1] + 19800))} IST")
+        lines.append(f"{name}: FAIL {exc}"[:200])
 
 msg = "\n".join(lines)
 print(msg)
