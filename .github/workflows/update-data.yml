@@ -1,0 +1,61 @@
+name: Daily data update
+
+on:
+  schedule:
+    # 19:17 IST and a later catch-up at 22:17 IST, Monday to Friday
+    # (NSE publishes the end-of-day files in the evening; a run with
+    # nothing new to fetch simply does nothing).
+    - cron: "47 13 * * 1-5"
+    - cron: "47 16 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Optional: re-fetch from this date (YYYY-MM-DD). Leave empty for normal update."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch new NSE data
+        env:
+          START: ${{ github.event.inputs.start }}
+        run: |
+          if [ -n "$START" ]; then
+            python -m collector.update --start "$START"
+          else
+            python -m collector.update
+          fi
+
+      - name: Save data to the repo
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No new data."
+            exit 0
+          fi
+          git commit -m "Data update $(TZ=Asia/Kolkata date +%Y-%m-%d)"
+          git pull --rebase origin main
+          git push origin HEAD:main

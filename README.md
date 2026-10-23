@@ -12,12 +12,28 @@ inside the leading sectors.
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Data source feasibility test | In progress |
-| 2 | Data collector + ~1.5 year backfill | Pending |
+| 1 | Data source feasibility test | Done - NSE archive files work from GitHub Actions |
+| 2 | Data collector + 2-year backfill | In progress |
 | 3 | Sector scoring + Relative Rotation Graph (RRG) | Pending |
 | 4 | Stock drill-down inside leading sectors | Pending |
 | 5 | Website + daily schedule | Pending |
 | 6 | Validation (did top-ranked sectors outperform?) | Pending |
+
+## Data (Phase 2)
+
+`collector/` downloads NSE's free end-of-day files every weekday evening
+(GitHub Actions, *Daily data update*) and commits them under `data/`:
+
+| Path | Contents |
+|---|---|
+| `data/indices/YYYY-MM.csv` | Daily OHLC, P/E, P/B, dividend yield for every NSE index |
+| `data/stocks/YYYY-MM.csv` | Daily OHLC, previous close, volume, delivery % for EQ/BE stocks |
+| `data/constituents/KEY.csv` | Current constituents of each tracked index |
+| `data/meta/fno_symbols.csv` | Stocks with F&O contracts |
+| `data/meta/status.json` | What the last update fetched, and any problems |
+
+Tracked indices are listed in `collector/config.py`. Run locally with
+`pip install -r requirements.txt` then `python -m collector.update`.
 
 ## Phase 1: data source test
 
