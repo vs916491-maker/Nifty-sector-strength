@@ -153,14 +153,29 @@ def collect_constituents(client: NSEClient) -> dict:
         if not got:
             status[item["key"]] = {"ok": False, "kept_old_file": path.exists()}
             continue
-        df = pd.read_csv(io.StringIO(got[1]), dtype=str)
-        df.columns = [c.strip() for c in df.columns]
-        out = pd.DataFrame({
-            "symbol": df["Symbol"].str.strip(),
-            "company": df["Company Name"].str.strip(),
-            "industry": df.get("Industry", pd.Series(dtype=str)).str.strip(),
-            "isin": df.get("ISIN Code", pd.Series(dtype=str)).str.strip(),
-        }).dropna(subset=["symbol"])
+        try:
+            df = pd.read_csv(io.StringIO(got[1]), dtype=str)
+            # Column spelling varies between files ("Company Name" vs
+            # "Company name"), so look columns up case-insensitively.
+            cols = {c.strip().lower(): c for c in df.columns}
+
+            def col(*names: str) -> pd.Series:
+                for n in names:
+                    if n in cols:
+                        return df[cols[n]].astype(str).str.strip()
+                return pd.Series([""] * len(df), index=df.index)
+
+            out = pd.DataFrame({
+                "symbol": col("symbol"),
+                "company": col("company name", "company", "name"),
+                "industry": col("industry", "sector"),
+                "isin": col("isin code", "isin"),
+            })
+            out = out[(out["symbol"] != "") & (out["symbol"] != "nan")]
+        except Exception as exc:  # noqa: BLE001
+            status[item["key"]] = {"ok": False, "kept_old_file": path.exists(),
+                                   "error": f"{type(exc).__name__}: {exc}"[:200]}
+            continue
         out.to_csv(path, index=False)
         status[item["key"]] = {"ok": True, "stocks": len(out), "source": got[0]}
     return status
@@ -213,9 +228,9 @@ def main() -> int:
     print("F&O list ...")
     try:
         status["fno"] = collect_fno(client)
-    except BlockedError as exc:
+    except Exception as exc:  # noqa: BLE001 - optional data, never fatal
         status["fno"] = {"ok": False}
-        problems.append(str(exc))
+        problems.append(f"F&O list: {type(exc).__name__}: {exc}"[:200])
 
     for label, folder, url, parser, key in [
         ("indices", IDX_DIR, config.INDEX_CLOSE_URL, parse_index_file, ["date", "index"]),
