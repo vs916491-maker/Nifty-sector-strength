@@ -13,7 +13,7 @@ inside the leading sectors.
 | Phase | What | Status |
 |---|---|---|
 | 1 | Data source feasibility test | Done - NSE archive files work from GitHub Actions |
-| 2 | Data collector + 2-year backfill | In progress |
+| 2 | Data collector + 2-year backfill | Done - Oct 2024 onwards, updated every weekday evening |
 | 3 | Sector scoring + Relative Rotation Graph (RRG) | Pending |
 | 4 | Stock drill-down inside leading sectors | Pending |
 | 5 | Website + daily schedule | Pending |
@@ -30,7 +30,14 @@ inside the leading sectors.
 | `data/stocks/YYYY-MM.csv` | Daily OHLC, previous close, volume, delivery % for EQ/BE stocks |
 | `data/constituents/KEY.csv` | Current constituents of each tracked index |
 | `data/meta/fno_symbols.csv` | Stocks with F&O contracts |
+| `data/meta/corporate_actions.csv` | NSE split / bonus events with their price factor |
+| `data/meta/manual_adjustments.csv` | Hand-entered price factors (demergers) |
 | `data/meta/status.json` | What the last update fetched, and any problems |
+
+Stored prices are raw NSE prices. Splits, bonuses and demergers are applied
+at analysis time from the two adjustment files. Each update also lists big
+overnight drops that no adjustment explains (`price_jump_check` in
+`status.json`) so new demergers can be added to `manual_adjustments.csv`.
 
 Tracked indices are listed in `collector/config.py`. Run locally with
 `pip install -r requirements.txt` then `python -m collector.update`.

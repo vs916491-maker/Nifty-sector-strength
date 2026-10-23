@@ -111,14 +111,27 @@ def update_corporate_actions(client: NSEClient, today: dt.date) -> dict:
     return {"ok": True, "events": int(df["factor"].notna().sum()), "fetched": len(new)}
 
 
+def adjustment_factors() -> dict[tuple[str, str], float]:
+    """(symbol, ex_date) -> combined price factor from NSE split/bonus events
+    plus data/meta/manual_adjustments.csv (demergers etc.). Several events on
+    the same day (e.g. bonus + split) multiply."""
+    frames = []
+    for name in ("corporate_actions.csv", "manual_adjustments.csv"):
+        path = META / name
+        if path.exists():
+            frames.append(pd.read_csv(path, usecols=["symbol", "ex_date", "factor"]))
+    if not frames:
+        return {}
+    ca = pd.concat(frames).dropna(subset=["factor"])
+    combined = ca.groupby(["symbol", "ex_date"])["factor"].prod()
+    return {k: float(v) for k, v in combined.items()}
+
+
 def check_price_jumps() -> dict:
     """Self-check: big overnight drops (> 30%) should mostly be explained by a
     split/bonus. Unexplained ones are listed for review (demergers, crashes,
     or a missing corporate action)."""
-    ca_path = META / "corporate_actions.csv"
-    ca = pd.read_csv(ca_path) if ca_path.exists() else pd.DataFrame(
-        columns=["symbol", "ex_date", "factor"])
-    events = {(r.symbol, r.ex_date): r.factor for r in ca.dropna(subset=["factor"]).itertuples()}
+    events = adjustment_factors()
     stk = pd.concat(pd.read_csv(f, usecols=["date", "symbol", "close"])
                     for f in sorted(STK_DIR.glob("*.csv")))
     stk = stk.sort_values(["symbol", "date"])
