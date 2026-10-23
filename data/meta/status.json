@@ -1,0 +1,209 @@
+{
+  "run_at_ist": "2026-10-23T11:49:42+05:30",
+  "constituents": {
+    "NIFTY50": {
+      "ok": true,
+      "stocks": 50,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv"
+    },
+    "NIFTY500": {
+      "ok": true,
+      "stocks": 501,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv"
+    },
+    "AUTO": {
+      "ok": true,
+      "stocks": 15,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyautolist.csv"
+    },
+    "BANK": {
+      "ok": true,
+      "stocks": 14,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftybanklist.csv"
+    },
+    "FINSERV": {
+      "ok": true,
+      "stocks": 20,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyfinancelist.csv"
+    },
+    "FMCG": {
+      "ok": true,
+      "stocks": 15,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyfmcglist.csv"
+    },
+    "HEALTHCARE": {
+      "ok": true,
+      "stocks": 20,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyhealthcarelist.csv"
+    },
+    "IT": {
+      "ok": true,
+      "stocks": 10,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyitlist.csv"
+    },
+    "MEDIA": {
+      "ok": true,
+      "stocks": 10,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftymedialist.csv"
+    },
+    "METAL": {
+      "ok": true,
+      "stocks": 15,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftymetallist.csv"
+    },
+    "PHARMA": {
+      "ok": true,
+      "stocks": 20,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftypharmalist.csv"
+    },
+    "PVTBANK": {
+      "ok": true,
+      "stocks": 10,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty_privatebanklist.csv"
+    },
+    "PSUBANK": {
+      "ok": true,
+      "stocks": 12,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftypsubanklist.csv"
+    },
+    "REALTY": {
+      "ok": true,
+      "stocks": 10,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyrealtylist.csv"
+    },
+    "CONSDUR": {
+      "ok": true,
+      "stocks": 14,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyconsumerdurableslist.csv"
+    },
+    "OILGAS": {
+      "ok": true,
+      "stocks": 15,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyoilgaslist.csv"
+    },
+    "CHEMICALS": {
+      "ok": true,
+      "stocks": 20,
+      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftychemicals_list.csv"
+    },
+    "ENERGY": {
+      "ok": true,
+      "stocks": 40,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyenergylist.csv"
+    },
+    "INFRA": {
+      "ok": true,
+      "stocks": 30,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyinfralist.csv"
+    },
+    "PSE": {
+      "ok": true,
+      "stocks": 20,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftypselist.csv"
+    },
+    "CPSE": {
+      "ok": true,
+      "stocks": 11,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftycpselist.csv"
+    },
+    "COMMODITIES": {
+      "ok": true,
+      "stocks": 30,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftycommoditieslist.csv"
+    },
+    "CONSUMPTION": {
+      "ok": true,
+      "stocks": 30,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyconsumptionlist.csv"
+    },
+    "MNC": {
+      "ok": true,
+      "stocks": 30,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftymnclist.csv"
+    },
+    "DEFENCE": {
+      "ok": true,
+      "stocks": 22,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiadefence_list.csv"
+    },
+    "CAPMKT": {
+      "ok": true,
+      "stocks": 17,
+      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftycapitalmarkets_list.csv"
+    },
+    "MFG": {
+      "ok": true,
+      "stocks": 77,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiamanufacturing_list.csv"
+    },
+    "HOUSING": {
+      "ok": true,
+      "stocks": 50,
+      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftyhousing_list.csv"
+    },
+    "DIGITAL": {
+      "ok": true,
+      "stocks": 50,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiadigital_list.csv"
+    },
+    "TOURISM": {
+      "ok": true,
+      "stocks": 11,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiatourism_list.csv"
+    }
+  },
+  "fno": {
+    "ok": true,
+    "symbols": 219
+  },
+  "indices": {
+    "days_added": 510,
+    "first": "2024-10-01",
+    "last": "2026-10-22",
+    "days_without_file": 243,
+    "unreadable_files": [],
+    "latest_stored": "2026-10-22"
+  },
+  "stocks": {
+    "days_added": 635,
+    "first": "2024-10-01",
+    "last": "2026-10-22",
+    "days_without_file": 118,
+    "unreadable_files": [],
+    "latest_stored": "2026-10-22"
+  },
+  "index_name_match": {
+    "NIFTY50": "Nifty 50",
+    "NIFTY500": "Nifty 500",
+    "AUTO": "Nifty Auto",
+    "BANK": "Nifty Bank",
+    "FINSERV": "Nifty Financial Services",
+    "FMCG": "Nifty FMCG",
+    "HEALTHCARE": "Nifty Healthcare Index",
+    "IT": "Nifty IT",
+    "MEDIA": "Nifty Media",
+    "METAL": "Nifty Metal",
+    "PHARMA": "Nifty Pharma",
+    "PVTBANK": "Nifty Private Bank",
+    "PSUBANK": "Nifty PSU Bank",
+    "REALTY": "Nifty Realty",
+    "CONSDUR": "Nifty Consumer Durables",
+    "OILGAS": "Nifty Oil & Gas",
+    "CHEMICALS": "Nifty Chemicals",
+    "ENERGY": "Nifty Energy",
+    "INFRA": "Nifty Infrastructure",
+    "PSE": "Nifty PSE",
+    "CPSE": "Nifty CPSE",
+    "COMMODITIES": "Nifty Commodities",
+    "CONSUMPTION": "Nifty India Consumption",
+    "MNC": "Nifty MNC",
+    "DEFENCE": "Nifty India Defence",
+    "CAPMKT": "Nifty Capital Markets",
+    "MFG": "Nifty India Manufacturing",
+    "HOUSING": "Nifty Housing",
+    "DIGITAL": "Nifty India Digital",
+    "TOURISM": "Nifty India Tourism"
+  },
+  "problems": [],
+  "requests_made": 1540
+}

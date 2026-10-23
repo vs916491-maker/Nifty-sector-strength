@@ -1,0 +1,167 @@
+India VIX
+NIFTY Alpha Low-Volatility 30
+NIFTY Alpha Quality Low-Volatility 30
+NIFTY Alpha Quality Value Low-Volatility 30
+NIFTY LargeMidcap 250
+NIFTY Midcap 100
+NIFTY Midcap150 Quality 50
+NIFTY Quality Low-Volatility 30
+NIFTY SME EMERGE
+NIFTY Smallcap 100
+NIFTY100 Alpha 30
+NIFTY100 ESG
+NIFTY100 Enhanced ESG
+NIFTY100 Quality 30
+NIFTY200 Quality 30
+NIFTY50 Equal Weight
+NIFTY500 Value 50
+Nifty 10 yr Benchmark G-Sec
+Nifty 10 yr Benchmark G-Sec (Clean Price)
+Nifty 100
+Nifty 11-15 yr G-Sec Index
+Nifty 15 yr and above G-Sec Index
+Nifty 1D Rate Index
+Nifty 200
+Nifty 4-8 yr G-Sec Index
+Nifty 50
+Nifty 50 Arbitrage
+Nifty 50 Futures Index
+Nifty 50 Futures TR Index
+Nifty 500
+Nifty 8-13 yr G-Sec
+Nifty AI Catalysts
+Nifty Alpha 50
+Nifty Auto
+Nifty BHARAT Bond Index - April 2030
+Nifty BHARAT Bond Index - April 2031
+Nifty BHARAT Bond Index - April 2032
+Nifty BHARAT Bond Index - April 2033
+Nifty Bank
+Nifty CPSE
+Nifty Capital Goods
+Nifty Capital Markets
+Nifty Cement
+Nifty Chemicals
+Nifty Commercial & Transport Services
+Nifty Commodities
+Nifty Composite G-sec Index
+Nifty Conglomerate 50
+Nifty Construction
+Nifty Consumer Durables
+Nifty Consumer Services
+Nifty Core Housing
+Nifty Dividend Opportunities 50
+Nifty EV & New Age Automotive
+Nifty Energy
+Nifty FMCG
+Nifty Financial Services
+Nifty Financial Services 25/50
+Nifty Financial Services Ex-Bank
+Nifty Growth Sectors 15
+Nifty Healthcare Index
+Nifty High Beta 50
+Nifty High Dividend Yield 15
+Nifty Hospitals
+Nifty Housing
+Nifty Housing Finance
+Nifty IPO
+Nifty IT
+Nifty India Consumption
+Nifty India Corporate Group Index - Aditya Birla Group
+Nifty India Corporate Group Index - Mahindra Group
+Nifty India Corporate Group Index - Tata Group
+Nifty India Corporate Group Index - Tata Group 25% Cap
+Nifty India Defence
+Nifty India Defence Equal Weight
+Nifty India Digital
+Nifty India FPI 150
+Nifty India Infrastructure & Logistics
+Nifty India Internet
+Nifty India Manufacturing
+Nifty India New Age Consumption
+Nifty India Railways PSU
+Nifty India Select 5 Corporate Groups (MAATR)
+Nifty India Tourism
+Nifty Infrastructure
+Nifty Insurance
+Nifty Low Volatility 50
+Nifty MNC
+Nifty Media
+Nifty Metal
+Nifty Microcap 250
+Nifty MidSmall Financial Services
+Nifty MidSmall Healthcare
+Nifty MidSmall IT & Telecom
+Nifty MidSmall India Consumption
+Nifty MidSmallcap 400
+Nifty MidSmallcap400 50:50
+Nifty MidSmallcap400 Momentum Quality 100
+Nifty Midcap 150
+Nifty Midcap 50
+Nifty Midcap Liquid 15
+Nifty Midcap Select
+Nifty Midcap150 Momentum 50
+Nifty Mobility
+Nifty NBFC
+Nifty Next 100
+Nifty Next 50
+Nifty Non-Cyclical Consumer
+Nifty Oil & Gas
+Nifty PSE
+Nifty PSU Bank
+Nifty Pharma
+Nifty Power
+Nifty Private Bank
+Nifty REITs & InvITs
+Nifty REITs & InvITs 90:10
+Nifty REITs & Realty
+Nifty Realty
+Nifty Retail
+Nifty Rural
+Nifty Services Sector
+Nifty Shariah 25
+Nifty Small Finance Banks & Microfinance Institutions
+Nifty Smallcap 250
+Nifty Smallcap 50
+Nifty Smallcap 500
+Nifty Smallcap250 Momentum Quality 100
+Nifty Smallcap250 Quality 50
+Nifty Sugar & Ethanol
+Nifty Telecommunications
+Nifty Top 10 Equal Weight
+Nifty Top 15 Equal Weight
+Nifty Top 20 Equal Weight
+Nifty Total Market
+Nifty Total Market Momentum Quality 50
+Nifty Transportation & Logistics
+Nifty Waves
+Nifty100 ESG Sector Leaders
+Nifty100 Equal Weight
+Nifty100 Liquid 15
+Nifty100 Low Volatility 30
+Nifty200 Alpha 30
+Nifty200 Momentum 30
+Nifty200 Value 30
+Nifty50 Dividend Points
+Nifty50 PR 1x Inverse
+Nifty50 PR 2x Leverage
+Nifty50 Shariah
+Nifty50 TR 1x Inverse
+Nifty50 TR 2x Leverage
+Nifty50 USD
+Nifty50 Value 20
+Nifty500 Ahimsa
+Nifty500 Equal Weight
+Nifty500 Flexicap Quality 30
+Nifty500 Growth 50
+Nifty500 Healthcare
+Nifty500 LargeMidSmall Equal-Cap Weighted
+Nifty500 Low Volatility 50
+Nifty500 Momentum 50
+Nifty500 Multicap 50:25:25
+Nifty500 Multicap India Manufacturing 50:30:20
+Nifty500 Multicap Infrastructure 50:30:20
+Nifty500 Multicap Momentum Quality 50
+Nifty500 Multifactor MQVLv 50
+Nifty500 Quality 50
+Nifty500 Shariah
