@@ -1,0 +1,21 @@
+symbol,company,industry,isin
+BEL,Bharat Electronics Ltd.,Capital Goods,INE263A01024
+BHEL,Bharat Heavy Electricals Ltd.,Capital Goods,INE257A01026
+BPCL,Bharat Petroleum Corporation Ltd.,Oil Gas & Consumable Fuels,INE029A01011
+COALINDIA,Coal India Ltd.,Oil Gas & Consumable Fuels,INE522F01014
+CONCOR,Container Corporation of India Ltd.,Services,INE111A01025
+GAIL,GAIL (India) Ltd.,Oil Gas & Consumable Fuels,INE129A01019
+HAL,Hindustan Aeronautics Ltd.,Capital Goods,INE066F01020
+HINDPETRO,Hindustan Petroleum Corporation Ltd.,Oil Gas & Consumable Fuels,INE094A01015
+IOC,Indian Oil Corporation Ltd.,Oil Gas & Consumable Fuels,INE242A01010
+IRFC,Indian Railway Finance Corporation Ltd.,Financial Services,INE053F01010
+NHPC,NHPC Ltd.,Power,INE848E01016
+NMDC,NMDC Ltd.,Metals & Mining,INE584A01023
+NTPC,NTPC Ltd.,Power,INE733E01010
+NATIONALUM,National Aluminium Co. Ltd.,Metals & Mining,INE139A01034
+ONGC,Oil & Natural Gas Corporation Ltd.,Oil Gas & Consumable Fuels,INE213A01029
+OIL,Oil India Ltd.,Oil Gas & Consumable Fuels,INE274J01014
+PFC,Power Finance Corporation Ltd.,Financial Services,INE134E01011
+POWERGRID,Power Grid Corporation of India Ltd.,Power,INE752E01010
+RECLTD,REC Ltd.,Financial Services,INE020B01018
+SAIL,Steel Authority of India Ltd.,Metals & Mining,INE114A01011
