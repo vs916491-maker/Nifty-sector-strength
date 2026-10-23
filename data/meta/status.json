@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-23T12:33:43+05:30",
+  "run_at_ist": "2026-10-23T12:51:38+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -183,6 +183,10 @@
     "unreadable_files": [],
     "latest_stored": "2026-10-22"
   },
+  "advance_decline": {
+    "days_added": 10,
+    "total_days": 510
+  },
   "mcap": {
     "ok": true,
     "date": "2026-10-22",
@@ -230,5 +234,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 40
+  "requests_made": 550
 }
