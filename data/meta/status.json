@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-23T11:49:42+05:30",
+  "run_at_ist": "2026-10-23T12:07:06+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -10,6 +10,11 @@
       "ok": true,
       "stocks": 501,
       "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv"
+    },
+    "TOTALMKT": {
+      "ok": true,
+      "stocks": 755,
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv"
     },
     "AUTO": {
       "ok": true,
@@ -156,25 +161,31 @@
     "ok": true,
     "symbols": 219
   },
+  "universe_size": 767,
   "indices": {
-    "days_added": 510,
-    "first": "2024-10-01",
-    "last": "2026-10-22",
-    "days_without_file": 243,
+    "days_added": 0,
+    "first": null,
+    "last": null,
+    "days_without_file": 1,
     "unreadable_files": [],
     "latest_stored": "2026-10-22"
   },
   "stocks": {
-    "days_added": 635,
-    "first": "2024-10-01",
-    "last": "2026-10-22",
-    "days_without_file": 118,
+    "days_added": 0,
+    "first": null,
+    "last": null,
+    "days_without_file": 1,
     "unreadable_files": [],
     "latest_stored": "2026-10-22"
+  },
+  "compact": {
+    "rows_before": 1565992,
+    "rows_after": 360466
   },
   "index_name_match": {
     "NIFTY50": "Nifty 50",
     "NIFTY500": "Nifty 500",
+    "TOTALMKT": "Nifty Total Market",
     "AUTO": "Nifty Auto",
     "BANK": "Nifty Bank",
     "FINSERV": "Nifty Financial Services",
@@ -205,5 +216,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 1540
+  "requests_made": 37
 }
