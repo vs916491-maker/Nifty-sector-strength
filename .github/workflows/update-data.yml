@@ -17,6 +17,10 @@ on:
         description: "One-off clean-up of stored stock files"
         type: boolean
         default: false
+      rebuild_ad:
+        description: "One-off: recount advance/decline history"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -44,10 +48,12 @@ jobs:
         env:
           START: ${{ github.event.inputs.start }}
           COMPACT: ${{ github.event.inputs.compact }}
+          REBUILD_AD: ${{ github.event.inputs.rebuild_ad }}
         run: |
           ARGS=""
           if [ -n "$START" ]; then ARGS="--start $START"; fi
           if [ "$COMPACT" = "true" ]; then ARGS="$ARGS --compact"; fi
+          if [ "$REBUILD_AD" = "true" ]; then ARGS="$ARGS --rebuild-ad"; fi
           python -m collector.update $ARGS
 
       - name: Compute sector scores

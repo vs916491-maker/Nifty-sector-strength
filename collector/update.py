@@ -172,6 +172,57 @@ def parse_index_file(text: str, day: dt.date) -> pd.DataFrame:
     return out.dropna(subset=["close"])[IDX_COLS]
 
 
+AD_ROWS: list[dict] = []
+AD_PATH = META / "advance_decline.csv"
+
+
+def ad_counts(df: pd.DataFrame, day: dt.date) -> dict:
+    """Advances / declines / unchanged across ALL EQ+BE stocks that traded,
+    measured close vs previous close (before the universe filter)."""
+    close, prev = num(df["CLOSE_PRICE"]), num(df["PREV_CLOSE"])
+    ok = close.notna() & prev.notna() & (prev > 0)
+    chg = (close[ok] - prev[ok])
+    return {"date": day.isoformat(), "advances": int((chg > 0).sum()),
+            "declines": int((chg < 0).sum()), "unchanged": int((chg == 0).sum())}
+
+
+def save_ad_rows() -> dict:
+    if not AD_ROWS:
+        return {"days_added": 0}
+    new = pd.DataFrame(AD_ROWS)
+    if AD_PATH.exists():
+        new = pd.concat([pd.read_csv(AD_PATH), new], ignore_index=True)
+    new = new.drop_duplicates("date", keep="last").sort_values("date")
+    META.mkdir(parents=True, exist_ok=True)
+    new.to_csv(AD_PATH, index=False)
+    added = len(AD_ROWS)
+    AD_ROWS.clear()
+    return {"days_added": added, "total_days": len(new)}
+
+
+def rebuild_ad(client: NSEClient) -> dict:
+    """One-off: count advances/declines for every stored trading day."""
+    days: set[str] = set()
+    for path in IDX_DIR.glob("*.csv"):
+        days |= set(pd.read_csv(path, usecols=["date"])["date"])
+    for i, d in enumerate(sorted(days)):
+        day = dt.date.fromisoformat(d)
+        text = client.get_text(config.BHAVCOPY_URL.format(ddmmyyyy=day.strftime("%d%m%Y")))
+        if text:
+            df = pd.read_csv(io.StringIO(text), dtype=str)
+            df.columns = [c.strip() for c in df.columns]
+            df["SERIES"] = df["SERIES"].str.strip()
+            df = df[df["SERIES"].isin(config.STOCK_SERIES)]
+            dates = pd.to_datetime(df["DATE1"].str.strip(), format="%d-%b-%Y",
+                                   errors="coerce").dt.date
+            df = df[dates == day]
+            if len(df):
+                AD_ROWS.append(ad_counts(df, day))
+        if i % 50 == 49:
+            save_ad_rows()
+    return save_ad_rows()
+
+
 def parse_bhavcopy(text: str, day: dt.date) -> pd.DataFrame:
     df = pd.read_csv(io.StringIO(text), dtype=str)
     df.columns = [c.strip() for c in df.columns]
@@ -182,6 +233,8 @@ def parse_bhavcopy(text: str, day: dt.date) -> pd.DataFrame:
     dates = pd.to_datetime(df["DATE1"].str.strip(), format="%d-%b-%Y",
                            errors="coerce").dt.date
     df = df[dates == day]
+    if len(df):
+        AD_ROWS.append(ad_counts(df, day))
     if UNIVERSE:
         df = df[df["SYMBOL"].str.strip().isin(UNIVERSE)]
     out = pd.DataFrame({
@@ -344,6 +397,8 @@ def index_name_check() -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", type=dt.date.fromisoformat, default=None)
+    ap.add_argument("--rebuild-ad", action="store_true",
+                    help="recount advances/declines for all stored days")
     ap.add_argument("--compact", action="store_true",
                     help="clean stored stock files (non-trading days, universe)")
     args = ap.parse_args()
@@ -388,6 +443,11 @@ def main() -> int:
             problems.append(f"{label}: {exc}")
             status[label] = {"error": str(exc)}
         status[label]["latest_stored"] = str(last_stored_date(folder))
+
+    status["advance_decline"] = save_ad_rows()
+    if args.rebuild_ad:
+        print("Rebuilding advance/decline history ...")
+        status["advance_decline"] = rebuild_ad(client)
 
     print("Market cap ...")
     try:
