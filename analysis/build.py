@@ -6,6 +6,7 @@ Writes:
   site/data/sectors.json         latest scores, ranks, RRG tails per benchmark
   site/data/sector_history.json  ~1 year of RS lines, scores and prices
   site/data/stocks.json          stock scores, sector members, focus-sector picks
+  site/data/breadth.json         market breadth: A/D line, % above DMAs, highs/lows
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ import pandas as pd
 
 from collector import config
 
-from . import data, sectors, stocks as stock_mod
+from . import breadth as breadth_mod, data, sectors, stocks as stock_mod
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
@@ -111,6 +112,9 @@ def main() -> int:
                                       encoding="utf-8")
     (OUT / "sector_history.json").write_text(json.dumps(clean(hist), separators=(",", ":")),
                                              encoding="utf-8")
+    mkt = breadth_mod.build(idx, stocks["close"], cons)
+    (OUT / "breadth.json").write_text(json.dumps(clean(mkt), separators=(",", ":")),
+                                      encoding="utf-8")
     (OUT / "stocks.json").write_text(json.dumps(clean(stock_out), separators=(",", ":")),
                                      encoding="utf-8")
     top = sorted(out["benchmarks"][BENCHMARKS[0]]["rows"].items(),

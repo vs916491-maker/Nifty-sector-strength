@@ -16,7 +16,7 @@ inside the leading sectors.
 | 2 | Data collector + 2-year backfill | Done - Oct 2024 onwards, updated every weekday evening |
 | 3 | Sector scoring + Relative Rotation Graph (RRG) | Done - `analysis/`, outputs in `site/data/` |
 | 4 | Stock drill-down inside leading sectors | Done - `analysis/stocks.py`, output `site/data/stocks.json` |
-| 5 | Website + daily schedule | Pending |
+| 5 | Website + daily schedule | Done - `site/`, published to GitHub Pages after every update |
 | 6 | Validation (did top-ranked sectors outperform?) | Pending |
 
 ## Data (Phase 2)
@@ -86,6 +86,24 @@ their official constituents only.
 **Picks:** up to 5 per focus sector, with market cap >= Rs 500 cr (NSE daily
 market-cap file), 20-day traded value >= Rs 5 cr, 6+ months of history and
 score >= 60. Flags: F&O, Extended (>25% above 50-DMA or RSI > 78), New listing.
+
+## Website (Phase 5)
+
+A static site in `site/` (plain HTML, CSS and JavaScript, no build step) that
+reads the JSON in `site/data/`. The *Publish website* workflow deploys it to
+GitHub Pages whenever the site changes and after every *Daily data update*.
+
+- **Overview:** Nifty 500 / Nifty 50 toggle, Sectoral / Thematic tabs,
+  Relative Rotation Graph, ranking table, market breadth (advance/decline
+  line, net advances, % of Nifty 500 above 50/200-day averages, 52-week
+  highs and lows) and the focus sectors with their top stocks.
+- **Sector page** (`#/sector/IT`): price with averages, relative strength,
+  score history, breadth, score breakdown and every member stock.
+- **Stock picks** (`#/picks`): all picks from the focus sectors, sortable,
+  with an F&O-only filter.
+
+Preview locally: `cd site && python -m http.server`, then open
+http://localhost:8000.
 
 ## Phase 1: data source test
 

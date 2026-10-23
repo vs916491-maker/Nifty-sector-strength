@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sector Strength</title>
+  <meta name="description" content="Which NSE sectors are leading, and the strongest stocks inside them. Updated every trading evening from NSE end-of-day data.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315202b'/%3E%3Ccircle cx='21' cy='11' r='4' fill='%231baf7a'/%3E%3Cpath d='M8 23 L13 18 L17 15 L21 11' stroke='%23ffffff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    try { var t = localStorage.getItem("ss-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <strong>Sector Strength</strong>
+        <span id="asof">NSE end-of-day data</span>
+      </div>
+      <nav class="nav" aria-label="Pages">
+        <a href="#/" data-page="overview">Overview</a>
+        <a href="#/picks" data-page="picks">Stock picks</a>
+      </nav>
+      <button class="theme-btn" id="theme" type="button" aria-label="Switch light or dark theme">Theme</button>
+    </div>
+  </header>
+
+  <main class="wrap" id="app">
+    <p class="loading">Loading the latest data…</p>
+  </main>
+
+  <footer class="wrap">
+    <p>Built from NSE's free end-of-day files and updated every trading evening after the close. Prices are adjusted for splits, bonuses and demergers.</p>
+    <p>For personal analysis only. Scores and picks are screening results from a rules-based model, not investment advice.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
