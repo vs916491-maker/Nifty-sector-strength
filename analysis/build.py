@@ -9,6 +9,7 @@ Writes:
   site/data/breadth.json         market breadth: A/D line, % above DMAs, highs/lows
   site/data/regime.json          market regime light and its history
   site/data/validation.json      Phase 6: how the model's choices did afterwards
+  site/data/leaders.json         next leaders and sector rotation in a correction
 """
 
 from __future__ import annotations
@@ -19,11 +20,12 @@ import math
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import numpy as np
 import pandas as pd
 
 from collector import config
 
-from . import breadth as breadth_mod, data, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
+from . import breadth as breadth_mod, data, leaders as leaders_mod, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
@@ -127,6 +129,21 @@ def main() -> int:
                                 "stop": setups_mod.STOP, "exit": setups_mod.EXIT,
                                 "a_grade_rs": setups_mod.A_GRADE_RS}
     trades = setups_mod.simulate(ind, sets, rg["light"])
+
+    # next leaders and sector rotation during the current decline
+    dec = leaders_mod.decline(idx["NIFTY500"])
+    nl = leaders_mod.stock_scores(stocks, idx["NIFTY500"], dec, sorted(eligible))
+    nl = nl.dropna(subset=["score"]).sort_values("score", ascending=False)
+    keys_all = [k for g in groups.values() for k in g]
+    ratio, momentum = sectors.rrg(idx[keys_all], idx["NIFTY500"])
+    rot = leaders_mod.sector_scores(idx, groups, dec, res_by_bench["NIFTY500"]["rank"], momentum, ratio)
+    leaders_out = {
+        "as_of": as_of, "decline": leaders_mod.describe(dec),
+        "weights": leaders_mod.WEIGHTS, "sector_weights": leaders_mod.SECTOR_WEIGHTS,
+        "stocks": [{"symbol": s, **{k: (bool(v) if isinstance(v, (bool, np.bool_)) else v) for k, v in r.items()}}
+                   for s, r in nl.head(40).iterrows()],
+        "sectors": rot,
+    }
     val = validate.build(idx, stocks, cons, groups, res_by_bench["NIFTY500"], ind, trades, rg)
 
     OUT.mkdir(parents=True, exist_ok=True)
@@ -139,6 +156,7 @@ def main() -> int:
                                       encoding="utf-8")
     (OUT / "regime.json").write_text(json.dumps(clean(regime_mod.latest(rg)), separators=(",", ":")),
                                      encoding="utf-8")
+    (OUT / "leaders.json").write_text(json.dumps(clean(leaders_out), separators=(",", ":")), encoding="utf-8")
     (OUT / "validation.json").write_text(json.dumps(clean(val), separators=(",", ":")), encoding="utf-8")
     (OUT / "stocks.json").write_text(json.dumps(clean(stock_out), separators=(",", ":")),
                                      encoding="utf-8")

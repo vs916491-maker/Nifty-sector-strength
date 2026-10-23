@@ -19,6 +19,7 @@ inside the leading sectors.
 | 5 | Website + daily schedule | Done - `site/`, published to GitHub Pages after every update |
 | 6 | Validation (did top-ranked sectors outperform?) | Done - `analysis/validate.py`, *Track record* page |
 | 7 | Market regime light + positional setups | Done - `analysis/regime.py`, `analysis/setups.py` |
+| 8 | Next leaders + sector rotation in corrections | Done - `analysis/leaders.py` |
 
 ## Data (Phase 2)
 
@@ -118,6 +119,12 @@ http://localhost:8000.
   close below the 50-day average or after 120 sessions. Grade A = RS rating
   90+ or RS line at a 52-week high. Position size from capital, risk per
   trade and a max-per-stock cap (saved in the browser).
+- **Next leaders and Rotation watch** (`analysis/leaders.py`, Stock picks and
+  Overview): during the market's latest decline (6-month high to the low
+  since), stocks and sectors are ranked on how little they fell, how they
+  have done since the low, their RS line vs its 52-week high, and (stocks)
+  accumulation. Sectors get a status: Emerging, Steady leader, Old leader
+  bouncing, Fading leader. Past corrections are tested on the Track record.
 - **Track record** (`analysis/validate.py`, `site/data/validation.json`):
   forward returns of sector ranks, stock score bands, the picks, every
   historical setup, and the regime light, rebuilt every evening.

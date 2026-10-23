@@ -76,7 +76,7 @@ const fmtPct = (v, d = 1, signed = true) => {
   if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0;          // no "-0.0%"
   return `${signed && v > 0 ? "+" : ""}${v.toFixed(d)}%`;
 };
-const sign = (v) => (isNum(v) ? (v > 0 ? "pos" : v < 0 ? "neg" : "") : "muted");
+const sign = (v) => (isNum(v) ? (v >= 0.05 ? "pos" : v <= -0.05 ? "neg" : "") : "muted");
 function fmtDate(iso, opts = { day: "numeric", month: "short", year: "numeric" }) {
   if (!iso) return "–";
   const d = new Date(iso + "T00:00:00");
@@ -455,7 +455,7 @@ function regimePanel(rg) {
 
 // ------------------------------------------------------------------ views
 async function viewOverview(app) {
-  const [sec, br, st, rg] = await Promise.all([load("sectors"), load("breadth"), load("stocks"), load("regime")]);
+  const [sec, br, st, rg, ld] = await Promise.all([load("sectors"), load("breadth"), load("stocks"), load("regime"), load("leaders")]);
   const B = sec.benchmarks[state.bench];
   const keys = sec.groups[state.group];
   const rows = keys.map((k) => ({ key: k, ...B.rows[k] })).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
@@ -561,7 +561,7 @@ async function viewOverview(app) {
         h("span", null, Math.round(st.stocks[sym].score)), st.stocks[sym].fno ? h("span", { class: "flag fno" }, "F&O") : null)))
         : h("p", { class: "empty" }, "No stock passes the filters right now.")))) : h("p", { class: "empty" }, "No focus sectors today."));
 
-  app.replaceChildren(filtersRow(), lede, regimePanel(rg), main, breadth, focusSec);
+  app.replaceChildren(filtersRow(), lede, regimePanel(rg), main, breadth, rotationSection(ld, sec), focusSec);
   if (state.sel) highlight(null);
 }
 
@@ -675,7 +675,7 @@ function stockTable(rows, cols, sort, rerender, showVia, leadCols = []) {
 }
 
 async function viewPicks(app) {
-  const [sec, st, rg] = await Promise.all([load("sectors"), load("stocks"), load("regime")]);
+  const [sec, st, rg, ld] = await Promise.all([load("sectors"), load("stocks"), load("regime"), load("leaders")]);
   const focus = (st.focus[state.bench] || {})[state.group] || [];
   const B = sec.benchmarks[state.bench];
   const holder = h("div", null);
@@ -711,7 +711,98 @@ async function viewPicks(app) {
   app.replaceChildren(
     filtersRow(h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: state.fnoOnly || null,
       onchange: (e) => { state.fnoOnly = e.target.checked; store("ss-fno", state.fnoOnly ? "1" : "0"); route(); } }), "F&O stocks only")),
-    setupsBox, leadersSection(st, sec), h("div", { style: "height:12px" }), holder);
+    setupsBox, nextLeadersSection(ld, st, sec), h("div", { style: "height:12px" }), holder);
+}
+
+
+// ------------------------------------------------------------------ rotation watch and next leaders
+const STATUS_HELP = {
+  "Emerging": "Fell less than the market and is leading off the low, but was not a top-5 sector at the peak: a candidate new leader.",
+  "Steady leader": "A top-5 sector at the market's peak that is still holding up: leadership intact.",
+  "Old leader, bouncing": "A top-5 sector at the peak that fell more than the market but is outperforming since the low.",
+  "Fading leader": "A top-5 sector at the peak that fell more than the market and is not recovering: likely to lag the next rally.",
+};
+function statusChip(st) {
+  if (!st) return h("span", { class: "muted" }, "–");
+  const cls = { "Emerging": "em", "Steady leader": "sl", "Old leader, bouncing": "ob", "Fading leader": "fd" }[st];
+  return h("span", { class: `status ${cls}`, title: STATUS_HELP[st] }, st);
+}
+function declineSentence(dc) {
+  if (!dc) return "";
+  const pk = fmtDate(dc.peak, { day: "numeric", month: "short", year: "numeric" }), lw = fmtDate(dc.low, { day: "numeric", month: "short", year: "numeric" });
+  return dc.in_correction
+    ? `Nifty 500 fell ${Math.abs(dc.fall).toFixed(1)}% from its 6-month high on ${pk} to its low on ${lw}, and is ${dc.bounce.toFixed(1)}% above that low.`
+    : `Nifty 500 is within 7% of its 6-month high (${pk}), so there is no correction under way; the figures cover its latest pullback (low ${lw}, ${dc.fall.toFixed(1)}%).`;
+}
+function rotationSection(ld, sec) {
+  if (!ld) return null;
+  const dc = ld.decline;
+  const keys = sec.groups[state.group];
+  const rows = keys.map((k) => ({ key: k, ...ld.sectors[k] })).sort((a, b) => (a.nl_rank ?? 99) - (b.nl_rank ?? 99));
+  return h("section", null,
+    h("div", { class: "section-head" }, h("h2", null, "Rotation watch"),
+      h("p", null, "Who is taking over leadership in this correction, vs Nifty 500")),
+    h("div", { class: "panel" },
+      h("p", { class: "sub" }, declineSentence(dc), " Sectors are ranked on how little they fell, how they have done since the low, and how close their relative strength is to its 52-week high.",
+        dc.off_low_valid ? "" : " The low is under 5 sessions old, so performance since the low is not counted yet."),
+      h("div", { class: "table-scroll" }, h("table", { class: "static" },
+        h("thead", null, h("tr", null, h("th", { class: "l" }, "#"), h("th", { class: "l" }, "Index"), h("th", { class: "l" }, "Status"),
+          h("th", { title: "Index return from the market's peak to its low, minus Nifty 500's. Positive = fell less." }, "Fall vs market"),
+          h("th", { title: "Return since the market's low, minus Nifty 500's" }, "Since low vs market"),
+          h("th", { title: "Relative-strength line vs its own 52-week high; 0% = at the high" }, "RS line vs high"),
+          h("th", { title: "Strength-score rank at the market's peak, and now" }, "Rank: peak → now"),
+          h("th", { class: "l" }, "Quadrant"))),
+        h("tbody", null, rows.map((r) => h("tr", { tabindex: 0, onclick: () => { location.hash = `#/sector/${r.key}`; } },
+          h("td", { class: "l muted" }, fmtNum(r.nl_rank)),
+          h("td", { class: "l name" }, sec.names[r.key]),
+          h("td", { class: "l" }, statusChip(r.status)),
+          h("td", { class: sign(r.held_up_pct) }, fmtPct(r.held_up_pct)),
+          h("td", { class: dc.off_low_valid ? sign(r.since_low_pct) : "muted" }, dc.off_low_valid ? fmtPct(r.since_low_pct) : "–"),
+          h("td", null, fmtPct(r.rs_vs_high)),
+          h("td", null, `${fmtNum(r.rank_at_peak)} → ${fmtNum(r.rank_now)}`),
+          h("td", { class: "l" }, quadChip(r.quadrant))))))),
+      h("div", { class: "legend status-legend" }, Object.keys(STATUS_HELP).map((k) => h("span", null, statusChip(k), " ", STATUS_HELP[k]))),
+      h("p", { class: "note" }, "How these statuses did in past corrections: ", h("a", { href: "#/record" }, "track record"), ". Few corrections have been tested so far, so treat the statuses as leads, not rules.")));
+}
+
+function nextLeadersSection(ld, st, sec) {
+  if (!ld) return null;
+  const dc = ld.decline;
+  const setupSyms = new Set((st.setups || []).map((x) => x.symbol));
+  let rows = (ld.stocks || []).map((x, i) => ({ ...x, n: i + 1, info: st.stocks[x.symbol] || {} }));
+  if (state.fnoOnly) rows = rows.filter((x) => x.info.fno);
+  rows = rows.slice(0, 25);
+  return h("section", null,
+    h("div", { class: "section-head" }, h("h2", null, "Next leaders"),
+      h("p", null, "Stocks that fell least and are first off the low: candidates to lead the next rally")),
+    h("div", { class: "panel" },
+      h("p", { class: "sub" }, declineSentence(dc), dc.in_correction ? " Use this as the watchlist; buy when one forms a setup above or the market regime improves."
+        : " With no correction under way, the strength ranking below matters more than this list."),
+      rows.length ? h("div", { class: "table-scroll" }, h("table", { class: "static" },
+        h("thead", null, h("tr", null, h("th", { class: "l" }, "#"), h("th", { class: "l" }, "Stock"), h("th", { class: "l" }, "Sector"),
+          h("th", null, "Next-leader score"),
+          h("th", { title: "Return from the market's peak to its low, minus Nifty 500's. Positive = fell less." }, "Fall vs market"),
+          h("th", { title: "Return since the market's low, minus Nifty 500's" }, "Since low vs market"),
+          h("th", { title: "Relative-strength line vs its own 52-week high; 0% = at the high" }, "RS line vs high"),
+          h("th", null, "Price vs high"),
+          h("th", { title: "Volume on up days ÷ volume on down days since the peak; above 1 = accumulation" }, "Up/down volume"),
+          h("th", { class: "l" }, "Flags"))),
+        h("tbody", null, rows.map((x) => h("tr", null,
+          h("td", { class: "l muted" }, x.n),
+          h("td", { class: "l name" }, x.symbol, h("small", null, x.info.company || x.info.industry || "")),
+          h("td", { class: "l small" }, (x.info.sectors || []).map((k) => sec.names[k]).filter(Boolean).slice(0, 2).join(", ") || "–"),
+          h("td", null, meter(x.score)),
+          h("td", { class: sign(x.held_up_pct) }, fmtPct(x.held_up_pct)),
+          h("td", { class: sign(x.since_low_pct) }, dc.off_low_valid ? fmtPct(x.since_low_pct) : "–"),
+          h("td", null, fmtPct(x.rs_vs_high)),
+          h("td", null, fmtPct(x.from_high)),
+          h("td", null, fmtNum(x.updown_volume, 2)),
+          h("td", { class: "l" },
+            x.rs_leads_price ? h("span", { class: "flag", title: "RS line at a new high while the price is still 5%+ below its high" }, "RS leads price") : null,
+            setupSyms.has(x.symbol) ? h("span", { class: "flag fno" }, "Setup today") : null,
+            x.info.fno ? h("span", { class: "flag fno" }, "F&O") : null)))))) : h("p", { class: "empty" }, "No stocks match."),
+      h("p", { class: "note" }, `Score: fell least ${Math.round(ld.weights.held_up * 100)}%, since the low ${Math.round(ld.weights.off_low * 100)}%, RS line ${Math.round(ld.weights.rs_line * 100)}%, accumulation ${Math.round(ld.weights.accumulation * 100)}% (percentile ranks). Stocks more than 30% below their high are left out. How it did in past corrections: `,
+        h("a", { href: "#/record" }, "track record"), ".")));
 }
 
 // ------------------------------------------------------------------ positional setups
@@ -798,18 +889,6 @@ function setupsSection(st, sec, rg) {
   return box;
 }
 
-function leadersSection(st, sec) {
-  const syms = (st.leaders || []).filter((x) => !state.fnoOnly || st.stocks[x]?.fno);
-  return h("section", null,
-    h("div", { class: "section-head" }, h("h2", null, "Holding up best"),
-      h("p", null, "Relative strength at a 52-week high, price within 15% of its high: the watchlist for when the market turns")),
-    h("div", { class: "panel" },
-      syms.length ? h("div", { class: "chips" }, syms.map((x) => {
-        const v = st.stocks[x] || {};
-        return h("span", { class: "chip", title: `${v.company || ""} · RS rating ${fmtNum(v.rs_rating)} · ${fmtPct(v.pct_from_52w_high)} from high` },
-          h("b", null, x), h("span", null, `RS ${fmtNum(v.rs_rating)}`), h("span", null, fmtPct(v.pct_from_52w_high)), v.fno ? h("em", null, "F&O") : null);
-      })) : h("p", { class: "empty" }, "No stock meets this today.")));
-}
 
 
 // ------------------------------------------------------------------ track record (Phase 6)
@@ -856,6 +935,37 @@ function barList(items, fmt) {
         h("b", { style: `left:${left}%;width:${Math.max(0.5, w)}%;background:${x.value >= 0 ? css("--up") : css("--down")}` })),
       h("span", { class: `bar-val ${sign(x.value)}` }, fmt(x.value)));
   }));
+}
+
+
+function leadershipSection(L, names) {
+  const eps = (L?.episodes || []).slice().reverse();
+  if (!eps.length) return null;
+  return h("section", null,
+    h("div", { class: "section-head" }, h("h2", null, "Leadership change in corrections"),
+      h("p", null, `Each time Nifty 500 fell ${L.rules.fall}%+ from its 6-month high and then rose ${L.rules.bounce}% off the low`)),
+    eps.map((e) => {
+      const G = e.groups || {};
+      const order = ["Next leaders (top 20% next-leader score)", "Fell least (top 20%)", "Best off the low (top 20%)",
+        "Old leaders (top 20% score at the peak)", "Old leaders not in the top half now", "All stocks"];
+      return h("div", { class: "panel", style: "margin-bottom:12px" },
+        h("h2", null, `${fmtDate(e.peak, { month: "short", year: "numeric" })} – ${fmtDate(e.low, { month: "short", year: "numeric" })} correction`),
+        h("p", { class: "sub" }, `Nifty 500 fell ${Math.abs(e.fall).toFixed(1)}% (high ${fmtDate(e.peak)}, low ${fmtDate(e.low)}). Tested on ${fmtDate(e.eval_date)}, when it was ${e.bounce.toFixed(1)}% off the low; returns over the next ${e.fwd_days} sessions${e.complete ? "" : " so far"}.`),
+        h("div", { class: "grid-main" },
+          h("div", { class: "table-scroll" }, h("table", { class: "static" },
+            h("thead", null, h("tr", null, h("th", { class: "l" }, "Stocks"), h("th", null, "Avg vs Nifty 500"), h("th", null, "Beat it"), h("th", null, "Stocks"))),
+            h("tbody", null, order.filter((k) => G[k]).map((k) => h("tr", null, h("td", { class: "l name" }, k),
+              h("td", { class: sign(G[k].avg) }, fmtPct(G[k].avg)), h("td", null, `${Math.round(G[k].hit)}%`), h("td", { class: "muted" }, fmtNum(G[k].n))))))),
+          h("div", null,
+            Object.keys(e.sectors_by_status || {}).length ? h("div", { class: "table-scroll" }, h("table", { class: "static" },
+              h("thead", null, h("tr", null, h("th", { class: "l" }, "Sector status that day"), h("th", null, "Avg vs Nifty 500"), h("th", null, "Indices"))),
+              h("tbody", null, Object.entries(e.sectors_by_status).map(([k, v]) => h("tr", null, h("td", { class: "l" }, statusChip(k)),
+                h("td", { class: sign(v.avg) }, fmtPct(v.avg)), h("td", { class: "muted" }, v.n))))))
+              : h("p", { class: "empty" }, "Sector statuses need a year of history before the peak; not available for this correction."),
+            isNum(e.sector_corr_old) ? h("p", { class: "note" }, `Link between a sector's rank at the peak and its next-3-month result: ${e.sector_corr_old.toFixed(2)} (rank correlation; negative means the old leaders lagged).`) : null)),
+        h("p", { class: "note" }, `Top next leaders that day: ${(e.top_next || []).join(", ")}.`));
+    }),
+    h("p", { class: "note" }, "Only a few corrections fall inside the stored data. In the 2026 one the next leaders clearly beat the old leaders; in the 2025 one the rally was led by the most beaten-down stocks and the next leaders lagged. More episodes will be added automatically as they happen."));
 }
 
 async function viewRecord(app) {
@@ -919,6 +1029,7 @@ async function viewRecord(app) {
             h("td", { class: sign(x.return_pct) }, fmtPct(x.return_pct)), h("td", { class: sign(x.r) }, fmtX(x.r)),
             h("td", null, fmtNum(x.days)), h("td", { class: "l muted" }, x.exit_reason)))))))),
 
+    leadershipSection(v.leadership),
     h("section", null, h("div", { class: "section-head" }, h("h2", null, "Sector ranking"), h("p", null, "Tested every 5th session")),
       h("div", { class: "grid-main" },
         h("div", { class: "panel" }, h("h2", null, "Sectoral indices"),

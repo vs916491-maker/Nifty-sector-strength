@@ -159,4 +159,74 @@ def build(idx, st, cons, groups, res, ind, trades, regime_df) -> dict:
         "stocks": stock_test(st, idx, cons, keys, res, quads),
         "setups": setup_test(trades, ind, regime_df),
         "regime": regime_test(idx, regime_df),
+        "leadership": leadership_test(idx, st, cons, groups, res),
     }
+
+
+# ---------------------------------------------------------------- leadership change
+EPISODE_FALL, EPISODE_BOUNCE, FWD = 8.0, 6.0, 63
+
+
+def leadership_test(idx: pd.DataFrame, st: dict, cons: dict, groups: dict, res: dict) -> dict:
+    """At each past correction, once Nifty 500 is 6%+ off a low that was 8%+
+    below its 6-month peak: did the next-leader stocks and sectors beat the
+    old leaders over the following 3 months?"""
+    from . import leaders as LD
+    b = idx["NIFTY500"]
+    keys = [k for g in groups.values() for k in g]
+    ratio, momentum = S.rrg(idx[keys], b)
+    mem = SM.membership(cons, keys)
+    universe = sorted(set(cons.get("TOTALMKT", pd.DataFrame(columns=["symbol"]))["symbol"])
+                      | {s for m in mem.values() for s in m})
+    universe = [s for s in universe if s in st["close"].columns]
+    first_score = res["score"].dropna(how="all").index[0]
+    used_lows, episodes = set(), []
+    for i in range(130, len(b)):
+        d = LD.decline(b, i)
+        if d["fall"] <= -EPISODE_FALL and d["bounce"] >= EPISODE_BOUNCE and d["low"] not in used_lows:
+            used_lows.add(d["low"])
+            episodes.append((i, d))
+    out = []
+    for i, d in episodes:
+        sub = {k: v.iloc[:i + 1] for k, v in st.items()}
+        tv = (sub["close"] * sub["volume"]).tail(20).mean() / 1e7
+        hist = sub["close"].notna().sum()
+        elig = [s for s in universe if tv.get(s, 0) >= SM.FILTERS["min_traded_value_cr"] and hist.get(s, 0) >= SM.FILTERS["min_history_days"]]
+        nl = LD.stock_scores(st, b, d, elig)
+        pk = st["close"].index.get_loc(d["peak"])
+        old = SM.score_stocks({k: v.iloc[:pk + 1] for k, v in st.items()}, elig).score
+        j = min(i + FWD, len(b) - 1)
+        fwd = (st["close"].iloc[j] / st["close"].iloc[i] - 1) * 100 - (b.iloc[j] / b.iloc[i] - 1) * 100
+        df = pd.DataFrame({"nl": nl.score, "old": old, "held": nl.held_up_pct, "off": nl.since_low_pct, "fwd": fwd}).dropna(subset=["fwd"])
+        q = lambda col: df[col] >= df[col].quantile(0.8)   # noqa: E731
+        groups_out = {
+            "Next leaders (top 20% next-leader score)": df.loc[q("nl"), "fwd"],
+            "Old leaders (top 20% score at the peak)": df.loc[q("old"), "fwd"],
+            "Fell least (top 20%)": df.loc[q("held"), "fwd"],
+            "Best off the low (top 20%)": df.loc[q("off"), "fwd"],
+            "Old leaders not in the top half now": df.loc[q("old") & (df.nl < df.nl.median()), "fwd"],
+            "All stocks": df["fwd"],
+        }
+        sec = LD.sector_scores(idx.iloc[:i + 1], groups, d, res["rank"], momentum, ratio) if d["peak"] >= first_score else {}
+        sfwd = (idx[keys].iloc[j] / idx[keys].iloc[i] - 1) * 100 - (b.iloc[j] / b.iloc[i] - 1) * 100
+        sector_rows = [{"key": k, "status": v["status"], "nl_rank": v["nl_rank"], "rank_at_peak": v["rank_at_peak"],
+                        "fwd": sfwd[k]} for k, v in sec.items()]
+        by_status = {}
+        for st_name in ("Emerging", "Steady leader", "Fading leader"):
+            vals = [r["fwd"] for r in sector_rows if r["status"] == st_name and pd.notna(r["fwd"])]
+            if vals:
+                by_status[st_name] = {"avg": float(np.mean(vals)), "n": len(vals)}
+        out.append({
+            **LD.describe(d), "eval_date": b.index[i].date().isoformat(), "fwd_days": int(j - i),
+            "complete": bool(j - i >= FWD),
+            "groups": {k: _agg(v) for k, v in groups_out.items() if len(v)},
+            "corr_next": float(df.nl.corr(df.fwd, method="spearman")),
+            "corr_old": float(df.old.corr(df.fwd, method="spearman")) if df.old.notna().sum() > 20 else None,
+            "sectors_by_status": by_status,
+            "sector_corr_next": float(pd.Series({r["key"]: r["nl_rank"] for r in sector_rows}).corr(
+                pd.Series({r["key"]: r["fwd"] for r in sector_rows}), method="spearman") * -1) if sector_rows else None,
+            "sector_corr_old": float(pd.Series({r["key"]: r["rank_at_peak"] for r in sector_rows}).corr(
+                pd.Series({r["key"]: r["fwd"] for r in sector_rows}), method="spearman") * -1) if sector_rows else None,
+            "top_next": df.sort_values("nl", ascending=False).head(10).index.tolist(),
+        })
+    return {"rules": {"fall": EPISODE_FALL, "bounce": EPISODE_BOUNCE, "forward": FWD}, "episodes": out}

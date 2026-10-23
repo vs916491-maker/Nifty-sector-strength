@@ -300,6 +300,16 @@ details.rules li { margin: 3px 0; }
 .chip span { color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip em { font-style: normal; font-size: 11px; font-weight: 600; }
 
+/* ---------- rotation ---------- */
+.status { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--hair); white-space: nowrap; }
+.status.em { border-color: var(--q-improving); color: var(--q-improving); }
+.status.sl { border-color: var(--q-leading); color: var(--pos-text); }
+.status.ob { border-color: var(--q-weakening); color: var(--ink-2); }
+.status.fd { border-color: var(--q-lagging); color: var(--neg-text); }
+.status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; font-size: 12.5px; }
+@media (max-width: 700px) { .status-legend { grid-template-columns: minmax(0, 1fr); } }
+.status-legend span { white-space: normal; }
+
 /* ---------- track record ---------- */
 table.static tbody tr { cursor: default; }
 th.c { text-align: center; }
