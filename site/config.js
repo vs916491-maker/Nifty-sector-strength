@@ -1,4 +1,5 @@
-// My Trades connection settings (same private Supabase database as the F&O Desk).
+// Connection settings: the whole site signs in to the same private Supabase
+// database as the F&O Desk and reads its data from there.
 // The publishable key is designed to be public; your trades stay private through
 // the access rules in fno-desk/supabase/003_cash_trades.sql, which only let the
 // email below in.

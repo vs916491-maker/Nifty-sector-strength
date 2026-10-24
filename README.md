@@ -140,6 +140,15 @@ http://localhost:8000.
   forward returns of sector ranks, stock score bands, the picks, every
   historical setup, and the regime light, rebuilt every evening.
 
+## Private access
+
+The whole website signs in with the F&O Desk email and password. Its data is
+uploaded after every daily update (`analysis/publish.py`) to the private
+Supabase `docs` table (keys `ss_sectors`, `ss_stocks`, ...), readable only by
+that email; `site/data/` is no longer committed or published. Needs the
+repository secrets `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (same values as
+the fno-desk repo). The raw NSE files in `data/` stay in this public repo.
+
 ## My Trades (Phase 9)
 
 `#/trades` is a private log of cash-market positional trades, stored in the

@@ -37,12 +37,21 @@ function recall(key) { try { return localStorage.getItem(key); } catch (e) { ret
   const mp = parseFloat(recall("ss-maxpos")); if (mp > 0 && mp <= 100) state.maxPos = mp;
 })();
 
+/* Data lives in the private database (docs table, keys ss_<name>), readable
+   only after sign-in. Without database settings it falls back to ./data/
+   for local previews. */
 async function load(name) {
   if (!cache[name]) {
-    cache[name] = fetch(`data/${name}.json`, { cache: "no-cache" }).then((r) => {
-      if (!r.ok) throw new Error(`${name}.json: HTTP ${r.status}`);
-      return r.json();
-    });
+    cache[name] = (window.SS_CONFIG?.supabaseUrl && window.supabase && typeof sb !== "undefined" && sb
+      ? sb.from("docs").select("data").eq("key", `ss_${name}`).maybeSingle().then(({ data, error }) => {
+        if (error) throw new Error(error.message);
+        if (!data) throw new Error(`${name} has not been uploaded yet`);
+        return data.data;
+      })
+      : fetch(`data/${name}.json`, { cache: "no-cache" }).then((r) => {
+        if (!r.ok) throw new Error(`${name}.json: HTTP ${r.status}`);
+        return r.json();
+      })).catch((e) => { delete cache[name]; throw e; });
   }
   return cache[name];
 }
@@ -1362,8 +1371,8 @@ function signInView(app, message) {
   const msg = h("p", { class: "err", role: "status" }, message || "");
   const btn = h("button", { class: "btn primary", type: "submit" }, "Sign in");
   const form = h("form", { class: "panel signin" },
-    h("h1", null, "My Trades"),
-    h("p", { class: "sub" }, "Your trade log is private. Sign in with the same email and password as the F&O Desk; you stay signed in on this device."),
+    h("h1", null, "Sector Strength"),
+    h("p", { class: "sub" }, "This site is private. Sign in with the same email and password as the F&O Desk; you stay signed in on this device."),
     h("label", null, "Email", email), h("div", { style: "height:10px" }),
     h("label", null, "Password", pass),
     h("label", { class: "toggle", style: "margin-top:8px;display:inline-flex" },
@@ -1522,6 +1531,17 @@ async function route() {
   const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : hash.startsWith("#/trades") ? "trades" : "overview";
   document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.page === page));
   document.querySelectorAll(".nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); });
+  // the whole site is private: sign in first (same email and password as the F&O Desk)
+  const who = document.getElementById("who");
+  if (SB_READY) {
+    const ses = await session();
+    if (!ses) { who.replaceChildren(); return signInView(app); }
+    if (CFG.email && ses.user.email.toLowerCase() !== CFG.email.toLowerCase()) {
+      who.replaceChildren(); return signInView(app, `${ses.user.email} does not have access.`);
+    }
+    who.replaceChildren(h("button", { class: "theme-btn", type: "button", title: ses.user.email,
+      onclick: async () => { await sb.auth.signOut(); Object.keys(cache).forEach((k) => delete cache[k]); route(); } }, "Sign out"));
+  }
   try {
     const sec = await load("sectors");
     document.getElementById("asof").textContent = `NSE end-of-day data, ${fmtDate(sec.as_of)}`;
