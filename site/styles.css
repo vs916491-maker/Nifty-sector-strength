@@ -282,6 +282,8 @@ footer p { margin: 4px 0; max-width: 80ch; }
 .note { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; max-width: 90ch; }
 .note.good b { color: var(--pos-text); }
 .strip svg { display: block; width: 100%; }
+.light-strip { margin: 4px 0 6px; }
+.light-strip .legend { margin-top: 4px; }
 .regime-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; padding: 8px 12px; background: var(--surface-2); border-radius: 8px; }
 
 .internals { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--grid); }
