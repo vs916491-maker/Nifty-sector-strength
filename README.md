@@ -111,7 +111,12 @@ http://localhost:8000.
 ## Market regime, setups and track record (Phases 6-7)
 
 - **Regime light** (`analysis/regime.py`, Overview): six checks on Nifty 500's
-  trend and breadth. Green 5-6, Amber 3-4, Red 0-2. Washout (<20% of stocks
+  trend and breadth, averaged over 5 sessions with a buffer (Green at 5+,
+  leaves Green below 4; Red below 2.5, leaves Red at 3.5+) so it doesn't
+  flip back and forth. **Market internals gauge** (-100..+100: A/D line vs
+  its 50-day average, breadth trend, RSI of Nifty 500 Equal Weight vs its
+  average, highs minus lows, equal weight vs cap weight) with topping and
+  bottoming early warnings. Washout (<20% of stocks
   above their 50-day average) and breadth thrust (<20% to >50% within 15
   sessions) are flagged separately.
 - **Positional setups** (`analysis/setups.py`, Stock picks): breakout, tight

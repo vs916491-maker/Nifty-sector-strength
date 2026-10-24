@@ -2,7 +2,7 @@
 
 Advance / decline   every NSE EQ/BE stock that traded, close vs previous
                     close (data/meta/advance_decline.csv, from the bhavcopy)
-A/D line            running total of (advances - declines)
+A/D line            running total of (advances - declines), with its 50-day average
 A/D ratio (10-day)  advances / declines summed over the last 10 sessions
 % above 50/200-DMA  share of Nifty 500 stocks above their own averages
                     (split/bonus-adjusted closes)
@@ -44,15 +44,18 @@ def build(idx: pd.DataFrame, close: pd.DataFrame, cons: dict[str, pd.DataFrame],
         ad = pd.read_csv(AD_PATH, parse_dates=["date"]).set_index("date").sort_index()
         ad["net"] = ad["advances"] - ad["declines"]
         ad["ad_line"] = ad["net"].cumsum()
+        ad["ad_mean50"] = ad["ad_line"].rolling(50).mean()
         ad["ad_ratio_10"] = (ad["advances"].rolling(10).sum()
                              / ad["declines"].rolling(10).sum().replace(0, pd.NA))
         frame = frame.join(ad[["advances", "declines", "unchanged", "net",
-                               "ad_line", "ad_ratio_10"]], how="left")
+                               "ad_line", "ad_mean50", "ad_ratio_10"]], how="left")
 
     frame = frame.iloc[-days:]
     if "ad_line" in frame:
         # rebase so the visible window starts at 0
-        frame["ad_line"] = frame["ad_line"] - frame["ad_line"].dropna().iloc[0]
+        base = frame["ad_line"].dropna().iloc[0]
+        frame["ad_line"] = frame["ad_line"] - base
+        frame["ad_mean50"] = frame["ad_mean50"] - base
 
     out["dates"] = [d.date().isoformat() for d in frame.index]
     out["series"] = {c: frame[c].astype(float).tolist() for c in frame.columns}

@@ -284,6 +284,23 @@ footer p { margin: 4px 0; max-width: 80ch; }
 .strip svg { display: block; width: 100%; }
 .regime-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; padding: 8px 12px; background: var(--surface-2); border-radius: 8px; }
 
+.internals { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--grid); }
+.internals-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.internals h3 { font-size: 15px; margin: 0; }
+.gauge { display: flex; align-items: baseline; gap: 10px; }
+.gauge b { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.gauge span { font-size: 14px; color: var(--ink-2); }
+.gauge small { color: var(--muted); }
+.gauge b.pos { color: var(--pos-text); } .gauge b.neg { color: var(--neg-text); }
+.note.bad b { color: var(--neg-text); }
+.parts { display: grid; gap: 6px; margin-top: 8px; max-width: 760px; }
+.part-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) 44px; align-items: center; gap: 10px; font-size: 13px; }
+.part-label { color: var(--ink-2); }
+.part-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.div-bar { position: relative; height: 10px; background: var(--grid); border-radius: 3px; }
+.div-bar b { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.div-bar .zero { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+
 /* ---------- setups ---------- */
 .controls { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-bottom: 10px; }
 .field { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); }

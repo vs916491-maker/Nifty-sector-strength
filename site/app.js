@@ -443,6 +443,40 @@ function regimeStrip(hist) {
   return plot;
 }
 
+
+/* Market internals gauge: leading-ish breadth and momentum, -100..+100 */
+function internalsBlock(rg) {
+  const I = rg.internals;
+  if (!I || !isNum(I.value)) return null;
+  const v = I.value, prev = I.value_10d_ago;
+  const word = v >= 40 ? "Strong" : v >= 10 ? "Improving" : v > -10 ? "Neutral" : v > -40 ? "Weakening" : "Weak";
+  const trend = isNum(prev) ? (v > prev + 5 ? "rising" : v < prev - 5 ? "falling" : "flat") : null;
+  const status = I.topping ? h("p", { class: "note bad" }, h("b", null, "Topping warning. "), "The index is stalling near its high while the A/D line, RSI and breadth weaken. This pattern came before the falls of Nov 2025 and Sep 2026, but also gave false alarms in 2025's rising market: tighten stops rather than sell everything.")
+    : I.bottoming ? h("p", { class: "note good" }, h("b", null, "Bottoming signal. "), "Internals are improving while the index is still near its low. In April 2026 this came two weeks before the breadth thrust and a month before the light left Red.")
+    : null;
+  const bar = (x) => {
+    const w = isNum(x) ? Math.min(50, Math.abs(x) / 2) : 0;
+    return h("span", { class: "div-bar" }, h("i", { class: "zero" }),
+      h("b", { style: `left:${x >= 0 ? 50 : 50 - w}%;width:${w}%;background:${x >= 0 ? css("--up") : css("--down")}` }));
+  };
+  const H = rg.history;
+  return h("div", { class: "internals" },
+    h("div", { class: "internals-head" },
+      h("div", null, h("h3", null, "Market internals"),
+        h("p", { class: "sub" }, "An earlier read than the light: breadth and momentum under the surface, from −100 to +100.")),
+      h("div", { class: "gauge" }, h("b", { class: sign(v) }, `${v > 0 ? "+" : ""}${Math.round(v)}`),
+        h("span", null, `${word}${trend ? `, ${trend}` : ""}`, isNum(prev) ? h("small", null, ` (${prev > 0 ? "+" : ""}${Math.round(prev)} ten sessions ago)`) : null))),
+    status,
+    h("div", { class: "parts" }, I.parts.map((p) => h("div", { class: "part-row" },
+      h("span", { class: "part-label" }, p.label), bar(p.value), h("span", { class: `part-val ${sign(p.value)}` }, isNum(p.value) ? `${p.value > 0 ? "+" : ""}${Math.round(p.value)}` : "–")))),
+    H.internals ? h("div", { class: "charts", style: "margin-top:12px" },
+      chartCard("Nifty 500", "Daily close", timeChart({ dates: H.dates, height: 150, series: [{ name: "Nifty 500", values: H.n500, color: css("--ink-2") }], fmt: (x) => fmtNum(x, 2) })),
+      chartCard("Internals gauge", "Above 0 = breadth and momentum improving. Watch for it turning while the index has not.",
+        timeChart({ dates: H.dates, height: 150, domain: [-100, 100], zero: true, tickFmt: (x) => `${x}`, fmt: (x) => (isNum(x) ? `${x > 0 ? "+" : ""}${Math.round(x)}` : "–"),
+          series: [{ name: "Internals", values: H.internals, color: css("--s1") }] }))) : null,
+    h("p", { class: "note" }, I.last_topping || I.last_bottoming ? [`Last topping warning: ${I.last_topping ? fmtDate(I.last_topping) : "none"}. Last bottoming signal: ${I.last_bottoming ? fmtDate(I.last_bottoming) : "none"}. Every past warning and what followed: `, h("a", { href: "#/record" }, "track record"), "."] : null));
+}
+
 function regimePanel(rg) {
   if (!rg || !rg.light) return null;
   const notes = [];
@@ -461,8 +495,9 @@ function regimePanel(rg) {
     h("ul", { class: "checks" }, rg.checks.map((c) => h("li", { class: c.ok ? "ok" : "no" },
       h("span", { class: "mark", "aria-hidden": "true" }, c.ok ? "✓" : "✕"), h("span", { class: "sr" }, c.ok ? "Yes: " : "No: "), c.label))),
     notes,
+    internalsBlock(rg),
     h("div", { class: "chart", style: "margin-top:12px" },
-      h("p", null, `The light over the last ${rg.history.dates.length} sessions`),
+      h("p", null, `The light over the last ${rg.history.dates.length} sessions. It uses a 5-session average of the checks with a buffer, so one or two mixed days no longer flip it.`),
       regimeStrip(rg.history),
       h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l)))),
     h("p", { class: "note" }, "How the light and the picks have done since 2025: ", h("a", { href: "#/record" }, "Track record"), "."));
@@ -550,8 +585,10 @@ async function viewOverview(app) {
         stat("52-week highs / lows", `${fmtNum(L.new_highs)} / ${fmtNum(L.new_lows)}`, "Total Market stocks")),
       h("div", { class: "charts" },
         chartCard("Nifty 500", "Daily close", timeChart({ dates: D, series: [{ name: "Nifty 500", values: S2.nifty500, color: css("--ink-2") }], fmt: (v) => fmtNum(v, 2) })),
-        hasAD ? chartCard("Advance–decline line", "Running total of advances minus declines, all NSE stocks. Falling while the index holds up is a warning sign.",
-          timeChart({ dates: D, series: [{ name: "A/D line", values: S2.ad_line, color: css("--s1") }], fmt: (v) => fmtNum(v) })) : null,
+        hasAD ? chartCard("Advance–decline line", "Running total of advances minus declines, all NSE stocks, with its 50-day average. Above the average = breadth improving, below = deteriorating. A falling line while the index holds up is a warning sign.",
+          timeChart({ dates: D, series: [{ name: "A/D line", values: S2.ad_line, color: css("--s1") },
+            ...(S2.ad_mean50 ? [{ name: "50-day average", values: S2.ad_mean50, color: css("--down"), width: 1.5 }] : [])], fmt: (v) => fmtNum(v) }),
+          S2.ad_mean50 ? lineLegend([["A/D line", css("--s1")], ["50-day average", css("--down")]]) : null) : null,
         chartCard("Stocks above their averages", "Share of Nifty 500 stocks above their 50-day and 200-day averages",
           timeChart({ dates: D, domain: [0, 100], tickFmt: (v) => `${v}%`, fmt: (v) => (isNum(v) ? `${v.toFixed(0)}%` : "–"),
             series: [{ name: "Above 50-day", values: S2.pct_above_50, color: css("--s1") }, { name: "Above 200-day", values: S2.pct_above_200, color: css("--s2") }] }),
@@ -1067,7 +1104,14 @@ async function viewRecord(app) {
           h("tbody", null, ["Green", "Amber", "Red"].map((l) => h("tr", null, h("td", { class: "l" }, lightChip(l)), h("td", null, fmtNum(R.days[l])),
             h("td", { class: sign(R["1M"][l]?.avg) }, fmtPct(R["1M"][l]?.avg)), h("td", null, isNum(R["1M"][l]?.hit) ? `${Math.round(R["1M"][l].hit)}%` : "–"),
             h("td", { class: sign(R["3M"][l]?.avg) }, fmtPct(R["3M"][l]?.avg)), h("td", null, isNum(R["3M"][l]?.hit) ? `${Math.round(R["3M"][l].hit)}%` : "–")))))),
-        h("p", { class: "note" }, "Here the column is Nifty 500's own return, not the excess over it."))));
+        h("p", { class: "note" }, `Here the column is Nifty 500's own return, not the excess over it. With the 5-session buffer the light changed ${R.changes?.buffered ?? "–"} times since ${R.changes?.since ? fmtDate(R.changes.since) : "–"}, against ${R.changes?.raw ?? "–"} times without it.`),
+        R.warnings ? [h("h3", { class: "h3" }, "Early warnings from the internals"),
+          h("div", { class: "table-scroll" }, h("table", { class: "static" },
+            h("thead", null, h("tr", null, h("th", { class: "l" }, "First day"), h("th", { class: "l" }, "Warning"), h("th", null, "Nifty 500"), h("th", null, "Gauge"), h("th", null, "Next 1 month"), h("th", null, "Next 3 months"))),
+            h("tbody", null, R.warnings.map((e) => h("tr", null, h("td", { class: "l" }, fmtDate(e.date)), h("td", { class: "l name" }, e.kind),
+              h("td", null, fmtNum(e.n500, 0)), h("td", null, isNum(e.internals) ? Math.round(e.internals) : "–"),
+              h("td", { class: sign(e["1M"]) }, fmtPct(e["1M"])), h("td", { class: sign(e["3M"]) }, fmtPct(e["3M"]))))))),
+          h("p", { class: "note" }, `For comparison, Nifty 500 averaged ${fmtPct(R.base?.["1M"])} over any 1 month and ${fmtPct(R.base?.["3M"])} over any 3 months in this period. A topping warning is a reason to tighten stops and slow down buying; about half of them came before a real fall.`)] : null)));
 }
 
 

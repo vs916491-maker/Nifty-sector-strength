@@ -117,7 +117,10 @@ def main() -> int:
     stock_out["as_of"] = as_of
 
     # regime light, positional setups and the Phase 6 track record
-    rg = regime_mod.series(idx, stocks["close"], cons)
+    ad_raw = pd.read_csv(breadth_mod.AD_PATH, parse_dates=["date"]).set_index("date").sort_index() \
+        if breadth_mod.AD_PATH.exists() else None
+    ad_line = (ad_raw["advances"] - ad_raw["declines"]).cumsum() if ad_raw is not None else None
+    rg = regime_mod.series(idx, stocks["close"], cons, data.index_close_by_name("Nifty500 Equal Weight"), ad_line)
     ind = setups_mod.indicators(stocks, idx["NIFTY500"])
     sets = setups_mod.detect(ind)
     last = ind["close"].index[-1]

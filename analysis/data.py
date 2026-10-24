@@ -115,3 +115,11 @@ def results_calendar() -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame(columns=["symbol", "date", "purpose"])
     return pd.read_csv(path, dtype=str).dropna(subset=["symbol", "date"])
+
+
+def index_close_by_name(name: str) -> pd.Series:
+    """Daily close of any NSE index by its name in the NSE file (e.g. 'Nifty500 Equal Weight')."""
+    raw = _read_months(DATA / "indices", ["date", "index", "close"])
+    s = raw[raw["index"].str.lower() == name.lower()].set_index("date")["close"]
+    s.index = pd.to_datetime(s.index)
+    return s[~s.index.duplicated(keep="last")].sort_index()

@@ -150,6 +150,26 @@ def regime_test(idx: pd.DataFrame, regime_df: pd.DataFrame) -> dict:
         df = pd.DataFrame({"light": regime_df["light"], "f": fwd}).dropna()
         out[label] = {l: _agg(df.loc[df.light == l, "f"]) for l in ("Green", "Amber", "Red")}
     out["days"] = {l: int((regime_df["light"] == l).sum()) for l in ("Green", "Amber", "Red")}
+
+    # how often the light changes, with and without the buffer
+    lights = regime_df["light"].dropna()
+    raw = regime_df["points"].dropna().map(lambda p: "Green" if p >= 5 else "Amber" if p >= 3 else "Red")
+    out["changes"] = {"buffered": int((lights != lights.shift()).sum() - 1), "raw": int((raw != raw.shift()).sum() - 1),
+                      "since": lights.index[0].date().isoformat() if len(lights) else None}
+
+    # early warnings: each spell's first day and what Nifty 500 did next
+    if "topping" in regime_df:
+        from .regime import warning_events
+        f = {k: (b.shift(-n) / b - 1) * 100 for k, n in HORIZONS.items()}
+        events = []
+        for kind, col in (("Topping warning", "topping"), ("Bottoming signal", "bottoming")):
+            for d in warning_events(regime_df, col):
+                events.append({"date": d.date().isoformat(), "kind": kind, "n500": float(b[d]),
+                               "internals": float(regime_df.at[d, "internals"]) if pd.notna(regime_df.at[d, "internals"]) else None,
+                               **{k: (float(v[d]) if pd.notna(v.get(d)) else None) for k, v in f.items()}})
+        events.sort(key=lambda e: e["date"], reverse=True)
+        out["warnings"] = events
+        out["base"] = {k: float(v.mean()) for k, v in f.items()}
     return out
 
 
