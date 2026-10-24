@@ -19,6 +19,7 @@ const state = {
   riskPct: 1,
   maxPos: 20,                // max % of capital in one stock
   pendingTrade: null,        // "I took this trade" waiting for sign-in
+  rrgLabels: "all",          // rotation chart: label all sectors, or only those that changed quadrant
 };
 const cache = {};
 const QUAD = ["Leading", "Weakening", "Lagging", "Improving"];
@@ -32,6 +33,7 @@ function recall(key) { try { return localStorage.getItem(key); } catch (e) { ret
   const g = recall("ss-group"); if (g === "Sectoral" || g === "Thematic") state.group = g;
   state.fnoOnly = recall("ss-fno") === "1";
   state.aOnly = recall("ss-aonly") !== "0";
+  if (recall("ss-rrglabels") === "changes") state.rrgLabels = "changes";
   const cap = parseFloat(recall("ss-capital")); if (cap > 0) state.capital = cap;
   const rp = parseFloat(recall("ss-risk")); if (rp > 0 && rp <= 10) state.riskPct = rp;
   const mp = parseFloat(recall("ss-maxpos")); if (mp > 0 && mp <= 100) state.maxPos = mp;
@@ -329,7 +331,10 @@ function rrgChart(keys, tails, names, onPick) {
       if (state.sel === k) pts.slice(0, -1).forEach((p) => g.append(s("circle", { cx: x(p.x), cy: y(p.y), r: 3, fill: col })));
       g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 7, fill: col, stroke: css("--surface"), "stroke-width": 2 }));
       g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 13, fill: "transparent" }));
-      labels.push({ k, q, x: x(head.x), y: y(head.y), g, dim, path: pts.map((p) => [x(p.x), y(p.y)]) });
+      const prev = all.length > 1 ? all[all.length - 2] : null;
+      const prevQ = prev ? (prev.x >= 100 ? (prev.y >= 100 ? "Leading" : "Weakening") : (prev.y >= 100 ? "Improving" : "Lagging")) : q;
+      if (prevQ !== q) g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 11, fill: "none", stroke: css("--ink"), "stroke-width": 1.5 }));
+      labels.push({ k, q, changed: prevQ !== q, prevQ, x: x(head.x), y: y(head.y), g, dim, path: pts.map((p) => [x(p.x), y(p.y)]) });
       const showTip = () => {
         tip.replaceChildren(
           h("div", { class: "t-date" }, `${names[k]} · week of ${fmtDate(head.date, { day: "numeric", month: "short" })}`),
@@ -380,6 +385,7 @@ function rrgChart(keys, tails, names, onPick) {
     const order = labels.slice().sort((a2, b2) => crowd(b2) - crowd(a2));
     const angles = [0, 180, 30, -30, 150, -150, 60, -60, 120, -120, 90, -90];
     for (const L of order) {
+      if (state.rrgLabels === "changes" && !L.changed && state.sel !== L.k) continue;
       const text = names[L.k], w = ctx.measureText(text).width + 6, hgt = fs + 3.5, R = qRect[L.q];
       let best = null;
       for (const r of [12, 20, 30, 42, 56, 72, 90, 110, 135, 160]) {
@@ -666,8 +672,10 @@ async function viewOverview(app) {
   const main = h("div", { class: "grid-main" },
     h("div", { class: "panel" },
       h("h2", null, "Relative rotation"),
-      h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to see its full path.`),
-      seg("Path of tapped sector", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); }),
+      h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. A ring marks a sector that changed quadrant this week. Tap a dot to see its full path.`),
+      h("div", { class: "filters", style: "padding:4px 0 0" },
+        seg("Names", [["all", "All sectors"], ["changes", "Changed quadrant"]], state.rrgLabels, (v) => { state.rrgLabels = v; store("ss-rrglabels", v); route(); }),
+        seg("Path of tapped sector", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); })),
       rrg,
       h("div", { class: "legend" }, QUAD.map((q) => h("span", null, h("i", { style: `background:var(${QVAR[q]})` }), q)))),
     h("div", { class: "panel" },
