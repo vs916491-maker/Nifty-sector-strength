@@ -382,7 +382,7 @@ function rrgChart(keys, tails, names, onPick) {
     for (const L of order) {
       const text = names[L.k], w = ctx.measureText(text).width + 6, hgt = fs + 3.5, R = qRect[L.q];
       let best = null;
-      for (const r of [12, 20, 30, 42, 56, 72, 90, 110, 135, 160]) {
+      for (const r of [18, 26, 36, 48, 62, 78, 96, 116, 140, 165]) {
         for (const deg of angles) {
           const c = Math.cos(deg * Math.PI / 180), sn = Math.sin(deg * Math.PI / 180);
           const ax = L.x + c * r, ay = L.y - sn * r;
@@ -409,9 +409,10 @@ function rrgChart(keys, tails, names, onPick) {
       // nearest point of the label box to the dot, and the dot's edge toward it
       const nx = Math.max(best.x, Math.min(L.x, best.x + best.w)), ny = Math.max(best.y, Math.min(L.y, best.y + best.h));
       const dist = Math.hypot(nx - L.x, ny - L.y);
-      if (dist > 14) {
-        const ex = L.x + (nx - L.x) / dist * 9, ey = L.y + (ny - L.y) / dist * 9;
-        grp.append(s("line", { x1: ex, y1: ey, x2: nx, y2: ny, stroke: css("--ink-2"), "stroke-width": 1, "stroke-dasharray": "2 3", "stroke-linecap": "round" }));
+      // every name gets a dotted line to its dot, in the dot's colour, so it is clear which is which
+      if (dist > 9) {
+        const ex = L.x + (nx - L.x) / dist * 8, ey = L.y + (ny - L.y) / dist * 8;
+        grp.append(s("line", { x1: ex, y1: ey, x2: nx, y2: ny, stroke: css(QVAR[L.q]), "stroke-width": 1.6, "stroke-dasharray": "1.5 3", "stroke-linecap": "round" }));
       }
       grp.append(s("text", { x: best.x + 3, y: best.y + hgt - 4, class: "rrg-label", style: `font-size:${fs}px` }, text));
       layer.append(grp);
