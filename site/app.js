@@ -303,9 +303,8 @@ function rrgChart(keys, tails, names, onPick) {
       ["Lagging", m.l, cy, cx - m.l, m.t + ih - cy, "start", m.l + 8, m.t + ih - 8],
       ["Improving", m.l, m.t, cx - m.l, cy - m.t, "start", m.l + 8, m.t + 16],
     ];
-    for (const [q, qx, qy, qw, qh, anchor, tx, ty] of quads) {
-      svg.append(s("rect", { x: qx, y: qy, width: Math.max(0, qw), height: Math.max(0, qh), fill: css(`${QVAR[q]}-wash`) }));
-      svg.append(s("text", { x: tx, y: ty, "text-anchor": anchor, class: "rrg-qname" }, q));
+    for (const [q, qx, qy, qw, qh] of quads) {
+      svg.append(s("rect", { x: qx, y: qy, width: Math.max(0, qw), height: Math.max(0, qh), fill: css(`${QVAR[q]}-bg`) }));
     }
     svg.append(s("line", { x1: cx, x2: cx, y1: m.t, y2: m.t + ih, stroke: css("--axis") }));
     svg.append(s("line", { x1: m.l, x2: W - m.r, y1: cy, y2: cy, stroke: css("--axis") }));
@@ -316,7 +315,9 @@ function rrgChart(keys, tails, names, onPick) {
 
     const labels = [];
     for (const k of keys) {
-      const pts = (tails[k] || []).slice(-(state.tail + 1)).filter((p) => isNum(p.x) && isNum(p.y));
+      // selected sector: its full path; the others: only last week's move, as an arrow into the dot
+      const all = (tails[k] || []).filter((p) => isNum(p.x) && isNum(p.y));
+      const pts = state.sel === k ? all.slice(-(state.tail + 1)) : all.slice(-2);
       if (!pts.length) continue;
       const head = pts[pts.length - 1];
       const q = head.x >= 100 ? (head.y >= 100 ? "Leading" : "Weakening") : (head.y >= 100 ? "Improving" : "Lagging");
@@ -324,9 +325,9 @@ function rrgChart(keys, tails, names, onPick) {
       const dim = state.sel && state.sel !== k;
       const g = s("g", { class: dim ? "dim" : null, tabindex: 0, role: "button", "aria-label": `${names[k]}: ${q}`, "clip-path": `url(#${clipId})` });
       g.append(s("path", { d: pts.map((p, i) => `${i ? "L" : "M"}${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(""),
-        fill: "none", stroke: col, "stroke-width": 1.5, opacity: 0.55, "stroke-linejoin": "round" }));
-      pts.slice(0, -1).forEach((p) => g.append(s("circle", { cx: x(p.x), cy: y(p.y), r: 2, fill: col, opacity: 0.6 })));
-      g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 5.5, fill: col, stroke: css("--surface"), "stroke-width": 2 }));
+        fill: "none", stroke: col, "stroke-width": state.sel === k ? 2.2 : 3, opacity: 0.85, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      if (state.sel === k) pts.slice(0, -1).forEach((p) => g.append(s("circle", { cx: x(p.x), cy: y(p.y), r: 3, fill: col })));
+      g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 7, fill: col, stroke: css("--surface"), "stroke-width": 2 }));
       g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 13, fill: "transparent" }));
       labels.push({ k, x: x(head.x), y: y(head.y), g, dim });
       const showTip = () => {
@@ -376,6 +377,13 @@ function rrgChart(keys, tails, names, onPick) {
       grp.append(s("text", { x: best.b.x + 2, y: best.b.y + hgt - 3, class: "rrg-label" }, text));
       layer.append(grp);
       L.g.labelNode = grp;
+    }
+    // quadrant names as coloured pills, on top so dots never hide them
+    for (const [q, , , , , anchor, tx, ty] of quads) {
+      const w = q.length * 7.4 + 16, bx = anchor === "end" ? tx - w + 4 : tx - 4;
+      svg.append(s("rect", { x: bx, y: ty - 14, width: w, height: 20, rx: 10, fill: css(QVAR[q]) }));
+      svg.append(s("text", { x: bx + w / 2, y: ty + 0.5, "text-anchor": "middle", class: "rrg-qname",
+        fill: q === "Weakening" ? "#15202b" : "#ffffff" }, q));
     }
     box.prepend(svg);
   }
@@ -619,8 +627,8 @@ async function viewOverview(app) {
   const main = h("div", { class: "grid-main" },
     h("div", { class: "panel" },
       h("h2", null, "Relative rotation"),
-      h("p", { class: "sub" }, `Weekly, vs ${B.name}. Tails show the path over recent weeks; sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to highlight it.`),
-      seg("Tail", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); }),
+      h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to see its full path.`),
+      seg("Path of tapped sector", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); }),
       rrg,
       h("div", { class: "legend" }, QUAD.map((q) => h("span", null, h("i", { style: `background:var(${QVAR[q]})` }), q)))),
     h("div", { class: "panel" },
