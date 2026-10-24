@@ -146,6 +146,21 @@ function resultsFlag(r, compact) {
 }
 const isResultsFlag = (f) => f.startsWith("Results");
 
+
+// ------------------------------------------------------------------ chart links (TradingView, daily)
+function chartLink(sym, interval = "D") {
+  const tv = `NSE:${String(sym).toUpperCase().replace(/[&-]/g, "_")}`;
+  const a = h("a", { class: "chart-link", href: `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tv)}&interval=${interval}`,
+    target: "_blank", rel: "noopener", title: `Open ${tv} chart on TradingView`, "aria-label": `Open ${sym} chart on TradingView`,
+    onclick: (e) => e.stopPropagation() });
+  a.append(s("svg", { viewBox: "0 0 16 16", width: 15, height: 15, "aria-hidden": "true" },
+    s("line", { x1: 4, y1: 2, x2: 4, y2: 14, stroke: "currentColor", "stroke-width": 1.4 }),
+    s("rect", { x: 2.2, y: 5, width: 3.6, height: 6, rx: 0.6, fill: "currentColor" }),
+    s("line", { x1: 11, y1: 1.5, x2: 11, y2: 12.5, stroke: "currentColor", "stroke-width": 1.4 }),
+    s("rect", { x: 9.2, y: 3.5, width: 3.6, height: 6, rx: 0.6, fill: "none", stroke: "currentColor", "stroke-width": 1.4 })));
+  return a;
+}
+
 // ------------------------------------------------------------------ chart: scales and ticks
 function niceTicks(min, max, count = 4) {
   if (!isFinite(min) || !isFinite(max)) return [];
@@ -834,7 +849,7 @@ function stockTable(rows, cols, sort, rerender, showVia, leadCols = []) {
       h("th", { class: "l" }, "Stock"), cols.map(([k, label]) => th(k, label)), h("th", { class: "l" }, "Flags"))),
     h("tbody", null, rows.map((x) => h("tr", { style: "cursor:default" },
       leadCols.map(([, , fn]) => h("td", { class: "l" }, fn(x))),
-      h("td", { class: "l name" }, x.sym, h("small", null, x.company || x.industry || "")),
+      h("td", { class: "l name" }, x.sym, chartLink(x.sym), h("small", null, x.company || x.industry || "")),
       cols.map(([k, , fn, cls]) => h("td", { class: cls ? cls(x[k]) : null }, fn(x))),
       h("td", { class: "l" },
         (x.flags || []).filter((f) => f !== "F&O" && !isResultsFlag(f)).map((f) => h("span", { class: "flag" }, f)),
@@ -958,7 +973,7 @@ function nextLeadersSection(ld, st, sec) {
           h("th", { class: "l" }, "Flags"))),
         h("tbody", null, rows.map((x) => h("tr", null,
           h("td", { class: "l muted" }, x.n),
-          h("td", { class: "l name" }, x.symbol, h("small", null, x.info.company || x.info.industry || "")),
+          h("td", { class: "l name" }, x.symbol, chartLink(x.symbol), h("small", null, x.info.company || x.info.industry || "")),
           h("td", { class: "l small" }, (x.info.sectors || []).map((k) => sec.names[k]).filter(Boolean).slice(0, 2).join(", ") || "–"),
           h("td", null, meter(x.score)),
           h("td", { class: sign(x.held_up_pct) }, fmtPct(x.held_up_pct)),
@@ -1015,7 +1030,7 @@ function setupsSection(st, sec, rg) {
         const secs = (x.sectors || []).map((k) => sec.names[k]).filter(Boolean);
         return h("tr", { style: "cursor:default" },
           h("td", { class: "l" }, h("span", { class: `grade g${x.grade}` }, x.grade)),
-          h("td", { class: "l name" }, x.sym, h("small", null, x.company || x.industry || "")),
+          h("td", { class: "l name" }, x.sym, chartLink(x.sym), h("small", null, x.company || x.industry || "")),
           h("td", { class: "l", title: SETUP_HELP[x.name] }, x.name),
           h("td", { class: "l small" }, secs.slice(0, 2).join(", ") || "–"),
           h("td", null, fmtNum(x.close, 2)),
@@ -1458,7 +1473,7 @@ async function viewTrades(app) {
     h("button", { class: "btn small", type: "button", onclick: async () => {
       if (confirm(`Delete the ${t.symbol} trade? This cannot be undone.`)) { await tradesQuery((q) => q.delete().eq("id", t.id)); rerender(); }
     } }, "Delete")));
-  const nameCell = (t) => h("td", { class: "l name" }, t.symbol,
+  const nameCell = (t) => h("td", { class: "l name" }, t.symbol, chartLink(t.symbol),
     h("small", null, [t.setup, t.grade ? `grade ${t.grade}` : null, t.sector].filter(Boolean).join(" · ") || "manual"));
 
   const openTable = h("table", { class: "static" },
