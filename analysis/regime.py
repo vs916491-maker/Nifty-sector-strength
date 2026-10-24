@@ -56,13 +56,21 @@ WASHOUT = 20
 THRUST_FROM, THRUST_TO, THRUST_DAYS, THRUST_KEEP = 20, 50, 15, 20
 
 CHECKS = [
-    ("above_200", "Nifty 500 above its 200-day average"),
-    ("above_50", "Nifty 500 above its 50-day average"),
-    ("ma50_rising", "Nifty 500's 50-day average rising"),
-    ("breadth_50", "Half or more of Nifty 500 stocks above their 50-day average"),
-    ("breadth_200", "Half or more of Nifty 500 stocks above their 200-day average"),
+    ("above_200", "{name} above its 200-day average"),
+    ("above_50", "{name} above its 50-day average"),
+    ("ma50_rising", "{name}'s 50-day average rising"),
+    ("breadth_50", "Half or more of {name} stocks above their 50-day average"),
+    ("breadth_200", "Half or more of {name} stocks above their 200-day average"),
     ("highs_vs_lows", "More 52-week highs than lows (10-day average)"),
 ]
+# The same rules run for Nifty 50: breadth from its 50 stocks, highs/lows and
+# advances/declines from those 50 stocks, RSI from Nifty 50 Equal Weight.
+BENCHES = {
+    "NIFTY500": {"name": "Nifty 500", "breadth": "NIFTY500", "highs_lows": "TOTALMKT",
+                 "equal_weight": "Nifty500 Equal Weight", "turnover": "Nifty 500"},
+    "NIFTY50": {"name": "Nifty 50", "breadth": "NIFTY50", "highs_lows": "NIFTY50",
+                "equal_weight": "NIFTY50 Equal Weight", "turnover": "Nifty 50"},
+}
 
 GUIDANCE = {
     "Green": "Broad uptrend. Normal position size on A-grade setups.",
@@ -89,7 +97,8 @@ def _buffered_light(avg: pd.Series) -> pd.Series:
     return pd.Series(out, index=avg.index)
 
 
-def internals(n500: pd.Series, ew: pd.Series, ad_line: pd.Series, pct50: pd.Series, net_hl: pd.Series) -> pd.DataFrame:
+def internals(n500: pd.Series, ew: pd.Series, ad_line: pd.Series, pct50: pd.Series, net_hl: pd.Series,
+              hl_universe: int = 750) -> pd.DataFrame:
     ew = ew.reindex(n500.index)
     ad = ad_line.reindex(n500.index)
     gap = ad - ad.rolling(50).mean()
@@ -100,7 +109,7 @@ def internals(n500: pd.Series, ew: pd.Series, ad_line: pd.Series, pct50: pd.Seri
         "ad_line": (gap / gap.rolling(250, min_periods=100).std() / 2).clip(-1, 1),
         "breadth_trend": ((pct50 - pct50.shift(10)) / 20).clip(-1, 1),
         "rsi_trend": ((rsi - rsi_avg) / 10).clip(-1, 1),
-        "highs_lows": np.tanh(net_hl / 20),
+        "highs_lows": np.tanh(net_hl / (20 * hl_universe / 750)),
         "equal_weight": ((ratio / ratio.shift(20) - 1) * 100 / 2).clip(-1, 1),
     })
     out = parts.add_prefix("i_")
@@ -122,19 +131,20 @@ def internals(n500: pd.Series, ew: pd.Series, ad_line: pd.Series, pct50: pd.Seri
 
 
 def series(idx: pd.DataFrame, close: pd.DataFrame, cons: dict[str, pd.DataFrame],
-           ew: pd.Series | None = None, ad_line: pd.Series | None = None) -> pd.DataFrame:
+           ew: pd.Series | None = None, ad_line: pd.Series | None = None, bench: str = "NIFTY500") -> pd.DataFrame:
     """Daily regime table: one column per check, points, light, washout, thrust,
-    internals gauge and early warnings."""
-    n500 = idx["NIFTY500"]
+    internals gauge and early warnings, for Nifty 500 (default) or Nifty 50."""
+    cfg = BENCHES[bench]
+    n500 = idx[bench]
     s50, s200 = S.sma(n500.to_frame(), 50).iloc[:, 0], S.sma(n500.to_frame(), 200).iloc[:, 0]
 
-    members = [s for s in cons.get("NIFTY500", pd.DataFrame(columns=["symbol"]))["symbol"] if s in close.columns]
+    members = [s for s in cons.get(cfg["breadth"], pd.DataFrame(columns=["symbol"]))["symbol"] if s in close.columns]
     px = close[members]
     a50, a200 = S.sma(px, 50), S.sma(px, 200)
     pct50 = (px > a50).astype(float).where(a50.notna()).mean(axis=1) * 100
     pct200 = (px > a200).astype(float).where(a200.notna()).mean(axis=1) * 100
 
-    tm = [s for s in cons.get("TOTALMKT", pd.DataFrame(columns=["symbol"]))["symbol"] if s in close.columns]
+    tm = [s for s in cons.get(cfg["highs_lows"], pd.DataFrame(columns=["symbol"]))["symbol"] if s in close.columns]
     t = close[tm]
     hi, lo = t.rolling(250, min_periods=200).max(), t.rolling(250, min_periods=200).min()
     net_hl = (((t >= hi) & hi.notna()).sum(axis=1) - ((t <= lo) & lo.notna()).sum(axis=1)).rolling(10).mean()
@@ -159,16 +169,17 @@ def series(idx: pd.DataFrame, close: pd.DataFrame, cons: dict[str, pd.DataFrame]
     df["thrust_day"] = thrust_day
     df["thrust_active"] = thrust_day.rolling(THRUST_KEEP, min_periods=1).max().astype(bool)
     if ew is not None and ad_line is not None and len(ew) and len(ad_line):
-        df = df.join(internals(n500, ew, ad_line, pct50, net_hl))
+        df = df.join(internals(n500, ew, ad_line, pct50, net_hl, max(len(tm), 1)))
+    df.attrs.update({"bench": bench, "name": cfg["name"], "hl_universe": len(tm)})
     return df
 
 
 INTERNAL_PARTS = [
     ("i_ad_line", "A/D line vs its 50-day average"),
     ("i_breadth_trend", "Share of stocks above their 50-day average, 10-day change"),
-    ("i_rsi_trend", "RSI of Nifty 500 Equal Weight vs its 20-day average"),
+    ("i_rsi_trend", "RSI of {name} Equal Weight vs its 20-day average"),
     ("i_highs_lows", "52-week highs minus lows"),
-    ("i_equal_weight", "Average stock (equal weight) vs Nifty 500"),
+    ("i_equal_weight", "Average stock (equal weight) vs {name}"),
 ]
 
 
@@ -198,13 +209,15 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
     changed = lights.ne(lights.shift()).cumsum()
     light_since = lights[changed == changed.iloc[-1]].index[0].date().isoformat() if len(lights) else None
     tail = df.iloc[-days:]
+    name = df.attrs.get("name", "Nifty 500")
     return {
+        "bench": df.attrs.get("bench", "NIFTY500"), "name": name,
         "date": df.index[-1].date().isoformat(),
         "light": last["light"],
         "light_since": light_since,
         "points": int(last["points"]) if pd.notna(last["points"]) else None,
         "max_points": len(CHECKS),
-        "checks": [{"key": k, "label": label, "ok": bool(last[k])} for k, label in CHECKS],
+        "checks": [{"key": k, "label": label.format(name=name), "ok": bool(last[k])} for k, label in CHECKS],
         "guidance": GUIDANCE.get(last["light"]),
         "pct_above_50": float(last["pct_above_50"]),
         "pct_above_200": float(last["pct_above_200"]),
@@ -220,7 +233,7 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
         "internals": None if "internals" not in df else {
             "value": float(last["internals"]) if pd.notna(last["internals"]) else None,
             "value_10d_ago": float(df["internals"].iloc[-11]) if len(df) > 11 and pd.notna(df["internals"].iloc[-11]) else None,
-            "parts": [{"key": k, "label": label, "value": float(last[k] * 100) if pd.notna(last[k]) else None}
+            "parts": [{"key": k, "label": label.format(name=name), "value": float(last[k] * 100) if pd.notna(last[k]) else None}
                       for k, label in INTERNAL_PARTS],
             "topping": bool(last["topping"]), "bottoming": bool(last["bottoming"]),
             "last_topping": (lambda e: e[-1].date().isoformat() if e else None)(warning_events(df, "topping")),

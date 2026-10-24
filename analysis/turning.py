@@ -22,7 +22,7 @@ Seller exhaustion (bottom)
                   RSI higher (positive divergence). Active for 10 sessions.
   3 Confirmed     within 20 sessions of stage 2, 2 of 4:
                   gauge above 0; p50 crossed above p200 in the last 10
-                  sessions; adr10 above 1.2; a follow-through day in the last
+                  sessions (with p50 at 25%+); adr10 above 1.2; a follow-through day in the last
                   10 sessions (Nifty 500 up 1.2%+ on higher turnover, 4+
                   sessions after its 20-day low).
 
@@ -81,12 +81,14 @@ def _at(series: pd.Series, locs: pd.Series) -> pd.Series:
 
 
 def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | None,
-          turnover: pd.Series | None) -> pd.DataFrame:
+          turnover: pd.Series | None, hl_key: str = "TOTALMKT") -> pd.DataFrame:
     n500 = rg["n500"]
     idx = n500.index
     gauge, p50, p200, rsi = rg["internals"], rg["pct_above_50"], rg["pct_above_200"], rg["ew_rsi"]
 
-    tm = [s for s in cons.get("TOTALMKT", pd.DataFrame(columns=["symbol"]))["symbol"] if s in close.columns]
+    tm = [s for s in cons.get(hl_key, pd.DataFrame(columns=["symbol"]))["symbol"] if s in close.columns]
+    # 55 new lows out of ~750 Total Market stocks; scaled for a smaller universe (4 of 50)
+    lows_thr = max(3, int(round(55 * len(tm) / 750)))
     t = close[tm]
     hi52, lo52 = t.rolling(250, min_periods=200).max(), t.rolling(250, min_periods=200).min()
     new_hi = ((t >= hi52) & hi52.notna()).sum(axis=1).reindex(idx)
@@ -105,7 +107,7 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     # ---------------------------------------------------------- bottom
     b1_parts = pd.DataFrame({
         "p50 under 20%": p50 < 20,
-        "new lows 55+": new_lo.rolling(5).max() >= 55,
+        f"new lows {lows_thr}+": new_lo.rolling(5).max() >= lows_thr,
         "RSI under 30": rsi.rolling(5).min() < 30,
         "adr10 under 0.65": adr10 < 0.65,
     })
@@ -130,7 +132,8 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
         w = arr[i - 19:i + 1]
         days_from_low.iloc[i] = 19 - int(np.nanargmin(w))
     ftd = (chg >= 1.2) & (tov > tov.shift(1)) & (days_from_low >= 4)
-    cross_up = (p50 > p200) & _recent((p50 < p200).shift(1), 10)
+    # a crossing deep in washout territory (both lines near 15%) is noise, so p50 must be 25%+
+    cross_up = (p50 > p200) & (p50 >= 25) & _recent((p50 < p200).shift(1), 10)
     b3_parts = pd.DataFrame({
         "gauge above 0": gauge > 0,
         "p50 crossed above p200": cross_up,

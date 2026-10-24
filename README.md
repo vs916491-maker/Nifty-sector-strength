@@ -119,7 +119,9 @@ http://localhost:8000.
   bottoming early warnings. **Turning-point trackers** (`analysis/turning.py`):
   seller exhaustion (washout -> positive divergence -> confirmation) and
   distribution (extended -> negative divergence / heavy-volume down days ->
-  breakdown), each stage with its conditions and a track record. Washout (<20% of stocks
+  breakdown), each stage with its conditions and a track record. The whole
+  regime panel also runs for Nifty 50 (breadth, highs/lows and advances/
+  declines from its 50 stocks) and follows the Nifty 500 / Nifty 50 switch. Washout (<20% of stocks
   above their 50-day average) and breadth thrust (<20% to >50% within 15
   sessions) are flagged separately.
 - **Positional setups** (`analysis/setups.py`, Stock picks): breakout, tight

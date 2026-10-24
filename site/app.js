@@ -451,8 +451,8 @@ function internalsBlock(rg) {
   const v = I.value, prev = I.value_10d_ago;
   const word = v >= 40 ? "Strong" : v >= 10 ? "Improving" : v > -10 ? "Neutral" : v > -40 ? "Weakening" : "Weak";
   const trend = isNum(prev) ? (v > prev + 5 ? "rising" : v < prev - 5 ? "falling" : "flat") : null;
-  const status = I.topping ? h("p", { class: "note bad" }, h("b", null, "Topping warning. "), "The index is stalling near its high while the A/D line, RSI and breadth weaken. This pattern came before the falls of Nov 2025 and Sep 2026, but also gave false alarms in 2025's rising market: tighten stops rather than sell everything.")
-    : I.bottoming ? h("p", { class: "note good" }, h("b", null, "Bottoming signal. "), "Internals are improving while the index is still near its low. In April 2026 this came two weeks before the breadth thrust and a month before the light left Red.")
+  const status = I.topping ? h("p", { class: "note bad" }, h("b", null, "Topping warning. "), "The index is stalling near its high while the A/D line, RSI and breadth weaken. On Nifty 500 this pattern came before the falls of Nov 2025 and Sep 2026, but also gave false alarms in 2025's rising market: tighten stops rather than sell everything.")
+    : I.bottoming ? h("p", { class: "note good" }, h("b", null, "Bottoming signal. "), "Internals are improving while the index is still near its low. On Nifty 500 in April 2026 this came two weeks before the breadth thrust and a month before the light left Red.")
     : null;
   const bar = (x) => {
     const w = isNum(x) ? Math.min(50, Math.abs(x) / 2) : 0;
@@ -470,11 +470,12 @@ function internalsBlock(rg) {
     h("div", { class: "parts" }, I.parts.map((p) => h("div", { class: "part-row" },
       h("span", { class: "part-label" }, p.label), bar(p.value), h("span", { class: `part-val ${sign(p.value)}` }, isNum(p.value) ? `${p.value > 0 ? "+" : ""}${Math.round(p.value)}` : "–")))),
     H.internals ? h("div", { class: "charts", style: "margin-top:12px" },
-      chartCard("Nifty 500", "Daily close", timeChart({ dates: H.dates, height: 150, series: [{ name: "Nifty 500", values: H.n500, color: css("--ink-2") }], fmt: (x) => fmtNum(x, 2) })),
+      chartCard(rg.name || "Nifty 500", "Daily close", timeChart({ dates: H.dates, height: 150, series: [{ name: rg.name || "Nifty 500", values: H.n500, color: css("--ink-2") }], fmt: (x) => fmtNum(x, 2) })),
       chartCard("Internals gauge", "Above 0 = breadth and momentum improving. Watch for it turning while the index has not.",
         timeChart({ dates: H.dates, height: 150, domain: [-100, 100], zero: true, tickFmt: (x) => `${x}`, fmt: (x) => (isNum(x) ? `${x > 0 ? "+" : ""}${Math.round(x)}` : "–"),
           series: [{ name: "Internals", values: H.internals, color: css("--s1") }] }))) : null,
-    h("p", { class: "note" }, I.last_topping || I.last_bottoming ? [`Last topping warning: ${I.last_topping ? fmtDate(I.last_topping) : "none"}. Last bottoming signal: ${I.last_bottoming ? fmtDate(I.last_bottoming) : "none"}. Every past warning and what followed: `, h("a", { href: "#/record" }, "track record"), "."] : null));
+    h("p", { class: "note" }, I.last_topping || I.last_bottoming ? [`Last topping warning: ${I.last_topping ? fmtDate(I.last_topping) : "none"}. Last bottoming signal: ${I.last_bottoming ? fmtDate(I.last_bottoming) : "none"}.`,
+      (rg.name || "Nifty 500") === "Nifty 500" ? [" Every past warning and what followed: ", h("a", { href: "#/record" }, "track record"), "."] : null] : null));
 }
 
 /* <details> that remembers whether the viewer left it open */
@@ -506,7 +507,7 @@ function trackerCard(title, sub, stages, extra) {
           h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
     extra || null);
 }
-function trackersBlock(T) {
+function trackersBlock(T, NAME = "Nifty 500") {
   if (!T) return null;
   const R = T.readings || {}, P = R.at_prior_low;
   const cmp = (label, now, then, fmt, better) => h("tr", null, h("td", { class: "l" }, label), h("td", null, fmt(now)), h("td", null, fmt(then)),
@@ -516,7 +517,7 @@ function trackersBlock(T) {
     h("div", { class: "table-scroll" }, h("table", { class: "static mini" },
       h("thead", null, h("tr", null, h("th", { class: "l" }, ""), h("th", null, "Now"), h("th", null, fmtDate(R.prior_low, { day: "numeric", month: "short" })), h("th", { class: "l" }, ""))),
       h("tbody", null,
-        h("tr", null, h("td", { class: "l" }, "Nifty 500"), h("td", null, fmtNum(R.n500, 0)), h("td", null, fmtNum(P.n500, 0)),
+        h("tr", null, h("td", { class: "l" }, NAME), h("td", null, fmtNum(R.n500, 0)), h("td", null, fmtNum(P.n500, 0)),
           h("td", { class: "l muted" }, R.n500 <= P.n500 * 1.01 ? "retest or lower low" : "above that low")),
         cmp("Internals gauge", R.gauge, P.gauge, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a >= b + 10),
         cmp("% above 50-day", R.p50, P.p50, (v) => (isNum(v) ? `${Math.round(v)}%` : "–"), (a, b) => a > b),
@@ -528,11 +529,13 @@ function trackersBlock(T) {
       h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
 }
 
-function regimePanel(rg) {
+function regimePanel(rgAll) {
+  const rg = (state.bench === "NIFTY50" && rgAll?.benchmarks?.NIFTY50) || rgAll;
   if (!rg || !rg.light) return null;
+  const NAME = rg.name || "Nifty 500";
   const notes = [];
   if (rg.washout) notes.push(h("p", { class: "note" }, h("b", null, "Washout. "),
-    `Only ${Math.round(rg.pct_above_50)}% of Nifty 500 stocks are above their 50-day average (since ${fmtDate(rg.washout_since, { day: "numeric", month: "short" })}). `,
+    `Only ${Math.round(rg.pct_above_50)}% of ${NAME} stocks are above their 50-day average (since ${fmtDate(rg.washout_since, { day: "numeric", month: "short" })}). `,
     `Washouts often come before a recovery. The signal to watch is a breadth thrust: the share jumping from under 20% to over 50% within 15 sessions.`,
     rg.last_thrust ? ` The last one was on ${fmtDate(rg.last_thrust)}.` : ""));
   if (rg.thrust_active) notes.push(h("p", { class: "note good" }, h("b", null, "Breadth thrust. "),
@@ -540,11 +543,11 @@ function regimePanel(rg) {
   const I = rg.internals;
   return h("div", { class: "panel regime" },
     h("div", { class: "regime-head" },
-      h("div", null, h("h2", null, "Market regime"),
+      h("div", null, h("h2", null, `Market regime: ${NAME}`),
         h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`)),
       lightChip(rg.light, true)),
     h("p", { class: "guidance" }, rg.guidance),
-    trackersBlock(rg.turning),
+    trackersBlock(rg.turning, NAME),
     fold("checks", `Why the light is ${rg.light}: ${rg.points} of ${rg.max_points} checks pass`,
       h("ul", { class: "checks" }, rg.checks.map((c) => h("li", { class: c.ok ? "ok" : "no" },
         h("span", { class: "mark", "aria-hidden": "true" }, c.ok ? "✓" : "✕"), h("span", { class: "sr" }, c.ok ? "Yes: " : "No: "), c.label))),
@@ -555,7 +558,8 @@ function regimePanel(rg) {
         h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l))))),
     I && isNum(I.value) ? fold("internals", ["Market internals gauge: ", h("b", { class: sign(I.value) }, `${I.value > 0 ? "+" : ""}${Math.round(I.value)}`),
       isNum(I.value_10d_ago) ? ` (${I.value_10d_ago > 0 ? "+" : ""}${Math.round(I.value_10d_ago)} ten sessions ago)` : ""], internalsBlock(rg)) : null,
-    h("p", { class: "note" }, "How the light, the warnings and the picks have done since 2025: ", h("a", { href: "#/record" }, "Track record"), "."));
+    h("p", { class: "note" }, NAME === "Nifty 500" ? "" : "Nifty 50 version: breadth, highs/lows and advances/declines come from its 50 stocks, so readings move faster than for Nifty 500. Stock picks and their sizing still use the Nifty 500 light. ",
+      "How the Nifty 500 light, the warnings and the picks have done since 2025: ", h("a", { href: "#/record" }, "Track record"), "."));
 }
 
 // ------------------------------------------------------------------ views

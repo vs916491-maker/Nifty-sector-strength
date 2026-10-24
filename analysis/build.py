@@ -185,6 +185,16 @@ def main() -> int:
     reg_out = regime_mod.latest(rg)
     tp = turning.build(rg, stocks["close"], cons, ad_raw, data.index_close_by_name("Nifty 500", "turnover_cr"))
     reg_out["turning"] = turning.latest(tp, rg)
+    # same panel for Nifty 50: breadth, highs/lows and advances/declines from its 50 stocks
+    n50 = [s for s in cons.get("NIFTY50", pd.DataFrame(columns=["symbol"]))["symbol"] if s in stocks["close"].columns]
+    d50 = stocks["close"][n50].diff()
+    ad50 = pd.DataFrame({"advances": (d50 > 0).sum(axis=1), "declines": (d50 < 0).sum(axis=1)}).iloc[1:]
+    rg50 = regime_mod.series(idx, stocks["close"], cons, data.index_close_by_name("NIFTY50 Equal Weight"),
+                             (ad50["advances"] - ad50["declines"]).cumsum(), bench="NIFTY50")
+    reg50 = regime_mod.latest(rg50)
+    tp50 = turning.build(rg50, stocks["close"], cons, ad50, data.index_close_by_name("Nifty 50", "turnover_cr"), hl_key="NIFTY50")
+    reg50["turning"] = turning.latest(tp50, rg50)
+    reg_out["benchmarks"] = {"NIFTY50": reg50}
     val["regime"]["turning_events"] = turning.events(tp, rg["n500"])
     (OUT / "regime.json").write_text(json.dumps(clean(reg_out), separators=(",", ":")),
                                      encoding="utf-8")
