@@ -25,7 +25,7 @@ import pandas as pd
 
 from collector import config
 
-from . import breadth as breadth_mod, data, leaders as leaders_mod, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
+from . import turning, breadth as breadth_mod, data, leaders as leaders_mod, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
@@ -182,7 +182,11 @@ def main() -> int:
     mkt = breadth_mod.build(idx, stocks["close"], cons)
     (OUT / "breadth.json").write_text(json.dumps(clean(mkt), separators=(",", ":")),
                                       encoding="utf-8")
-    (OUT / "regime.json").write_text(json.dumps(clean(regime_mod.latest(rg)), separators=(",", ":")),
+    reg_out = regime_mod.latest(rg)
+    tp = turning.build(rg, stocks["close"], cons, ad_raw, data.index_close_by_name("Nifty 500", "turnover_cr"))
+    reg_out["turning"] = turning.latest(tp, rg)
+    val["regime"]["turning_events"] = turning.events(tp, rg["n500"])
+    (OUT / "regime.json").write_text(json.dumps(clean(reg_out), separators=(",", ":")),
                                      encoding="utf-8")
     (OUT / "leaders.json").write_text(json.dumps(clean(leaders_out), separators=(",", ":")), encoding="utf-8")
     (OUT / "validation.json").write_text(json.dumps(clean(val), separators=(",", ":")), encoding="utf-8")

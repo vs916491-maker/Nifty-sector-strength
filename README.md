@@ -116,7 +116,10 @@ http://localhost:8000.
   flip back and forth. **Market internals gauge** (-100..+100: A/D line vs
   its 50-day average, breadth trend, RSI of Nifty 500 Equal Weight vs its
   average, highs minus lows, equal weight vs cap weight) with topping and
-  bottoming early warnings. Washout (<20% of stocks
+  bottoming early warnings. **Turning-point trackers** (`analysis/turning.py`):
+  seller exhaustion (washout -> positive divergence -> confirmation) and
+  distribution (extended -> negative divergence / heavy-volume down days ->
+  breakdown), each stage with its conditions and a track record. Washout (<20% of stocks
   above their 50-day average) and breadth thrust (<20% to >50% within 15
   sessions) are flagged separately.
 - **Positional setups** (`analysis/setups.py`, Stock picks): breakout, tight

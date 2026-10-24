@@ -460,7 +460,7 @@ function internalsBlock(rg) {
       h("b", { style: `left:${x >= 0 ? 50 : 50 - w}%;width:${w}%;background:${x >= 0 ? css("--up") : css("--down")}` }));
   };
   const H = rg.history;
-  return h("div", { class: "internals" },
+  return h("div", { class: "internals in-fold" },
     h("div", { class: "internals-head" },
       h("div", null, h("h3", null, "Market internals"),
         h("p", { class: "sub" }, "An earlier read than the light: breadth and momentum under the surface, from −100 to +100.")),
@@ -477,6 +477,57 @@ function internalsBlock(rg) {
     h("p", { class: "note" }, I.last_topping || I.last_bottoming ? [`Last topping warning: ${I.last_topping ? fmtDate(I.last_topping) : "none"}. Last bottoming signal: ${I.last_bottoming ? fmtDate(I.last_bottoming) : "none"}. Every past warning and what followed: `, h("a", { href: "#/record" }, "track record"), "."] : null));
 }
 
+/* <details> that remembers whether the viewer left it open */
+function fold(id, summary, ...content) {
+  const open = recall(`ss-fold-${id}`) === "1";
+  const d = h("details", { class: "fold", open: open || null }, h("summary", null, summary), h("div", { class: "fold-body" }, ...content));
+  d.addEventListener("toggle", () => store(`ss-fold-${id}`, d.open ? "1" : "0"));
+  return d;
+}
+
+/* Turning-point trackers: seller exhaustion (bottom) and distribution (top) */
+function trackerCard(title, sub, stages, extra) {
+  // current stage = the stage that fired most recently (ties: the higher one), if within 10 sessions;
+  // a later stage-1 signal resets an older stage 2 (e.g. a failed exhaustion followed by new lows)
+  let reached = 0, best = Infinity;
+  stages.forEach((s, i) => { if (isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
+  const recentStage = (s, i) => i < reached && isNum(s.sessions_ago) && s.sessions_ago <= 10 + (reached - 1 - i) * 10;
+  const when = (s) => s.met_today ? "met today"
+    : s.last_met ? `last met ${fmtDate(s.last_met, { day: "numeric", month: "short", year: s.sessions_ago > 200 ? "numeric" : undefined })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} sessions ago)` : ""}` : "not met yet";
+  return h("div", { class: "tracker" },
+    h("div", { class: "tracker-head" }, h("h3", null, title),
+      h("span", { class: `stage-chip s${reached}` }, reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "No signal")),
+    h("p", { class: "sub" }, sub),
+    h("ol", { class: "stages" }, stages.map((s, i) => h("li", { class: s.met_today ? "on" : recentStage(s, i) ? "recent" : "off" },
+      h("details", null,
+        h("summary", null, h("span", { class: "dot", "aria-hidden": "true" }), h("b", null, `${i + 1}. ${s.name}`), h("span", { class: "when" }, when(s))),
+        h("p", { class: "note", style: "margin:4px 0 4px" }, s.help),
+        h("ul", { class: "conds" }, s.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
+          h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
+    extra || null);
+}
+function trackersBlock(T) {
+  if (!T) return null;
+  const R = T.readings || {}, P = R.at_prior_low;
+  const cmp = (label, now, then, fmt, better) => h("tr", null, h("td", { class: "l" }, label), h("td", null, fmt(now)), h("td", null, fmt(then)),
+    h("td", { class: "l" }, isNum(now) && isNum(then) ? (better(now, then) ? h("span", { class: "pos" }, "better") : h("span", { class: "neg" }, "worse")) : "–"));
+  const lowTable = P ? h("div", null,
+    h("p", { class: "note", style: "margin:8px 0 4px" }, `Divergence check: today vs the earlier low on ${fmtDate(R.prior_low, { day: "numeric", month: "short" })}. Stage 2 needs a retest of that low with 3 of 4 readings better.`),
+    h("div", { class: "table-scroll" }, h("table", { class: "static mini" },
+      h("thead", null, h("tr", null, h("th", { class: "l" }, ""), h("th", null, "Now"), h("th", null, fmtDate(R.prior_low, { day: "numeric", month: "short" })), h("th", { class: "l" }, ""))),
+      h("tbody", null,
+        h("tr", null, h("td", { class: "l" }, "Nifty 500"), h("td", null, fmtNum(R.n500, 0)), h("td", null, fmtNum(P.n500, 0)),
+          h("td", { class: "l muted" }, R.n500 <= P.n500 * 1.01 ? "retest or lower low" : "above that low")),
+        cmp("Internals gauge", R.gauge, P.gauge, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a >= b + 10),
+        cmp("% above 50-day", R.p50, P.p50, (v) => (isNum(v) ? `${Math.round(v)}%` : "–"), (a, b) => a > b),
+        cmp("New 52-week lows", R.new_lows, P.new_lows, (v) => fmtNum(v), (a, b) => a < b),
+        cmp("RSI (equal weight)", R.rsi, P.rsi, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a > b))))) : null;
+  return h("div", { class: "trackers" },
+    trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.", T.bottom, lowTable),
+    trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
+      h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
+}
+
 function regimePanel(rg) {
   if (!rg || !rg.light) return null;
   const notes = [];
@@ -486,21 +537,25 @@ function regimePanel(rg) {
     rg.last_thrust ? ` The last one was on ${fmtDate(rg.last_thrust)}.` : ""));
   if (rg.thrust_active) notes.push(h("p", { class: "note good" }, h("b", null, "Breadth thrust. "),
     `The share of stocks above their 50-day average jumped from under 20% to over 50% within 15 sessions (${fmtDate(rg.last_thrust, { day: "numeric", month: "short" })}). This often marks the start of a new advance, before the light turns green.`));
+  const I = rg.internals;
   return h("div", { class: "panel regime" },
     h("div", { class: "regime-head" },
       h("div", null, h("h2", null, "Market regime"),
         h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`)),
       lightChip(rg.light, true)),
     h("p", { class: "guidance" }, rg.guidance),
-    h("ul", { class: "checks" }, rg.checks.map((c) => h("li", { class: c.ok ? "ok" : "no" },
-      h("span", { class: "mark", "aria-hidden": "true" }, c.ok ? "✓" : "✕"), h("span", { class: "sr" }, c.ok ? "Yes: " : "No: "), c.label))),
-    notes,
-    internalsBlock(rg),
-    h("div", { class: "chart", style: "margin-top:12px" },
-      h("p", null, `The light over the last ${rg.history.dates.length} sessions. It uses a 5-session average of the checks with a buffer, so one or two mixed days no longer flip it.`),
-      regimeStrip(rg.history),
-      h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l)))),
-    h("p", { class: "note" }, "How the light and the picks have done since 2025: ", h("a", { href: "#/record" }, "Track record"), "."));
+    trackersBlock(rg.turning),
+    fold("checks", `Why the light is ${rg.light}: ${rg.points} of ${rg.max_points} checks pass`,
+      h("ul", { class: "checks" }, rg.checks.map((c) => h("li", { class: c.ok ? "ok" : "no" },
+        h("span", { class: "mark", "aria-hidden": "true" }, c.ok ? "✓" : "✕"), h("span", { class: "sr" }, c.ok ? "Yes: " : "No: "), c.label))),
+      notes,
+      h("div", { class: "chart", style: "margin-top:12px" },
+        h("p", null, `The light over the last ${rg.history.dates.length} sessions. It uses a 5-session average of the checks with a buffer, so one or two mixed days don't flip it.`),
+        regimeStrip(rg.history),
+        h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l))))),
+    I && isNum(I.value) ? fold("internals", ["Market internals gauge: ", h("b", { class: sign(I.value) }, `${I.value > 0 ? "+" : ""}${Math.round(I.value)}`),
+      isNum(I.value_10d_ago) ? ` (${I.value_10d_ago > 0 ? "+" : ""}${Math.round(I.value_10d_ago)} ten sessions ago)` : ""], internalsBlock(rg)) : null,
+    h("p", { class: "note" }, "How the light, the warnings and the picks have done since 2025: ", h("a", { href: "#/record" }, "Track record"), "."));
 }
 
 // ------------------------------------------------------------------ views
@@ -1105,6 +1160,14 @@ async function viewRecord(app) {
             h("td", { class: sign(R["1M"][l]?.avg) }, fmtPct(R["1M"][l]?.avg)), h("td", null, isNum(R["1M"][l]?.hit) ? `${Math.round(R["1M"][l].hit)}%` : "–"),
             h("td", { class: sign(R["3M"][l]?.avg) }, fmtPct(R["3M"][l]?.avg)), h("td", null, isNum(R["3M"][l]?.hit) ? `${Math.round(R["3M"][l].hit)}%` : "–")))))),
         h("p", { class: "note" }, `Here the column is Nifty 500's own return, not the excess over it. With the 5-session buffer the light changed ${R.changes?.buffered ?? "–"} times since ${R.changes?.since ? fmtDate(R.changes.since) : "–"}, against ${R.changes?.raw ?? "–"} times without it.`),
+        R.turning_events ? [h("h3", { class: "h3" }, "Turning-point trackers: every stage signal"),
+          h("div", { class: "table-scroll" }, h("table", { class: "static" },
+            h("thead", null, h("tr", null, h("th", { class: "l" }, "First day"), h("th", { class: "l" }, "Tracker"), h("th", { class: "l" }, "Stage"), h("th", null, "Nifty 500"), h("th", null, "Next 1 month"), h("th", null, "Next 3 months"))),
+            h("tbody", null, R.turning_events.map((e) => h("tr", null, h("td", { class: "l" }, fmtDate(e.date)),
+              h("td", { class: "l" }, e.side === "bottom" ? "Seller exhaustion" : "Distribution"),
+              h("td", { class: "l name" }, `${e.stage}. ${e.name}`), h("td", null, fmtNum(e.n500, 0)),
+              h("td", { class: sign(e["1M"]) }, fmtPct(e["1M"])), h("td", { class: sign(e["3M"]) }, fmtPct(e["3M"]))))))),
+          h("p", { class: "note" }, "Stage 2 is the early signal and is often wrong on its own (Dec 2025–Feb 2026 had several failed bottoms); stage 3 is slower but more reliable. A bottom signal should be followed by a rise, a top signal by a fall.")] : null,
         R.warnings ? [h("h3", { class: "h3" }, "Early warnings from the internals"),
           h("div", { class: "table-scroll" }, h("table", { class: "static" },
             h("thead", null, h("tr", null, h("th", { class: "l" }, "First day"), h("th", { class: "l" }, "Warning"), h("th", null, "Nifty 500"), h("th", null, "Gauge"), h("th", null, "Next 1 month"), h("th", null, "Next 3 months"))),

@@ -117,9 +117,10 @@ def results_calendar() -> pd.DataFrame:
     return pd.read_csv(path, dtype=str).dropna(subset=["symbol", "date"])
 
 
-def index_close_by_name(name: str) -> pd.Series:
-    """Daily close of any NSE index by its name in the NSE file (e.g. 'Nifty500 Equal Weight')."""
-    raw = _read_months(DATA / "indices", ["date", "index", "close"])
-    s = raw[raw["index"].str.lower() == name.lower()].set_index("date")["close"]
+def index_close_by_name(name: str, column: str = "close") -> pd.Series:
+    """Daily close (or another column, e.g. turnover_cr) of any NSE index by its
+    name in the NSE file (e.g. 'Nifty500 Equal Weight')."""
+    raw = _read_months(DATA / "indices", ["date", "index", column])
+    s = raw[raw["index"].str.lower() == name.lower()].set_index("date")[column]
     s.index = pd.to_datetime(s.index)
     return s[~s.index.duplicated(keep="last")].sort_index()
