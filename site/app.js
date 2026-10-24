@@ -329,7 +329,7 @@ function rrgChart(keys, tails, names, onPick) {
       if (state.sel === k) pts.slice(0, -1).forEach((p) => g.append(s("circle", { cx: x(p.x), cy: y(p.y), r: 3, fill: col })));
       g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 7, fill: col, stroke: css("--surface"), "stroke-width": 2 }));
       g.append(s("circle", { cx: x(head.x), cy: y(head.y), r: 13, fill: "transparent" }));
-      labels.push({ k, x: x(head.x), y: y(head.y), g, dim });
+      labels.push({ k, q, x: x(head.x), y: y(head.y), g, dim, path: pts.map((p) => [x(p.x), y(p.y)]) });
       const showTip = () => {
         tip.replaceChildren(
           h("div", { class: "t-date" }, `${names[k]} · week of ${fmtDate(head.date, { day: "numeric", month: "short" })}`),
@@ -349,32 +349,71 @@ function rrgChart(keys, tails, names, onPick) {
       g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(k); } });
       svg.append(g);
     }
-    // Direct labels in a top layer. Try spots around each head at growing
-    // distances; far spots get a thin leader line. Dots are obstacles too.
+    // Labels: each stays inside its own quadrant, clear of dots, movement lines,
+    // the quadrant pills and other labels. Spots are tried around the dot at
+    // growing distances; if none is free the label goes to a stack at the
+    // quadrant's outer edge. Labels away from their dot get a dotted leader.
     const layer = s("g", null);
     svg.append(layer);
-    const boxes = labels.map((L) => ({ x: L.x - 6, y: L.y - 6, w: 12, h: 12 }));
-    const overlaps = (b) => boxes.some((o) => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
-    const inside = (b) => b.x >= m.l && b.x + b.w <= W - m.r && b.y >= m.t && b.y + b.h <= m.t + ih;
-    labels.sort((a, b) => a.y - b.y);
-    for (const L of labels) {
-      const text = names[L.k], w = text.length * 6.2 + 4, hgt = 13;
+    const ctx = document.createElement("canvas").getContext("2d");
+    const fs = W < 520 ? 11 : 12.5;                  // smaller labels on phones so they all fit
+    ctx.font = `500 ${fs}px "IBM Plex Sans", system-ui, sans-serif`;
+    const qRect = {
+      Improving: { x0: m.l, x1: cx, y0: m.t, y1: cy }, Leading: { x0: cx, x1: W - m.r, y0: m.t, y1: cy },
+      Lagging: { x0: m.l, x1: cx, y0: cy, y1: m.t + ih }, Weakening: { x0: cx, x1: W - m.r, y0: cy, y1: m.t + ih },
+    };
+    const boxes = [];
+    for (const L of labels) boxes.push({ x: L.x - 9, y: L.y - 9, w: 18, h: 18 });
+    for (const L of labels) {                       // movement lines as small boxes along each segment
+      for (let i = 1; i < L.path.length; i++) {
+        const [x0, y0] = L.path[i - 1], [x1, y1] = L.path[i];
+        const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 5));
+        for (let j = 0; j <= n; j++) { const px = x0 + (x1 - x0) * j / n, py = y0 + (y1 - y0) * j / n; boxes.push({ x: px - 2.5, y: py - 2.5, w: 5, h: 5 }); }
+      }
+    }
+    for (const [q, , , , , anchor, tx, ty] of quads) {   // quadrant pills
+      const w = q.length * 7.4 + 16; boxes.push({ x: (anchor === "end" ? tx - w + 4 : tx - 4) - 4, y: ty - 18, w: w + 8, h: 28 });
+    }
+    const hits = (b) => boxes.some((o) => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
+    const within = (b, R) => b.x >= R.x0 + 3 && b.x + b.w <= R.x1 - 3 && b.y >= R.y0 + 3 && b.y + b.h <= R.y1 - 3;
+    const crowd = (L) => labels.filter((o) => o !== L && Math.hypot(o.x - L.x, o.y - L.y) < 70).length;
+    const order = labels.slice().sort((a2, b2) => crowd(b2) - crowd(a2));
+    const angles = [0, 180, 30, -30, 150, -150, 60, -60, 120, -120, 90, -90];
+    for (const L of order) {
+      const text = names[L.k], w = ctx.measureText(text).width + 6, hgt = fs + 3.5, R = qRect[L.q];
       let best = null;
-      for (const r of [9, 18, 30, 44]) {
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1], [0, 1], [1, -1], [1, 1], [-1, -1], [-1, 1]]) {
-          const ax = L.x + dx * r, ay = L.y + dy * r;
-          const bx = dx > 0 ? ax : dx < 0 ? ax - w : ax - w / 2;
-          const by = dy > 0 ? ay : dy < 0 ? ay - hgt : ay - hgt / 2;
-          const b = { x: bx, y: by, w, h: hgt };
-          if (inside(b) && !overlaps(b)) { best = { b, r, ax, ay }; break; }
+      for (const r of [12, 20, 30, 42, 56, 72, 90, 110, 135, 160]) {
+        for (const deg of angles) {
+          const c = Math.cos(deg * Math.PI / 180), sn = Math.sin(deg * Math.PI / 180);
+          const ax = L.x + c * r, ay = L.y - sn * r;
+          const bx = c > 0.3 ? ax : c < -0.3 ? ax - w : ax - w / 2;
+          const by = sn > 0.3 ? ay - hgt : sn < -0.3 ? ay : ay - hgt / 2;
+          const bb = { x: bx, y: by, w, h: hgt };
+          if (within(bb, R) && !hits(bb)) { best = bb; break; }
         }
         if (best) break;
       }
-      if (!best) continue;              // no room: the tooltip and table carry it
-      boxes.push(best.b);
+      if (!best) {                                    // stack at the quadrant's outer edge
+        const right = L.q === "Leading" || L.q === "Weakening";
+        const bx = right ? R.x1 - w - 6 : R.x0 + 6;
+        for (let k2 = 0; k2 < 40 && !best; k2++) {
+          for (const sgn of [1, -1]) {
+            const bb = { x: bx, y: L.y - hgt / 2 + sgn * k2 * (hgt + 2), w, h: hgt };
+            if (within(bb, R) && !hits(bb)) { best = bb; break; }
+          }
+        }
+      }
+      if (!best) continue;                            // nowhere free: the tooltip still names it
+      boxes.push(best);
       const grp = s("g", { "data-key": L.k, class: L.dim ? "dim" : null });
-      if (best.r > 9) grp.append(s("line", { x1: L.x, y1: L.y, x2: best.ax, y2: best.ay, stroke: css("--muted"), "stroke-width": 0.75 }));
-      grp.append(s("text", { x: best.b.x + 2, y: best.b.y + hgt - 3, class: "rrg-label" }, text));
+      // nearest point of the label box to the dot, and the dot's edge toward it
+      const nx = Math.max(best.x, Math.min(L.x, best.x + best.w)), ny = Math.max(best.y, Math.min(L.y, best.y + best.h));
+      const dist = Math.hypot(nx - L.x, ny - L.y);
+      if (dist > 14) {
+        const ex = L.x + (nx - L.x) / dist * 9, ey = L.y + (ny - L.y) / dist * 9;
+        grp.append(s("line", { x1: ex, y1: ey, x2: nx, y2: ny, stroke: css("--ink-2"), "stroke-width": 1, "stroke-dasharray": "2 3", "stroke-linecap": "round" }));
+      }
+      grp.append(s("text", { x: best.x + 3, y: best.y + hgt - 4, class: "rrg-label", style: `font-size:${fs}px` }, text));
       layer.append(grp);
       L.g.labelNode = grp;
     }
