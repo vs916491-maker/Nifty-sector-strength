@@ -1294,6 +1294,7 @@ async function takeTrade(prefill) {
 }
 
 function tradeDialog(prefill, onSaved) {
+  if (prefill && prefill.id && prefill.status === "closed") return;   // closed trades are locked
   const dlg = document.getElementById("dlg");
   const t = { exit_rule: "system", entry_date: todayISO(), ...prefill };
   const field = (label, name, attrs = {}, wide = false) =>
@@ -1469,7 +1470,7 @@ async function viewTrades(app) {
 
   const actions = (t, isOpen) => h("td", { class: "l" }, h("div", { class: "btn-row" },
     isOpen ? h("button", { class: "btn small", type: "button", onclick: () => closeTradeDialog(t, rerender) }, "Sell") : null,
-    h("button", { class: "btn small", type: "button", onclick: () => tradeDialog(t, rerender) }, "Edit"),
+    isOpen ? h("button", { class: "btn small", type: "button", onclick: () => tradeDialog(t, rerender) }, "Edit") : h("span", { class: "muted", title: "Closed trades are locked" }, "Locked"),
     h("button", { class: "btn small", type: "button", onclick: async () => {
       if (confirm(`Delete the ${t.symbol} trade? This cannot be undone.`)) { await tradesQuery((q) => q.delete().eq("id", t.id)); rerender(); }
     } }, "Delete")));
