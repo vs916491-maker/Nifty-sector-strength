@@ -578,8 +578,7 @@ function trackerCard(title, sub, stages, extra) {
         h("p", { class: "note", style: "margin:4px 0 4px" }, s.help),
         h("ul", { class: "conds" }, s.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
           h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
-    extra || null,
-    typeof SB_READY !== "undefined" && SB_READY ? h("div", { class: "scan-slot" }, scanButton()) : null);
+    extra || null);
 }
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T) return null;
