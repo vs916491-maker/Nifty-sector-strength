@@ -448,3 +448,16 @@ dialog h2 { margin: 0 0 4px; font-size: 18px; }
   font-size: 13.5px; box-shadow: 0 8px 24px rgba(0,0,0,.14); display: none; }
 #toast.ok { border-left-color: var(--q-leading); }
 #toast.info { border-left-color: var(--q-weakening); }
+
+/* Watchlist star + page */
+.watch-star { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; margin-left: 4px; padding: 0;
+  border: 1px solid var(--hair); border-radius: 5px; color: var(--ink-2); vertical-align: -4px; background: var(--surface);
+  font-size: 14px; line-height: 1; cursor: pointer; }
+.watch-star:hover { color: var(--ink); border-color: var(--ink-2); }
+.watch-star.on { color: #c98a00; border-color: color-mix(in srgb, #eda100 55%, var(--hair)); background: var(--q-weakening-wash); }
+.watch-star:disabled { opacity: .5; }
+.watch-note { white-space: normal; min-width: 140px; max-width: 260px; }
+td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
+.watch-tbl td small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.watch-tbl td.l { white-space: normal; }
+.watch-tbl td:nth-child(9) { min-width: 150px; }

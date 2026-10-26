@@ -850,7 +850,7 @@ function stockTable(rows, cols, sort, rerender, showVia, leadCols = []) {
       h("th", { class: "l" }, "Stock"), cols.map(([k, label]) => th(k, label)), h("th", { class: "l" }, "Flags"))),
     h("tbody", null, rows.map((x) => h("tr", { style: "cursor:default" },
       leadCols.map(([, , fn]) => h("td", { class: "l" }, fn(x))),
-      h("td", { class: "l name" }, x.sym, chartLink(x.sym), h("small", null, x.company || x.industry || "")),
+      h("td", { class: "l name" }, x.sym, chartLink(x.sym), watchStar(x.sym, { name: x.company }), h("small", null, x.company || x.industry || "")),
       cols.map(([k, , fn, cls]) => h("td", { class: cls ? cls(x[k]) : null }, fn(x))),
       h("td", { class: "l" },
         (x.flags || []).filter((f) => f !== "F&O" && !isResultsFlag(f)).map((f) => h("span", { class: "flag" }, f)),
@@ -974,7 +974,7 @@ function nextLeadersSection(ld, st, sec) {
           h("th", { class: "l" }, "Flags"))),
         h("tbody", null, rows.map((x) => h("tr", null,
           h("td", { class: "l muted" }, x.n),
-          h("td", { class: "l name" }, x.symbol, chartLink(x.symbol), h("small", null, x.info.company || x.info.industry || "")),
+          h("td", { class: "l name" }, x.symbol, chartLink(x.symbol), watchStar(x.symbol, { name: x.info.company }), h("small", null, x.info.company || x.info.industry || "")),
           h("td", { class: "l small" }, (x.info.sectors || []).map((k) => sec.names[k]).filter(Boolean).slice(0, 2).join(", ") || "–"),
           h("td", null, meter(x.score)),
           h("td", { class: sign(x.held_up_pct) }, fmtPct(x.held_up_pct)),
@@ -1031,7 +1031,9 @@ function setupsSection(st, sec, rg) {
         const secs = (x.sectors || []).map((k) => sec.names[k]).filter(Boolean);
         return h("tr", { style: "cursor:default" },
           h("td", { class: "l" }, h("span", { class: `grade g${x.grade}` }, x.grade)),
-          h("td", { class: "l name" }, x.sym, chartLink(x.sym), h("small", null, x.company || x.industry || "")),
+          h("td", { class: "l name" }, x.sym, chartLink(x.sym), watchStar(x.sym, {
+            name: x.company, setup: x.name, grade: x.grade, setup_date: st.as_of, close: x.close,
+            buy: +entry.toFixed(2), buy_is_trigger: Boolean(x.trigger), stop: +x.stop.toFixed(2) }), h("small", null, x.company || x.industry || "")),
           h("td", { class: "l", title: SETUP_HELP[x.name] }, x.name),
           h("td", { class: "l small" }, secs.slice(0, 2).join(", ") || "–"),
           h("td", null, fmtNum(x.close, 2)),
@@ -1550,6 +1552,137 @@ function exportTrades(rows) {
 
 // ------------------------------------------------------------------ "Run scan" (intraday refresh)
 let scanTimer = null;
+// ------------------------------------------------------------------ Watchlist (shared with the Fundamentals Desk)
+const WATCH_KEEP = 30;             // days, for stocks added here (Fundamentals Desk: 90)
+let WATCH = null;                  // symbol -> row
+async function loadWatch(force = false) {
+  if (WATCH && !force) return WATCH;
+  if (!sb) return (WATCH = {});
+  const { data, error } = await sb.from("fd_watchlist").select("*").order("added_at", { ascending: false });
+  if (error) throw new Error(/fd_watchlist/i.test(error.message)
+    ? "the watchlist table is not set up yet (run supabase/001_watchlist.sql from the Fundamentals Desk repo in Supabase)" : error.message);
+  WATCH = Object.fromEntries(data.map((w) => [w.symbol, w]));
+  return WATCH;
+}
+const STAR_EMPTY = "☆", STAR_FULL = "★";
+/* Star button next to a stock: adds it to the watchlist (with the setup's levels when it comes from a setup). */
+function watchStar(sym, info = {}) {
+  const on = Boolean(WATCH && WATCH[sym]);
+  const b = h("button", { type: "button", class: `watch-star${on ? " on" : ""}`, "aria-pressed": on ? "true" : "false",
+    title: on ? `${sym} is in your watchlist (open it)` : `Add ${sym} to the watchlist`, "aria-label": `Watchlist: ${sym}` }, on ? STAR_FULL : STAR_EMPTY);
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (b.classList.contains("on")) { location.hash = "#/watch"; return; }
+    b.disabled = true;
+    try { await addWatch(sym, info); b.classList.add("on"); b.textContent = STAR_FULL; b.title = `${sym} is in your watchlist (open it)`; }
+    catch (err) { toast(`Could not add ${sym}: ${err.message}`, "info"); setTimeout(() => toast(""), 8000); }
+    b.disabled = false;
+  });
+  return b;
+}
+async function addWatch(sym, info) {
+  await loadWatch();
+  const st = await load("stocks").catch(() => null);
+  const close = info.close ?? st?.stocks?.[sym]?.close ?? null;
+  const levels = info.buy ? { setup: info.setup, grade: info.grade, setup_date: info.setup_date, buy: info.buy,
+    buy_is_trigger: info.buy_is_trigger, stop: info.stop, buy_hit_on: null, stop_hit_on: null } : {};
+  const old = WATCH[sym];
+  let error;
+  if (old) {
+    ({ error } = await sb.from("fd_watchlist").update(levels).eq("id", old.id));
+    if (!error) toast(info.buy ? `${sym} was already in the watchlist; its setup levels are updated.` : `${sym} is already in the watchlist.`, "ok");
+  } else {
+    ({ error } = await sb.from("fd_watchlist").insert({ symbol: sym, name: info.name || st?.stocks?.[sym]?.company || null,
+      price_added: close, price_date: st?.as_of || null, source: "ss", keep_days: WATCH_KEEP, ...levels }));
+    if (!error) toast(`${sym} added to the watchlist for ${WATCH_KEEP} days.`, "ok");
+  }
+  setTimeout(() => toast(""), 4000);
+  if (error) throw new Error(/fd_watchlist/i.test(error.message) ? "run supabase/001_watchlist.sql (Fundamentals Desk repo) in Supabase first" : error.message);
+  await loadWatch(true);
+}
+
+function watchStatus(w, px) {
+  if (!isNum(w.buy)) return { text: "No setup levels", cls: "muted" };
+  const dd = (d) => fmtDate(d, { day: "numeric", month: "short" });
+  if (w.stop_hit_on && (!w.buy_hit_on || w.stop_hit_on < w.buy_hit_on)) return { text: `Failed: stop hit ${dd(w.stop_hit_on)} before the buy`, cls: "neg" };
+  if (w.buy_hit_on && w.stop_hit_on) return { text: `Bought ${dd(w.buy_hit_on)}, stop hit ${dd(w.stop_hit_on)}`, cls: "neg" };
+  if (w.buy_hit_on) return { text: w.buy_is_trigger ? `Triggered ${dd(w.buy_hit_on)}` : `Live since ${dd(w.buy_hit_on)}`, cls: "pos" };
+  // not yet checked by the evening job: judge from the latest close
+  if (isNum(px) && isNum(w.stop) && px <= w.stop) return { text: "Below the stop (close)", cls: "neg" };
+  if (w.buy_is_trigger) return isNum(px) && px >= w.buy ? { text: "Closed above the buy level", cls: "pos" } : { text: "Waiting for the buy level", cls: "" };
+  return { text: "Live (buy at setup close)", cls: "pos" };
+}
+
+async function viewWatch(app) {
+  const [list, st] = await Promise.all([loadWatch(true), load("stocks").catch(() => null)]);
+  const rows = Object.values(list).sort((a, b) => String(b.added_at).localeCompare(String(a.added_at)));
+  const today = Date.now();
+  const tbl = h("table", { class: "watch-tbl" },
+    h("thead", null, h("tr", null,
+      h("th", { class: "l" }, "Stock"), h("th", { class: "l" }, "Added"), h("th", { class: "l" }, "Setup"),
+      h("th", null, "Buy"), h("th", null, "Stop"), h("th", null, "Risk"), h("th", null, "Last close"),
+      h("th", { title: "From the buy level once bought, otherwise from the price when added" }, "Change"),
+      h("th", { class: "l" }, "Status"), h("th", { class: "l" }, "Note"), h("th", null, ""))),
+    h("tbody", null, rows.map((w) => {
+      const s0 = st?.stocks?.[w.symbol];
+      const px = isNum(s0?.close) ? s0.close : w.last_close;
+      const status = watchStatus(w, px);
+      const base = w.buy_hit_on && isNum(w.buy) ? w.buy : w.price_added;
+      const chg = isNum(px) && isNum(base) ? (px / base - 1) * 100 : null;
+      const left = Math.max(0, Math.ceil((new Date(w.added_at).getTime() + (w.keep_days || 90) * 864e5 - today) / 864e5));
+      const del = h("button", { class: "btn small", type: "button" }, "Delete");
+      del.addEventListener("click", async () => {
+        if (!del.dataset.sure) { del.dataset.sure = "1"; del.textContent = "Sure?"; setTimeout(() => { if (del.isConnected) { delete del.dataset.sure; del.textContent = "Delete"; } }, 3000); return; }
+        const { error } = await sb.from("fd_watchlist").delete().eq("id", w.id);
+        if (error) { toast(error.message, "info"); return; }
+        route();
+      });
+      const noteBtn = h("button", { class: "btn small ghost", type: "button", title: "Edit note" }, "✎");
+      noteBtn.addEventListener("click", () => noteDialog(w));
+      return h("tr", { style: "cursor:default" },
+        h("td", { class: "l name" }, w.symbol, chartLink(w.symbol), h("small", null, w.name || s0?.company || "")),
+        h("td", { class: "l small" }, fmtDate(w.added_at.slice(0, 10), { day: "numeric", month: "short" }),
+          h("small", null, `${left} days left${w.source === "fd" ? " · from Fundamentals" : ""}`)),
+        h("td", { class: "l" }, w.setup ? [h("span", { style: "white-space:nowrap" }, w.grade ? h("span", { class: `grade g${w.grade}` }, w.grade) : null, " ", w.setup),
+          h("small", null, w.setup_date ? fmtDate(w.setup_date, { day: "numeric", month: "short" }) : "")] : h("span", { class: "muted" }, "–")),
+        h("td", null, isNum(w.buy) ? (w.buy_is_trigger ? h("span", null, h("span", { class: "muted" }, "above "), fmtNum(w.buy, 2)) : fmtNum(w.buy, 2)) : "–"),
+        h("td", null, fmtNum(w.stop, 2)),
+        h("td", null, isNum(w.buy) && isNum(w.stop) ? fmtPct((w.buy - w.stop) / w.buy * 100, 1, false) : "–"),
+        h("td", null, fmtNum(px, 2)),
+        h("td", { class: sign(chg) }, fmtPct(chg)),
+        h("td", { class: `l ${status.cls}` }, status.text),
+        h("td", { class: "l small watch-note" }, w.note || ""),
+        h("td", { class: "l", style: "white-space:nowrap" }, noteBtn, " ", del));
+    })));
+  app.replaceChildren(
+    h("div", { class: "section-head" }, h("h2", null, "Watchlist"),
+      h("p", null, `${rows.length} stock${rows.length === 1 ? "" : "s"} · shared with the Fundamentals Desk`)),
+    h("div", { class: "panel" },
+      rows.length ? h("div", { class: "table-scroll" }, tbl)
+        : h("p", { class: "empty" }, "Nothing here yet. Tap the ☆ next to any stock (Stock picks, sector pages) to add it."),
+      h("p", { class: "note" }, `Tap ☆ next to a stock to add it; from a setup, its buy and stop levels are saved too. Stocks added here stay ${WATCH_KEEP} days (90 days when added from the Fundamentals Desk) or until you delete them. Every evening (19:40 IST, Mon–Fri) a check records the first day price reached the buy level ("buy above" levels need the day's high; other setups buy at the setup day's close) and the first day it traded at or below the stop.`)));
+}
+
+function noteDialog(w) {
+  const dlg = document.getElementById("dlg");
+  const ta = h("textarea", { name: "note", rows: 3 }, w.note || "");
+  const err = h("p", { class: "err", role: "alert" });
+  const form = h("form", { method: "dialog" },
+    h("h2", null, `Note: ${w.symbol}`),
+    h("label", { class: "wide" }, "Why are you watching it?", ta), err,
+    h("div", { class: "btn-row" },
+      h("button", { class: "btn", type: "button", onclick: () => dlg.close() }, "Cancel"),
+      h("button", { class: "btn primary", type: "submit" }, "Save")));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { error } = await sb.from("fd_watchlist").update({ note: ta.value.trim() || null }).eq("id", w.id);
+    if (error) { err.textContent = error.message; return; }
+    dlg.close(); route();
+  });
+  dlg.replaceChildren(form);
+  dlg.showModal();
+}
+
 function toast(text, kind) {
   let el = document.getElementById("toast");
   if (!el) { el = h("div", { id: "toast", role: "status" }); document.body.append(el); }
@@ -1600,7 +1733,7 @@ async function route() {
   const app = document.getElementById("app");
   const hash = location.hash || "#/";
   const m = hash.match(/^#\/sector\/([A-Z0-9]+)/);
-  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : hash.startsWith("#/trades") ? "trades" : "overview";
+  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : hash.startsWith("#/trades") ? "trades" : hash.startsWith("#/watch") ? "watch" : "overview";
   document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.page === page));
   document.querySelectorAll(".nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); });
   // the whole site is private: sign in first (same email and password as the F&O Desk)
@@ -1611,6 +1744,7 @@ async function route() {
     if (CFG.email && ses.user.email.toLowerCase() !== CFG.email.toLowerCase()) {
       who.replaceChildren(); return signInView(app, `${ses.user.email} does not have access.`);
     }
+    await loadWatch(true).catch(() => { WATCH = {}; });
     who.replaceChildren(h("button", { class: "theme-btn", type: "button", title: ses.user.email,
       onclick: async () => { await sb.auth.signOut(); Object.keys(cache).forEach((k) => delete cache[k]); route(); } }, "Sign out"));
   }
@@ -1625,10 +1759,11 @@ async function route() {
     else if (page === "picks") await viewPicks(app);
     else if (page === "record") await viewRecord(app);
     else if (page === "trades") await viewTrades(app);
+    else if (page === "watch") await viewWatch(app);
     else await viewOverview(app);
   } catch (err) {
-    app.replaceChildren(h("p", { class: "empty" }, page === "trades"
-      ? `Your trades could not be loaded: ${err.message}. Refresh to try again.`
+    app.replaceChildren(h("p", { class: "empty" }, page === "trades" || page === "watch"
+      ? `Your ${page === "watch" ? "watchlist" : "trades"} could not be loaded: ${err.message}. Refresh to try again.`
       : `The data could not be loaded (${err.message}). Refresh the page; if it persists, the daily update may have failed.`));
   }
 }
