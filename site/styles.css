@@ -438,7 +438,9 @@ dialog h2 { margin: 0 0 4px; font-size: 18px; }
 
 /* Run scan + toast */
 #who { display: inline-flex; gap: 8px; align-items: center; }
-.scan-btn { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 500; }
+.scan-slot { margin-left: auto; }
+.scan-btn { background: #d03b3b; color: #ffffff; border-color: #d03b3b; font-weight: 600; padding: 7px 16px; }
+.scan-btn:hover { background: #b42323; border-color: #b42323; }
 .scan-btn:disabled { opacity: 0.55; cursor: default; }
 #asof.live { color: var(--ink); background: var(--q-weakening-wash); border-radius: 4px; padding: 0 4px; }
 #toast { position: fixed; right: 16px; top: 70px; z-index: 50; max-width: 360px; background: var(--surface); color: var(--ink);

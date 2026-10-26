@@ -117,7 +117,8 @@ function filtersRow(extra) {
     seg("Indices", [["Sectoral", "Sectoral"], ["Thematic", "Thematic"]], state.group, (v) => {
       state.group = v; state.sel = null; store("ss-group", v); route();
     }),
-    extra || null);
+    extra || null,
+    typeof SB_READY !== "undefined" && SB_READY ? h("div", { class: "scan-slot" }, scanButton()) : null);
 }
 function quadChip(q) {
   if (!q) return h("span", { class: "muted" }, "–");
@@ -577,7 +578,8 @@ function trackerCard(title, sub, stages, extra) {
         h("p", { class: "note", style: "margin:4px 0 4px" }, s.help),
         h("ul", { class: "conds" }, s.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
           h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
-    extra || null);
+    extra || null,
+    typeof SB_READY !== "undefined" && SB_READY ? h("div", { class: "scan-slot" }, scanButton()) : null);
 }
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T) return null;
@@ -1610,7 +1612,7 @@ async function route() {
     if (CFG.email && ses.user.email.toLowerCase() !== CFG.email.toLowerCase()) {
       who.replaceChildren(); return signInView(app, `${ses.user.email} does not have access.`);
     }
-    who.replaceChildren(scanButton(), h("button", { class: "theme-btn", type: "button", title: ses.user.email,
+    who.replaceChildren(h("button", { class: "theme-btn", type: "button", title: ses.user.email,
       onclick: async () => { await sb.auth.signOut(); Object.keys(cache).forEach((k) => delete cache[k]); route(); } }, "Sign out"));
   }
   try {
