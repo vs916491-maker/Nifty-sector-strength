@@ -435,3 +435,14 @@ dialog h2 { margin: 0 0 4px; font-size: 18px; }
 .chart-link { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; margin-left: 6px;
   border: 1px solid var(--hair); border-radius: 5px; color: var(--ink-2); vertical-align: -4px; background: var(--surface); }
 .chart-link:hover { color: var(--ink); border-color: var(--ink-2); }
+
+/* Run scan + toast */
+#who { display: inline-flex; gap: 8px; align-items: center; }
+.scan-btn { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 500; }
+.scan-btn:disabled { opacity: 0.55; cursor: default; }
+#asof.live { color: var(--ink); background: var(--q-weakening-wash); border-radius: 4px; padding: 0 4px; }
+#toast { position: fixed; right: 16px; top: 70px; z-index: 50; max-width: 360px; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hair); border-left: 4px solid var(--q-improving); border-radius: 8px; padding: 10px 14px;
+  font-size: 13.5px; box-shadow: 0 8px 24px rgba(0,0,0,.14); display: none; }
+#toast.ok { border-left-color: var(--q-leading); }
+#toast.info { border-left-color: var(--q-weakening); }

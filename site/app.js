@@ -1546,6 +1546,54 @@ function exportTrades(rows) {
   document.body.append(a); a.click(); a.remove();
 }
 
+
+// ------------------------------------------------------------------ "Run scan" (intraday refresh)
+let scanTimer = null;
+function toast(text, kind) {
+  let el = document.getElementById("toast");
+  if (!el) { el = h("div", { id: "toast", role: "status" }); document.body.append(el); }
+  el.className = kind || "";
+  el.textContent = text;
+  el.style.display = text ? "block" : "none";
+}
+function scanButton() {
+  const btn = h("button", { class: "theme-btn scan-btn", type: "button", title: "Refresh with live NSE prices (market hours)" }, "Run scan");
+  btn.addEventListener("click", async () => {
+    const ist = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000);
+    const hm = ist.getHours() * 100 + ist.getMinutes(), day = ist.getDay();
+    if (day === 0 || day === 6 || hm < 915 || hm > 1545) {
+      toast("The market is closed. The site shows the end-of-day data from the evening update; Run scan works from 9:15 to 15:45 on market days.", "info");
+      setTimeout(() => toast(""), 9000);
+      return;
+    }
+    btn.disabled = true;
+    toast("Starting the scan with live prices…");
+    try {
+      const before = (await sb.from("docs").select("updated_at").eq("key", "ss_sectors").maybeSingle()).data?.updated_at;
+      const { data, error } = await sb.from("scan_requests").insert({ kind: "sector" }).select("status").single();
+      if (error) throw new Error(/check constraint|kind/i.test(error.message) ? "the database is not set up for this button yet (run 006_sector_scan_button.sql)" : error.message);
+      if (data.status === "skipped") toast("A scan started less than 3 minutes ago; its results will appear shortly.");
+      else toast("Scan started. It takes about 3–4 minutes; the page refreshes by itself.");
+      clearInterval(scanTimer);
+      const t0 = Date.now();
+      scanTimer = setInterval(async () => {
+        const now = (await sb.from("docs").select("updated_at").eq("key", "ss_sectors").maybeSingle()).data?.updated_at;
+        if (now && now !== before) {
+          clearInterval(scanTimer); btn.disabled = false;
+          Object.keys(cache).forEach((k) => delete cache[k]);
+          await route();
+          toast("Updated with live prices. These numbers are provisional until the evening update.", "ok");
+          setTimeout(() => toast(""), 8000);
+        } else if (Date.now() - t0 > 8 * 60000) {
+          clearInterval(scanTimer); btn.disabled = false;
+          toast("No new data after 8 minutes. Try again later.", "info");
+        }
+      }, 20000);
+    } catch (e) { btn.disabled = false; toast(`Could not start the scan: ${e.message}`, "info"); }
+  });
+  return btn;
+}
+
 // ------------------------------------------------------------------ routing
 async function route() {
   const app = document.getElementById("app");
@@ -1562,12 +1610,16 @@ async function route() {
     if (CFG.email && ses.user.email.toLowerCase() !== CFG.email.toLowerCase()) {
       who.replaceChildren(); return signInView(app, `${ses.user.email} does not have access.`);
     }
-    who.replaceChildren(h("button", { class: "theme-btn", type: "button", title: ses.user.email,
+    who.replaceChildren(scanButton(), h("button", { class: "theme-btn", type: "button", title: ses.user.email,
       onclick: async () => { await sb.auth.signOut(); Object.keys(cache).forEach((k) => delete cache[k]); route(); } }, "Sign out"));
   }
   try {
     const sec = await load("sectors");
-    document.getElementById("asof").textContent = `NSE end-of-day data, ${fmtDate(sec.as_of)}`;
+    const asof = document.getElementById("asof");
+    asof.classList.toggle("live", Boolean(sec.provisional));
+    asof.textContent = sec.provisional
+      ? `Live snapshot ${fmtDate(sec.provisional.date, { day: "numeric", month: "short" })}, ${sec.provisional.time} (provisional until the evening update)`
+      : `NSE end-of-day data, ${fmtDate(sec.as_of)}`;
     if (page === "sector") await viewSector(app, m[1]);
     else if (page === "picks") await viewPicks(app);
     else if (page === "record") await viewRecord(app);

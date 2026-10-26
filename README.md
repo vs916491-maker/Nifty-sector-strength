@@ -149,6 +149,17 @@ that email; `site/data/` is no longer committed or published. Needs the
 repository secrets `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (same values as
 the fno-desk repo). The raw NSE files in `data/` stay in this public repo.
 
+## Intraday "Run scan"
+
+The **Run scan** button (top right, market hours) asks Supabase
+(`scan_requests`, kind `sector`) to start the fno-desk workflow
+*Sector Strength intraday scan*. It checks out this repo, adds live prices as
+a provisional row for today (`collector/intraday.py`: indices from NSE's live
+index feed, stocks from Yahoo daily candles, volume scaled to a full day,
+A/D from NSE's live Total Market count), rebuilds and uploads to the private
+database. Nothing is committed; the evening update replaces it with final
+end-of-day data. The header shows "Live snapshot ... (provisional)" meanwhile.
+
 ## My Trades (Phase 9)
 
 `#/trades` is a private log of cash-market positional trades, stored in the
