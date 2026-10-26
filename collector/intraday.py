@@ -32,7 +32,6 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from .nse import NSEClient
 
 IST = ZoneInfo("Asia/Kolkata")
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,9 +47,45 @@ def norm(name: str) -> str:
     return "".join(str(name).lower().split())
 
 
-def get_json(client: NSEClient, url: str):
-    text = client.get_text(url)
-    return json.loads(text) if text else None
+class Live:
+    """Session for NSE's live JSON APIs: they need the cookies set by the
+    market-data page and a matching Referer."""
+
+    def __init__(self):
+        import requests
+        from .nse import UA
+        self.s = requests.Session()
+        self.s.headers.update({"User-Agent": UA, "Accept": "application/json, text/plain, */*",
+                               "Accept-Language": "en-US,en;q=0.9",
+                               "Referer": "https://www.nseindia.com/market-data/live-equity-market"})
+        self.warm()
+
+    def warm(self):
+        for path in ("/", "/market-data/live-equity-market"):
+            try:
+                self.s.get("https://www.nseindia.com" + path, timeout=20)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def get(self, url: str):
+        import time
+        last = ""
+        for attempt in range(3):
+            time.sleep(0.5)
+            try:
+                r = self.s.get(url, timeout=25)
+            except Exception as exc:  # noqa: BLE001
+                last = str(exc); time.sleep(2 * (attempt + 1)); continue
+            if r.status_code == 200 and r.text.strip().startswith("{"):
+                return r.json()
+            last = f"HTTP {r.status_code}: {r.text[:120]!r}"
+            self.s.cookies.clear(); self.warm(); time.sleep(2 * (attempt + 1))
+        print(f"::warning::{url} failed: {last}")
+        return None
+
+
+def get_json(client, url: str):
+    return client.get(url)
 
 
 def num(v):
@@ -77,7 +112,7 @@ def main() -> int:
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--force", action="store_true", help="run outside market hours (testing)")
     args = ap.parse_args()
-    client = NSEClient()
+    client = Live()
     if args.probe:
         probe(client)
         return 0
