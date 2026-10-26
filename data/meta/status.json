@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-24T14:52:00+05:30",
+  "run_at_ist": "2026-10-26T20:10:30+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,34 +168,35 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 1025,
-    "upcoming": 718,
-    "next_7_days": 474
+    "fetched": 1179,
+    "upcoming": 850,
+    "next_7_days": 574
   },
   "universe_size": 766,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-10-26",
+    "last": "2026-10-26",
+    "days_without_file": 2,
     "unreadable_files": [],
-    "latest_stored": "2026-10-23"
+    "latest_stored": "2026-10-26"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-10-26",
+    "last": "2026-10-26",
+    "days_without_file": 2,
     "unreadable_files": [],
-    "latest_stored": "2026-10-23"
+    "latest_stored": "2026-10-26"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 512
   },
   "mcap": {
     "ok": true,
-    "date": "2026-10-23",
-    "stocks": 2580
+    "date": "2026-10-26",
+    "stocks": 2585
   },
   "price_jump_check": {
     "big_drops": 83,
@@ -239,5 +240,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 41
+  "requests_made": 45
 }
