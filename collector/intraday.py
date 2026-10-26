@@ -9,12 +9,13 @@ update replaces it with the final numbers.
 
 Live data
   indices    /api/allIndices - last price of every NSE index
-  stocks     /api/equity-stockIndices?index=NIFTY TOTAL MARKET (+ NIFTY 500)
-             - open, high, low, last price and volume so far
+  stocks     Yahoo Finance daily candle so far for every stock in the stored
+             constituent lists (NSE's per-index stock API is no longer public)
   volume     scaled up to a full day (x 375 / minutes traded) so volume
              tests (breakouts, accumulation) compare like with like
-  A/D        advances and declines of those stocks, scaled to the size of the
-             whole NSE list (the evening file counts every NSE stock)
+  A/D        NSE's live advances/declines for Nifty Total Market, scaled to
+             the size of the whole NSE list (the evening file counts every
+             NSE stock)
   delivery % not available intraday (left empty)
 
 Run:  python -m collector.intraday [--probe] [--force]
@@ -144,30 +145,54 @@ def main() -> int:
         print(f"::error::Only {len(idx_rows)} indices matched from NSE's live feed; stopping.")
         return 1
 
-    # ------------------------------------------------------------- stocks
+    # ------------------------------------------------------------- stocks (Yahoo daily candle so far)
+    # NSE's per-index stock list API is no longer public, so today's open/high/low/last/volume
+    # come from Yahoo's chart API, one request per stock (about a minute for ~800 stocks)
     minutes = max(5, min(MARKET_MINUTES, (now - now.replace(hour=9, minute=15, second=0, microsecond=0)).seconds // 60))
     scale = MARKET_MINUTES / minutes
+    universe = set()
+    for f in (DATA / "constituents").glob("*.csv"):
+        universe |= set(pd.read_csv(f, dtype=str)["symbol"].dropna())
     stocks: dict[str, dict] = {}
-    adv = dec = unch = 0
-    for name in STOCK_LISTS:
-        j = get_json(client, API_IDX.format(urllib.parse.quote(name))) or {}
-        for r in j.get("data", []):
-            sym = str(r.get("symbol", "")).strip()
-            if not sym or sym.upper() == name.replace(" ", "").upper() or r.get("priority") == 1:
-                continue                               # the index's own summary row
-            if sym in stocks:
+
+    def yahoo(sym: str):
+        import requests
+        try:
+            r = requests.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(sym + '.NS')}",
+                             params={"interval": "1d", "range": "5d"}, timeout=20,
+                             headers={"User-Agent": "Mozilla/5.0"})
+            res = r.json()["chart"]["result"][0]
+            ts, q = res.get("timestamp") or [], res["indicators"]["quote"][0]
+            if not ts:
+                return None
+            d = dt.datetime.fromtimestamp(ts[-1], IST).date()
+            if d != today:
+                return None
+            prev = res.get("meta", {}).get("chartPreviousClose")
+            prev = q["close"][-2] if len(ts) > 1 and q["close"][-2] else prev
+            return sym, {"open": q["open"][-1], "high": q["high"][-1], "low": q["low"][-1],
+                         "close": res.get("meta", {}).get("regularMarketPrice") or q["close"][-1],
+                         "volume": q["volume"][-1], "prev": prev}
+        except Exception:  # noqa: BLE001
+            return None
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        for got in ex.map(yahoo, sorted(universe)):
+            if not got:
                 continue
-            last, prev = num(r.get("lastPrice")), num(r.get("previousClose"))
-            stocks[sym] = {"date": today.isoformat(), "symbol": sym, "series": "EQ", "prev_close": prev,
-                           "open": num(r.get("open")), "high": num(r.get("dayHigh")), "low": num(r.get("dayLow")),
-                           "close": last, "volume": round(num(r.get("totalTradedVolume")) * scale),
-                           "deliv_pct": float("nan")}
-            if last > prev:
-                adv += 1
-            elif last < prev:
-                dec += 1
-            else:
-                unch += 1
+            sym, q = got
+            if q["close"] is None or q["open"] is None:
+                continue
+            stocks[sym] = {"date": today.isoformat(), "symbol": sym, "series": "EQ", "prev_close": q["prev"],
+                           "open": q["open"], "high": q["high"], "low": q["low"], "close": q["close"],
+                           "volume": round((q["volume"] or 0) * scale), "deliv_pct": float("nan")}
+    # advances/declines: NSE's own count for Nifty Total Market from the live index feed
+    tm = next((r for r in alli if norm(r.get("index", "")) == "niftytotalmarket"), None)
+    adv, dec, unch = (int(num(tm.get(k))) for k in ("advances", "declines", "unchanged")) if tm else (0, 0, 0)
+    if not tm:
+        for v in stocks.values():
+            adv += v["close"] > (v["prev_close"] or v["close"]); dec += v["close"] < (v["prev_close"] or v["close"])
     if len(stocks) < 300:
         print(f"::error::Only {len(stocks)} stocks from NSE's live feed; stopping.")
         return 1
