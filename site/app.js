@@ -1049,7 +1049,7 @@ function setupsSection(st, sec, rg) {
             x.fno ? h("span", { class: "flag fno" }, "F&O") : null,
             (x.flags || []).includes("Extended") ? h("span", { class: "flag" }, "Extended") : null),
           h("td", null, h("button", { class: "btn small", type: "button", onclick: () => takeTrade({
-            symbol: x.sym, entry: +entry.toFixed(2), stop: +x.stop.toFixed(2), qty: ps.qty || null, exit_rule: "system",
+            symbol: x.sym, entry: +entry.toFixed(2), stop: +x.stop.toFixed(2), qty: ps.qty || null, exit_rule: "stop_target",
             setup: x.name, grade: x.grade, sector: secs[0] || null, source: "setup",
             notes: `${x.name} setup on ${fmtDate(st.as_of)}${x.trigger ? `; buy above ${fmtNum(x.trigger, 2)}` : ""}.` }) }, "I took this trade")));
       })));
@@ -1265,9 +1265,8 @@ const sb = SB_READY ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabase
 }) : null;
 const COST_PCT = 0.25;              // default delivery costs when no charges are entered
 const RULES = {
-  system: "Setup rules: stop, target, first close below 50-day, or 120 sessions",
-  stop_target: "Stop or target only",
-  manual: "I close it myself",
+  stop_target: "Only when my stop is hit (target and 50-day are just warnings)",
+  manual: "Never: I close it myself",
 };
 const inr = (v) => (isNum(v) ? `${v < 0 ? "−" : ""}₹${Math.abs(v).toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "–");
 const todayISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -1299,7 +1298,8 @@ async function takeTrade(prefill) {
 function tradeDialog(prefill, onSaved) {
   if (prefill && prefill.id && prefill.status === "closed") return;   // closed trades are locked
   const dlg = document.getElementById("dlg");
-  const t = { exit_rule: "system", entry_date: todayISO(), ...prefill };
+  const t = { entry_date: todayISO(), ...prefill };
+  if (!RULES[t.exit_rule]) t.exit_rule = "stop_target";   // older trades used "system"
   const field = (label, name, attrs = {}, wide = false) =>
     h("label", { class: wide ? "wide" : null }, label, h("input", { name, value: t[name] ?? "", ...attrs }));
   const err = h("p", { class: "err", role: "alert" });
@@ -1503,7 +1503,7 @@ async function viewTrades(app) {
         h("td", null, isNum(px) && isNum(t.stop) ? fmtPct((t.stop / px - 1) * 100, 1) : "–"),
         h("td", { class: isNum(px) && isNum(t.sma50) && px < t.sma50 ? "neg" : null }, fmtNum(t.sma50, 2)),
         h("td", null, isNum(t.sessions_held) ? `${t.sessions_held}d` : "–"),
-        h("td", { class: "l" }, h("span", { class: "rule" }, { system: "Setup rules", stop_target: "Stop/target", manual: "Manual" }[t.exit_rule] || "–"),
+        h("td", { class: "l" }, h("span", { class: "rule" }, { system: "Stop only", stop_target: "Stop only", manual: "Manual" }[t.exit_rule] || "–"),
           t.alert ? h("span", { class: "alert" }, t.alert) : null,
           (() => { const r = st?.results?.[t.symbol]; return r && r.days >= 0 ? h("span", { class: r.days <= 7 ? "alert" : "rule" }, `Results ${fmtDate(r.date, { day: "numeric", month: "short" })}`) : null; })()),
         actions(t, true));
@@ -1526,7 +1526,7 @@ async function viewTrades(app) {
     h("div", { class: "page-head" }, h("h1", null, "My Trades"),
       h("div", { class: "who" }, h("span", null, ses.user.email))),
     h("p", { class: "sub", style: "color:var(--muted);font-size:13px;margin:0 0 10px" },
-      "Cash-market positional trades, saved privately. Every weekday evening open trades get the latest close and 50-day average, and are closed automatically when their exit rule says so."),
+      "Cash-market positional trades, saved privately. Every weekday evening open trades get the latest close and 50-day average, and are closed automatically only when the stop you entered is hit (a target, a close below the 50-day average or a long hold only shows a warning)."),
     h("div", { class: "filters" },
       h("button", { class: "btn primary", type: "button", onclick: () => tradeDialog({}, rerender) }, "Add a trade"),
       h("button", { class: "btn", type: "button", onclick: () => exportTrades(rows) }, "Export CSV"),
