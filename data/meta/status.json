@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-27T19:20:23+05:30",
+  "run_at_ist": "2026-10-27T22:20:24+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -159,7 +159,7 @@
   },
   "fno": {
     "ok": true,
-    "symbols": 219
+    "symbols": 224
   },
   "corporate_actions": {
     "ok": true,
@@ -168,30 +168,29 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 1318,
-    "upcoming": 934,
-    "next_7_days": 681
+    "fetched": 1333,
+    "upcoming": 949,
+    "next_7_days": 690
   },
   "universe_size": 766,
   "indices": {
-    "days_added": 1,
-    "first": "2026-10-27",
-    "last": "2026-10-27",
+    "days_added": 0,
+    "first": null,
+    "last": null,
     "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-10-27"
   },
   "stocks": {
-    "days_added": 1,
-    "first": "2026-10-27",
-    "last": "2026-10-27",
+    "days_added": 0,
+    "first": null,
+    "last": null,
     "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-10-27"
   },
   "advance_decline": {
-    "days_added": 1,
-    "total_days": 513
+    "days_added": 0
   },
   "mcap": {
     "ok": true,
@@ -240,5 +239,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 41
+  "requests_made": 39
 }
