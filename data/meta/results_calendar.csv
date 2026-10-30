@@ -1,5 +1,4 @@
 symbol,date,purpose
-BFUTILITIE,2026-09-30,Other business matters
 MPIMANIPAL,2026-10-01,Financial Results
 PRANAV,2026-10-01,Financial Results
 LCCPROJECT,2026-10-05,Financial Results
@@ -60,7 +59,7 @@ GROWW,2026-10-14,Financial Results
 HATHWAY,2026-10-14,Financial Results
 HDBFS,2026-10-14,Financial Results
 ICICIGI,2026-10-14,Financial Results/Dividend
-MRPL,2026-10-14,Financial Results
+MRPL,2026-10-14,Financial Results/Dividend
 RIIL,2026-10-14,Financial Results
 SECURCRED,2026-10-14,Financial Results/Other business matters
 SONA,2026-10-14,Financial Results
@@ -657,7 +656,7 @@ TFL,2026-10-29,Financial Results/Fund Raising
 THYROCARE,2026-10-29,Financial Results
 TIMKEN,2026-10-29,Financial Results
 TIPSFILMS,2026-10-29,Financial Results
-TITAGARH,2026-10-29,Board meeting Rescheduled
+TITAGARH,2026-10-29,Financial Results
 TRENT,2026-10-29,Financial Results
 VEDPOWER,2026-10-29,Financial Results/Other business matters
 VGUARD,2026-10-29,Financial Results
@@ -1263,6 +1262,7 @@ MAZDA,2026-11-04,Financial Results
 MINDTECK,2026-11-04,Financial Results/Other business matters
 MITTAL,2026-11-04,Financial Results
 MOL,2026-11-04,Financial Results
+MOLDTECH,2026-11-04,Financial Results
 MUFTI,2026-11-04,Financial Results
 NAVKARURB,2026-11-04,Financial Results
 NAVNETEDUL,2026-11-04,Financial Results/Dividend
