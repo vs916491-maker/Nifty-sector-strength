@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-30T02:56:36+05:30",
+  "run_at_ist": "2026-10-30T19:20:21+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -13,7 +13,7 @@
     },
     "TOTALMKT": {
       "ok": true,
-      "stocks": 755,
+      "stocks": 754,
       "source": "https://nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv"
     },
     "AUTO": {
@@ -168,34 +168,35 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 1624,
-    "upcoming": 944,
-    "next_7_days": 880
+    "fetched": 1723,
+    "upcoming": 1043,
+    "next_7_days": 959
   },
-  "universe_size": 766,
+  "universe_size": 765,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-10-30",
+    "last": "2026-10-30",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-10-29"
+    "latest_stored": "2026-10-30"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-10-30",
+    "last": "2026-10-30",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-10-29"
+    "latest_stored": "2026-10-30"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 516
   },
   "mcap": {
     "ok": true,
-    "date": "2026-10-29",
-    "stocks": 2585
+    "date": "2026-10-30",
+    "stocks": 2587
   },
   "price_jump_check": {
     "big_drops": 83,
