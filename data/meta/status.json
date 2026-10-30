@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-10-30T19:20:21+05:30",
+  "run_at_ist": "2026-10-30T22:20:27+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,30 +168,29 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 1723,
-    "upcoming": 1043,
-    "next_7_days": 959
+    "fetched": 1732,
+    "upcoming": 1052,
+    "next_7_days": 968
   },
   "universe_size": 765,
   "indices": {
-    "days_added": 1,
-    "first": "2026-10-30",
-    "last": "2026-10-30",
+    "days_added": 0,
+    "first": null,
+    "last": null,
     "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-10-30"
   },
   "stocks": {
-    "days_added": 1,
-    "first": "2026-10-30",
-    "last": "2026-10-30",
+    "days_added": 0,
+    "first": null,
+    "last": null,
     "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-10-30"
   },
   "advance_decline": {
-    "days_added": 1,
-    "total_days": 516
+    "days_added": 0
   },
   "mcap": {
     "ok": true,
@@ -240,5 +239,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 41
+  "requests_made": 39
 }
