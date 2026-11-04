@@ -1,7 +1,4 @@
 symbol,date,purpose
-LCCPROJECT,2026-10-05,Financial Results
-RENTOMOJO,2026-10-05,Financial Results
-STEAMHOUSE,2026-10-05,Financial Results
 ARCIL,2026-10-06,Financial Results
 GLASSWALL,2026-10-06,Financial Results
 KANOHAR,2026-10-06,Financial Results/Other business matters
@@ -23,7 +20,7 @@ ADROITIND,2026-10-12,Financial Results
 AGRITECH,2026-10-12,Financial Results
 ALKALI,2026-10-12,Financial Results/Other business matters
 GRADIENTE,2026-10-12,Financial Results/Fund Raising
-GSFC,2026-10-12,Board meeting Rescheduled
+GSFC,2026-10-12,Financial Results
 HCLTECH,2026-10-12,Financial Results/Dividend
 ICICIAMC,2026-10-12,Financial Results/Dividend
 PLASTIBLEN,2026-10-12,Financial Results
@@ -1805,6 +1802,7 @@ MIDHANI,2026-11-11,Financial Results
 NFL,2026-11-11,Financial Results
 ORCHASP,2026-11-11,Financial Results/Other business matters
 PIONEEREMB,2026-11-11,Financial Results
+POWERMECH,2026-11-11,Financial Results/Other business matters
 PVSL,2026-11-11,Financial Results
 ROTO,2026-11-11,Financial Results
 SAKHTISUG,2026-11-11,Financial Results
@@ -2008,6 +2006,7 @@ BEARDSELL,2026-11-14,Financial Results/Other business matters
 BILVYAPAR,2026-11-14,Financial Results
 BIOFILCHEM,2026-11-14,Financial Results/Other business matters
 BLEL,2026-11-14,Financial Results
+BRNL,2026-11-14,Financial Results
 CAPTRUST,2026-11-14,Financial Results
 COASTCORP,2026-11-14,Financial Results
 GLOBECIVIL,2026-11-14,Financial Results
