@@ -36,6 +36,7 @@ Daily sector-rotation website for positional cash trades (held weeks to months).
 
 ## Rules / decisions to keep
 - Data: free NSE files only (Yahoo as fallback). Raw prices stored; splits/bonuses applied at analysis time.
+- My Trades: totals at the top cover the current financial year only (Apr–Mar, by sell date) and start fresh each 1 April; completed years show in "Year by year". Closed trades are locked: no editing and no Delete button (open trades can still be deleted).
 - Stock names link to TradingView.
 - Considered Chartink, decided to stay with TradingView.
 

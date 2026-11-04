@@ -1450,12 +1450,19 @@ async function viewTrades(app) {
     g.n += r.trades; g.pctN += r.pct_count; g.w += r.wins; g.sum += r.sum_pct; g.gain += r.gain_pct;
     g.loss += r.loss_pct; g.inr += r.pnl_inr; g.inv += r.invested;
   };
+  // financial year (April–March), by the month a trade was sold; "2026-11" -> 2026 (FY 2026-27)
+  const sellMonth = (t) => String(t.exit_date || t.entry_date || "").slice(0, 7);
+  const fyOf = (m) => { const y = +m.slice(0, 4), mo = +m.slice(5, 7); return mo >= 4 ? y : y - 1; };
+  const fyLabel = (y) => `FY ${y}-${String((y + 1) % 100).padStart(2, "0")}`;
+  const now = new Date();
+  const curFy = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  // totals at the top: current financial year only (starts fresh every 1 April)
   const tot = blank();
-  closed.forEach((t) => addTrade(tot, t));
-  archive.forEach((r) => addMonth(tot, r));
+  closed.forEach((t) => { const m = sellMonth(t); if (m && fyOf(m) === curFy) addTrade(tot, t); });
+  archive.forEach((r) => { if (fyOf(r.month) === curFy) addMonth(tot, r); });
   const lostN = tot.pctN - tot.w;
   const pf = tot.loss < 0 ? tot.gain / Math.abs(tot.loss) : null;
-  const archivedN = archive.reduce((a2, r) => a2 + r.trades, 0);
+  const archivedN = archive.filter((r) => fyOf(r.month) === curFy).reduce((a2, r) => a2 + r.trades, 0);
   const stats = h("div", { class: "stats six" },
     bigStat("Closed trades", fmtNum(tot.n), `${open.length} open${archivedN ? ` · ${archivedN} as monthly totals` : ""}`),
     bigStat("Win rate", tot.pctN ? `${Math.round((tot.w / tot.pctN) * 100)}%` : "–", `${tot.w} won, ${lostN} lost`),
@@ -1479,12 +1486,32 @@ async function viewTrades(app) {
         h("td", { class: sign(g.sum) }, g.pctN ? fmtPct(g.sum / g.pctN, 2) : "–"));
     })));
 
+  // year by year: completed financial years (Apr–Mar); the running year stays in the totals at the top
+  const years = {};
+  for (const m of Object.keys(months)) {
+    const y = fyOf(m);
+    if (y >= curFy) continue;
+    const g = years[y] ||= blank(), s = months[m];
+    for (const k of Object.keys(g)) g[k] += s[k];
+  }
+  const yearKeys = Object.keys(years).map(Number).sort((a2, b2) => b2 - a2);
+  const yearTable = h("table", { class: "static" },
+    h("thead", null, h("tr", null, ["Financial year", "Trades", "Won / lost", "Win rate", "Net ₹", "Net %", "Avg per trade", "Profit factor"].map((c, i) => h("th", { class: i ? null : "l" }, c)))),
+    h("tbody", null, yearKeys.map((y) => {
+      const g = years[y];
+      return h("tr", null, h("td", { class: "l name" }, fyLabel(y), h("small", null, `Apr ${y} – Mar ${y + 1}`)), h("td", null, g.n),
+        h("td", null, `${g.w} / ${g.pctN - g.w}`), h("td", null, g.pctN ? `${Math.round((g.w / g.pctN) * 100)}%` : "–"),
+        h("td", { class: sign(g.inr) }, inr(g.inr)), h("td", { class: sign(g.inr) }, g.inv ? fmtPct((g.inr / g.inv) * 100, 2) : "–"),
+        h("td", { class: sign(g.sum) }, g.pctN ? fmtPct(g.sum / g.pctN, 2) : "–"),
+        h("td", null, g.loss < 0 ? (g.gain / Math.abs(g.loss)).toFixed(2) : g.pctN ? "∞" : "–"));
+    })));
+
   const actions = (t, isOpen) => h("td", { class: "l" }, h("div", { class: "btn-row" },
     isOpen ? h("button", { class: "btn small", type: "button", onclick: () => closeTradeDialog(t, rerender) }, "Sell") : null,
     isOpen ? h("button", { class: "btn small", type: "button", onclick: () => tradeDialog(t, rerender) }, "Edit") : h("span", { class: "muted", title: "Closed trades are locked" }, "Locked"),
-    h("button", { class: "btn small", type: "button", onclick: async () => {
+    isOpen ? h("button", { class: "btn small", type: "button", onclick: async () => {
       if (confirm(`Delete the ${t.symbol} trade? This cannot be undone.`)) { await tradesQuery((q) => q.delete().eq("id", t.id)); rerender(); }
-    } }, "Delete")));
+    } }, "Delete") : null));
   const nameCell = (t) => h("td", { class: "l name" }, t.symbol, chartLink(t.symbol),
     h("small", null, [t.setup, t.grade ? `grade ${t.grade}` : null, t.sector].filter(Boolean).join(" · ") || "manual"));
 
@@ -1531,9 +1558,13 @@ async function viewTrades(app) {
       h("button", { class: "btn primary", type: "button", onclick: () => tradeDialog({}, rerender) }, "Add a trade"),
       h("button", { class: "btn", type: "button", onclick: () => exportTrades(rows) }, "Export CSV"),
       h("span", { class: "note", style: "margin:0" }, "Or use “I took this trade” on a setup in Stock picks.")),
+    h("div", { class: "section-head" }, h("h2", null, `This financial year · ${fyLabel(curFy)}`),
+      h("p", null, `Trades sold from 1 Apr ${curFy} to 31 Mar ${curFy + 1}. On 1 April the totals start fresh and this year moves to “Year by year”. Open positions are as of today.`)),
     stats,
     h("section", null, h("div", { class: "section-head" }, h("h2", null, `Open (${open.length})`)),
       open.length ? h("div", { class: "panel" }, h("div", { class: "table-scroll" }, openTable)) : h("p", { class: "empty" }, "No open trades.")),
+    yearKeys.length ? h("section", null, h("div", { class: "section-head" }, h("h2", null, "Year by year"), h("p", null, "Completed financial years (April–March), by the date trades were sold.")),
+      h("div", { class: "panel" }, h("div", { class: "table-scroll" }, yearTable))) : null,
     Object.keys(months).length ? h("section", null, h("div", { class: "section-head" }, h("h2", null, "Month by month"), h("p", null, "By the month they were sold. Trade details are kept for 3 months; monthly totals are kept for good.")),
       h("div", { class: "panel" }, h("div", { class: "table-scroll" }, monthTable))) : null,
     h("section", null, h("div", { class: "section-head" }, h("h2", null, `Closed (${closed.length})`)),
