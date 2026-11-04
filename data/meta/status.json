@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-04T03:32:23+05:30",
+  "run_at_ist": "2026-11-04T19:20:24+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,38 +168,39 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 1951,
-    "upcoming": 784,
-    "next_7_days": 645
+    "fetched": 2052,
+    "upcoming": 885,
+    "next_7_days": 668
   },
   "universe_size": 765,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-04",
+    "last": "2026-11-04",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-03"
+    "latest_stored": "2026-11-04"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-04",
+    "last": "2026-11-04",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-03"
+    "latest_stored": "2026-11-04"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 519
   },
   "mcap": {
     "ok": true,
-    "date": "2026-11-03",
-    "stocks": 2590
+    "date": "2026-11-04",
+    "stocks": 2594
   },
   "price_jump_check": {
-    "big_drops": 83,
-    "explained_by_split_bonus": 81,
+    "big_drops": 84,
+    "explained_by_split_bonus": 82,
     "unexplained": [
       "2026-09-02 INDIAGLYCO 0.21",
       "2026-09-24 POLICYBZR 0.64"
