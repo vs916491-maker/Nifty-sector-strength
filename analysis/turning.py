@@ -29,13 +29,15 @@ Seller exhaustion (bottom)
 Distribution (top)
   1 Extended      Nifty 500 within 3% of its 6-month high after a strong
                   rally (p50 reached 65%+ or RSI 68+ in the last 20 sessions).
-  2 Distribution  near the high (within 3% of the 60-day high), either a
+  2 Distribution  after an extended reading (stage 1 in the last 30
+                  sessions), near the high (within 3% of the 60-day high), either a
                   negative divergence (Nifty 500 at or above its highest
                   close of 3-40 sessions ago but 3 of 4 readings weaker than
                   on that day: gauge 10+ lower, p50 lower, fewer new highs,
                   RSI lower) or 7+ distribution days in 25 sessions (Nifty
                   500 down 0.2%+ on higher turnover than the day before;
-                  5 is normal in this market, 7+ is the top fifth).
+                  5 is normal in this market, 7+ is the top fifth). The
+                  count restarts when seller exhaustion confirms a bottom.
   3 Breakdown     within 25 sessions of stage 2, 3 of 4:
                   gauge below 0; p50 crossed below p200 in the last 10
                   sessions; Nifty 500 closed below its 50-day average;
@@ -51,6 +53,7 @@ from . import sectors as S
 
 LOOK_FROM, LOOK_TO = 3, 40
 DIST_DAYS = 7      # heavy-volume down days in 25 sessions (in this data the median is 5)
+T1_ACTIVE = 30     # stage 2 (distribution) needs stage 1 (extended) in the last 30 sessions
 
 
 def _recent(cond: pd.Series, n: int) -> pd.Series:
@@ -162,8 +165,18 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     })
     neg_div = retest_hi & (div_parts.sum(axis=1) >= 3)
     dist_day = (chg <= -0.2) & (tov > tov.shift(1))
-    dist_count = dist_day.astype(float).rolling(25).sum()
-    t2_today = near60 & (neg_div | (dist_count >= DIST_DAYS))
+    # count restarts on the first day of each seller-exhaustion confirmation: heavy
+    # down days before a confirmed bottom are capitulation, not distribution at a top
+    b3_start = b3_today & ~_recent(b3_today.shift(1), 10)
+    cs = np.concatenate([[0.0], dist_day.fillna(False).astype(float).cumsum().to_numpy()])
+    starts = np.flatnonzero(b3_start.to_numpy())
+    cnt = np.full(len(idx), np.nan)
+    for i in range(24, len(idx)):
+        k = np.searchsorted(starts, i, side="right")
+        frm = max(i - 24, starts[k - 1] if k else 0)
+        cnt[i] = cs[i + 1] - cs[frm]
+    dist_count = pd.Series(cnt, index=idx)
+    t2_today = _recent(t1_today, T1_ACTIVE) & near60 & (neg_div | (dist_count >= DIST_DAYS))
     cross_dn = (p50 < p200) & _recent((p50 > p200).shift(1), 10)
     t3_parts = pd.DataFrame({
         "gauge below 0": gauge < 0,

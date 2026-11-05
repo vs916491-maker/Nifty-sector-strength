@@ -599,7 +599,7 @@ function trackersBlock(T, NAME = "Nifty 500") {
   return h("div", { class: "trackers" },
     trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.", T.bottom, lowTable),
     trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
-      h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
+      h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high, only after an Extended reading; the count restarts when seller exhaustion confirms). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
 }
 
 function regimePanel(rgAll) {
