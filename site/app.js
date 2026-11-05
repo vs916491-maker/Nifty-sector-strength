@@ -1276,12 +1276,32 @@ async function session() {
   const { data } = await sb.auth.getSession();
   return data.session;
 }
+/* An update the database refused (window over) comes back with no rows changed. */
+const lockedMsg = (ex) => /no rows/i.test(ex.message) ? "this trade is now locked (the 7:40 pm check has run). Reload the page." : ex.message;
 async function tradesQuery(fn) {
   const { data, error } = await fn(sb.from("cash_trades"));
   if (error) throw new Error(/relation .* does not exist|cash_trades/i.test(error.message)
     ? "the cash_trades table is not set up yet (run supabase/003_cash_trades.sql in Supabase)" : error.message);
   return data;
 }
+/* A trade closed by hand can be fixed (edited or re-opened) until the next weekday 19:40 IST
+   check; trades closed by the evening job, or older ones, stay locked. Same rule in the
+   database (fno-desk supabase/011_fix_closed_trades.sql, trade_fix_until). */
+function fixUntil(t) {
+  if (t.status !== "closed" || !t.closed_at) return null;
+  const IST = 5.5 * 3600e3, c = new Date(Date.parse(t.closed_at) + IST);   // IST clock in UTC fields
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(Date.UTC(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate() + i, 19, 40));
+    if (d.getUTCDay() >= 1 && d.getUTCDay() <= 5 && d > c) return new Date(d.getTime() - IST);
+  }
+  return null;
+}
+const canFix = (t) => { const u = fixUntil(t); return !!u && Date.now() < u.getTime(); };
+const fixLabel = (t) => {
+  const u = fixUntil(t), sameDay = u && u.toDateString() === new Date().toDateString();
+  return u ? `until ${sameDay ? "" : `${u.toLocaleDateString("en-IN", { weekday: "short" })} `}7:40 pm` : "";
+};
+
 function netOf(t, exit) {
   const qty = +t.qty, entry = +t.entry;
   const cost = isNum(t.charges) ? t.charges : entry * qty * COST_PCT / 100;
@@ -1296,9 +1316,10 @@ async function takeTrade(prefill) {
 }
 
 function tradeDialog(prefill, onSaved) {
-  if (prefill && prefill.id && prefill.status === "closed") return;   // closed trades are locked
+  if (prefill && prefill.id && prefill.status === "closed" && !canFix(prefill)) return;   // closed trades lock after the 7:40 pm check
   const dlg = document.getElementById("dlg");
   const t = { entry_date: todayISO(), ...prefill };
+  const isClosed = !!(t.id && t.status === "closed");
   if (!RULES[t.exit_rule]) t.exit_rule = "stop_target";   // older trades used "system"
   const field = (label, name, attrs = {}, wide = false) =>
     h("label", { class: wide ? "wide" : null }, label, h("input", { name, value: t[name] ?? "", ...attrs }));
@@ -1327,7 +1348,12 @@ function tradeDialog(prefill, onSaved) {
         Object.entries(RULES).map(([k, l]) => h("option", { value: k, selected: t.exit_rule === k || null }, l)))),
       field("Setup", "setup", { placeholder: "e.g. Breakout, Pullback" }),
       field("Charges ₹ (optional)", "charges", { type: "number", step: "any", min: "0" }),
-      h("label", { class: "wide" }, "Notes", h("textarea", { name: "notes" }, t.notes || ""))),
+      h("label", { class: "wide" }, "Notes", h("textarea", { name: "notes" }, t.notes || "")),
+      ...(isClosed ? [
+        field("Sell price", "exit", { type: "number", step: "any", min: "0", required: true }),
+        field("Sell date", "exit_date", { type: "date", required: true }),
+        field("Reason", "exit_reason", {}, true)] : [])),
+    isClosed ? h("p", { class: "note" }, `This trade is closed. You can fix it ${fixLabel(t)}; after that it is locked.`) : null,
     err,
     h("div", { class: "btn-row" },
       h("button", { class: "btn primary", type: "submit" }, "Save trade"),
@@ -1343,19 +1369,35 @@ function tradeDialog(prefill, onSaved) {
       setup: v.setup || null, charges: v.charges !== "" ? +v.charges : null, notes: v.notes || null,
     };
     if (row.stop && row.stop >= row.entry) { err.textContent = "The stop must be below the buy price."; return; }
+    if (isClosed) {
+      Object.assign(row, { exit: +v.exit, exit_date: v.exit_date, exit_reason: v.exit_reason || null });
+      if (row.exit_date < row.entry_date) { err.textContent = "The sell date is before the buy date."; return; }
+    }
     try {
       if (t.id) {
-        if (t.status === "closed" && isNum(t.exit)) Object.assign(row, netOf({ ...t, ...row }, t.exit));
-        await tradesQuery((q) => q.update(row).eq("id", t.id));
+        if (isClosed) Object.assign(row, netOf({ ...t, ...row }, row.exit));
+        const saved = await tradesQuery((q) => q.update(row).eq("id", t.id).select("id"));
+        if (isClosed && (!saved || !saved.length)) throw new Error("no rows");
       } else {
         await tradesQuery((q) => q.insert({ ...row, status: "open", grade: t.grade || null, sector: t.sector || null, source: t.source || "manual" }));
       }
       dlg.close();
       onSaved && onSaved();
-    } catch (ex) { err.textContent = `Could not save: ${ex.message}`; }
+    } catch (ex) { err.textContent = `Could not save: ${isClosed ? lockedMsg(ex) : ex.message}`; }
   });
   dlg.replaceChildren(form);
   if (!dlg.open) dlg.showModal();
+}
+
+/* Undo a close made by mistake (only inside the fix window). */
+async function reopenTrade(t, onSaved) {
+  if (!confirm(`Reopen ${t.symbol}? The sale (${fmtNum(t.exit, 2)} on ${fmtDate(t.exit_date)}) is removed and the trade goes back to Open.`)) return;
+  try {
+    const rows = await tradesQuery((q) => q.update({ status: "open", exit: null, exit_date: null, exit_reason: null, pnl_inr: null, net_pct: null })
+      .eq("id", t.id).select("id"));
+    if (!rows || !rows.length) throw new Error("no rows");
+    onSaved && onSaved();
+  } catch (ex) { alert(`Could not reopen: ${lockedMsg(ex)}`); }
 }
 
 function closeTradeDialog(t, onSaved) {
@@ -1508,7 +1550,9 @@ async function viewTrades(app) {
 
   const actions = (t, isOpen) => h("td", { class: "l" }, h("div", { class: "btn-row" },
     isOpen ? h("button", { class: "btn small", type: "button", onclick: () => closeTradeDialog(t, rerender) }, "Sell") : null,
-    isOpen ? h("button", { class: "btn small", type: "button", onclick: () => tradeDialog(t, rerender) }, "Edit") : h("span", { class: "muted", title: "Closed trades are locked" }, "Locked"),
+    isOpen || canFix(t) ? h("button", { class: "btn small", type: "button", onclick: () => tradeDialog(t, rerender) }, "Edit") : h("span", { class: "muted", title: "Closed trades are locked" }, "Locked"),
+    !isOpen && canFix(t) ? h("button", { class: "btn small", type: "button", onclick: () => reopenTrade(t, rerender) }, "Reopen") : null,
+    !isOpen && canFix(t) ? h("small", { class: "muted", title: "Closed trades lock after the 7:40 pm check" }, fixLabel(t)) : null,
     isOpen ? h("button", { class: "btn small", type: "button", onclick: async () => {
       if (confirm(`Delete the ${t.symbol} trade? This cannot be undone.`)) { await tradesQuery((q) => q.delete().eq("id", t.id)); rerender(); }
     } }, "Delete") : null));
@@ -1553,7 +1597,7 @@ async function viewTrades(app) {
     h("div", { class: "page-head" }, h("h1", null, "My Trades"),
       h("div", { class: "who" }, h("span", null, ses.user.email))),
     h("p", { class: "sub", style: "color:var(--muted);font-size:13px;margin:0 0 10px" },
-      "Cash-market positional trades, saved privately. Every weekday evening open trades get the latest close and 50-day average, and are closed automatically only when the stop you entered is hit (a target, a close below the 50-day average or a long hold only shows a warning)."),
+      "Cash-market positional trades, saved privately. Every weekday evening open trades get the latest close and 50-day average, and are closed automatically only when the stop you entered is hit (a target, a close below the 50-day average or a long hold only shows a warning). A trade you sell by hand can be edited or reopened until the 7:40 pm check; after that it is locked."),
     h("div", { class: "filters" },
       h("button", { class: "btn primary", type: "button", onclick: () => tradeDialog({}, rerender) }, "Add a trade"),
       h("button", { class: "btn", type: "button", onclick: () => exportTrades(rows) }, "Export CSV"),
