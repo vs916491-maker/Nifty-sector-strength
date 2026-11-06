@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-06T03:49:11+05:30",
+  "run_at_ist": "2026-11-06T19:20:23+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -174,32 +174,33 @@
   },
   "universe_size": 765,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-06",
+    "last": "2026-11-06",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-05"
+    "latest_stored": "2026-11-06"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-06",
+    "last": "2026-11-06",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-05"
+    "latest_stored": "2026-11-06"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 521
   },
   "mcap": {
     "ok": true,
-    "date": "2026-11-05",
-    "stocks": 2595
+    "date": "2026-11-06",
+    "stocks": 2597
   },
   "price_jump_check": {
-    "big_drops": 84,
-    "explained_by_split_bonus": 82,
+    "big_drops": 85,
+    "explained_by_split_bonus": 83,
     "unexplained": [
       "2026-09-02 INDIAGLYCO 0.21",
       "2026-09-24 POLICYBZR 0.64"
@@ -239,5 +240,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 41
+  "requests_made": 44
 }
