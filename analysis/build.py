@@ -164,7 +164,8 @@ def main() -> int:
     nl = nl.dropna(subset=["score"]).sort_values("score", ascending=False)
     keys_all = [k for g in groups.values() for k in g]
     ratio, momentum = sectors.rrg(idx[keys_all], idx["NIFTY500"])
-    rot = leaders_mod.sector_scores(idx, groups, dec, res_by_bench["NIFTY500"]["rank"], momentum, ratio)
+    rot = leaders_mod.sector_scores(idx, groups, dec, res_by_bench["NIFTY500"]["rank"], momentum, ratio,
+                                    {k: r.get("caution") for k, r in res_by_bench["NIFTY500"]["rows"].items()})
     leaders_out = {
         "as_of": as_of, "decline": leaders_mod.describe(dec),
         "weights": leaders_mod.WEIGHTS, "sector_weights": leaders_mod.SECTOR_WEIGHTS,

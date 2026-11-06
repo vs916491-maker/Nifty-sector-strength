@@ -20,6 +20,7 @@ Daily sector-rotation website for positional cash trades (held weeks to months).
 - Stock score: RS rating 35%, trend 25%, near 52-week high 15%, recent RS 15%, accumulation 10%.
 - Picks: up to 5 per focus sector, mcap ≥ ₹500 cr, 20-day traded value ≥ ₹5 cr, score ≥ 60.
 - Setups: RS rating 70+, stop at swing low (max 8%), exit on close below 50-DMA or 120 sessions.
+- Caution (added 6 Nov 2026; Rotation watch column + chip under Quadrant in the ranking): **Stretched** = leader (RS-Ratio ≥ 100) > 8% above 50-DMA, or 2 of 3 (RSI 70+, > 8% above 50-DMA, breadth down 15+ pts in 20 sessions while within 2% of 20-day high). **Oversold** = laggard (RS-Ratio < 100) > 8% below 50-DMA, or RSI < 30 in last 5 sessions and now rising. Backtest Oct 2024–Nov 2026, next 10 sessions: Stretched −0.5% (46% up), Oversold +1.4% (55% up). "RS rolling over" signals tested and rejected (no edge). Rules in `analysis/sectors.py` (`CAUTION`, `caution()`). Not on Track record yet (his choice).
 
 ## Main files
 - `collector/` – downloads NSE end-of-day files into `data/` (indices, stocks, constituents, corporate actions)

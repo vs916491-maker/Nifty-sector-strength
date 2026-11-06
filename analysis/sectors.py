@@ -22,6 +22,23 @@ Composite score 0-100 (weights in WEIGHTS):
 
 "Ranked" parts are percentile ranks among the sectors in the same tab
 (sectoral or thematic), so scores compare sectors with each other.
+
+Caution (short-term warning, next ~2 weeks; a lead, not a sell/buy signal)
+  Stretched      leaders (RS-Ratio >= 100: Leading or Weakening) when the
+                 index is more than 8% above its 50-day average, or 2 of 3:
+                 RSI(14) 70+, more than 8% above the 50-day average,
+                 narrowing breadth (within 2% of its 20-day high while the
+                 share of its stocks above their 50-day average fell 15+
+                 points in 20 sessions). A pause or pullback is likely.
+  Oversold       laggards (RS-Ratio < 100: Lagging or Improving) when the
+                 index is more than 8% below its 50-day average, or RSI(14)
+                 was under 30 in the last 5 sessions and is higher than 3
+                 sessions ago. A short-term bounce is possible.
+  Tested Oct 2024 - Nov 2026 on all 28 indices (next 10 sessions): stretched
+  -0.5% on average (46% up) vs about 0% normally; oversold +1.4% (55% up),
+  with dips of about 2.5% along the way in both. "RS rolling over" signals
+  (RS momentum falling, price under the 20-day average) did not predict
+  weakness and are not used.
 """
 
 from __future__ import annotations
@@ -34,6 +51,8 @@ WEIGHTS = {"rs_trend": 0.30, "rs_momentum": 0.20, "excess_return": 0.20,
 RRG_WINDOW = 10      # weeks
 RRG_SMOOTH = 3       # weeks (EMA span)
 TAIL_WEEKS = 8
+CAUTION = {"far_from_50": 8.0, "rsi_hot": 70, "rsi_oversold": 30, "near_high": 2.0,
+           "breadth_drop": 15, "breadth_days": 20, "oversold_days": 5, "rsi_turn": 3}
 
 
 def sma(df: pd.DataFrame, n: int) -> pd.DataFrame:
@@ -82,6 +101,42 @@ def rrg(sector: pd.DataFrame, bench: pd.Series) -> tuple[pd.DataFrame, pd.DataFr
     ratio = ratio.ewm(span=RRG_SMOOTH, adjust=False).mean()
     momentum = 100 * ratio / ratio.shift(1)
     return ratio, momentum
+
+
+def caution(px: pd.DataFrame, brd: pd.DataFrame, rs_ratio: pd.Series) -> dict[str, dict | None]:
+    """Latest Caution reading per index (see the module notes). rs_ratio: latest RS-Ratio."""
+    c = CAUTION
+    ext = (px / sma(px, 50) - 1) * 100
+    r = rsi(px)
+    br = brd.reindex(columns=px.columns)
+    near = px >= px.rolling(20).max() * (1 - c["near_high"] / 100)
+    narrow = near & (br - br.shift(c["breadth_days"]) <= -c["breadth_drop"])
+    out = {}
+    for k in px.columns:
+        e, ri, rr = ext[k].iloc[-1], r[k].iloc[-1], rs_ratio.get(k, np.nan)
+        if np.isnan(e) or np.isnan(ri) or np.isnan(rr):
+            out[k] = None
+            continue
+        if rr >= 100:
+            signs = []
+            if ri >= c["rsi_hot"]:
+                signs.append(f"RSI {ri:.0f}")
+            if e > c["far_from_50"]:
+                signs.append(f"{e:.1f}% above 50-day avg")
+            if bool(narrow[k].iloc[-1]):
+                signs.append("breadth narrowing at the high")
+            hit = e > c["far_from_50"] or len(signs) >= 2
+            out[k] = {"kind": "stretched", "label": "Stretched", "why": ", ".join(signs)} if hit else None
+        else:
+            low5 = r[k].iloc[-c["oversold_days"]:].min()
+            turning = low5 < c["rsi_oversold"] and ri > r[k].iloc[-1 - c["rsi_turn"]]
+            signs = []
+            if e < -c["far_from_50"]:
+                signs.append(f"{abs(e):.1f}% below 50-day avg")
+            if turning:
+                signs.append(f"RSI back to {ri:.0f} from {low5:.0f}")
+            out[k] = {"kind": "oversold", "label": "Oversold", "why": ", ".join(signs)} if signs else None
+    return out
 
 
 def quadrant(ratio: float, momentum: float) -> str | None:
@@ -141,6 +196,7 @@ def analyse(idx: pd.DataFrame, groups: dict[str, list[str]], bench_key: str,
     rsi14 = rsi(px)
     hi52 = px.rolling(250, min_periods=200).max()
     week_ago = score.index[-6] if len(score) > 6 else score.index[0]
+    cautions = caution(px, brd, ratio.iloc[-1])
 
     rows = {}
     for k in keys:
@@ -164,6 +220,7 @@ def analyse(idx: pd.DataFrame, groups: dict[str, list[str]], bench_key: str,
             "rsi14": rsi14[k].iloc[-1],
             "breadth_50": brd[k].iloc[-1],
             "components": {c: comps[c].at[last, k] for c in WEIGHTS},
+            "caution": cautions.get(k),
         }
     tails = {k: [{"date": d.date().isoformat(), "x": ratio.at[d, k], "y": momentum.at[d, k]}
                  for d in ratio.index[-TAIL_WEEKS:]] for k in keys}

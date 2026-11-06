@@ -120,7 +120,8 @@ def stock_scores(st: dict[str, pd.DataFrame], bench: pd.Series, d: dict, symbols
 
 
 def sector_scores(idx: pd.DataFrame, groups: dict[str, list[str]], d: dict,
-                  rank: pd.DataFrame, momentum: pd.DataFrame, ratio: pd.DataFrame) -> dict[str, dict]:
+                  rank: pd.DataFrame, momentum: pd.DataFrame, ratio: pd.DataFrame,
+                  cautions: dict | None = None) -> dict[str, dict]:
     b = idx["NIFTY500"]
     peak, low, now = d["peak"], d["low"], d["now"]
     out = {}
@@ -157,7 +158,8 @@ def sector_scores(idx: pd.DataFrame, groups: dict[str, list[str]], d: dict,
                       "since_low_pct": off[k], "rs_vs_high": rs_vs_high[k],
                       "rank_at_peak": rank.at[peak, k], "rank_now": rank.at[now, k],
                       "quadrant": S.quadrant(ratio.at[wk[-1], k], mom) if len(wk) else None,
-                      "rs_momentum": mom, "status": status}
+                      "rs_momentum": mom, "status": status,
+                      "caution": (cautions or {}).get(k)}
     return out
 
 

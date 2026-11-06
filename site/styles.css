@@ -374,6 +374,11 @@ details.rules li { margin: 3px 0; }
 .status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; font-size: 12.5px; }
 @media (max-width: 700px) { .status-legend { grid-template-columns: minmax(0, 1fr); } }
 .status-legend span { white-space: normal; }
+.caution { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; color: var(--ink); cursor: help; }
+.caution.stretched { background: var(--q-weakening-bg); }
+.caution.oversold { background: var(--q-improving-bg); }
+.caution-why { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; white-space: normal; min-width: 16ch; max-width: 26ch; line-height: 1.35; }
+.caution-under { margin-top: 3px; }
 
 /* ---------- track record ---------- */
 table.static tbody tr { cursor: default; }

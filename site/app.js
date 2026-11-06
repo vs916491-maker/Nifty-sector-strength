@@ -120,6 +120,16 @@ function filtersRow(extra) {
     extra || null,
     typeof SB_READY !== "undefined" && SB_READY ? h("div", { class: "scan-slot" }, scanButton()) : null);
 }
+/* Caution: short-term warning on leaders (stretched) and laggards (oversold); rules in analysis/sectors.py */
+const CAUTION_HELP = {
+  stretched: "A leader that has run far, fast: more than 8% above its 50-day average, or two of RSI 70+, 8%+ above the average and narrowing breadth at the high. A pause or pullback over the next couple of weeks is likely; avoid chasing it.",
+  oversold: "A laggard that has been sold hard: more than 8% below its 50-day average, or RSI under 30 in the last 5 sessions and now turning up. A short-term bounce is possible, but it is still a laggard.",
+};
+function cautionChip(c, withWhy = false) {
+  if (!c) return h("span", { class: "muted" }, "–");
+  const chip = h("span", { class: `caution ${c.kind}`, title: `${c.why ? `${c.why}. ` : ""}${CAUTION_HELP[c.kind] || ""}` }, c.label);
+  return withWhy && c.why ? [chip, h("small", { class: "caution-why" }, c.why)] : chip;
+}
 function quadChip(q) {
   if (!q) return h("span", { class: "muted" }, "–");
   return h("span", { class: "q" }, h("i", { style: `background:var(${QVAR[q]})` }), q);
@@ -659,7 +669,8 @@ async function viewOverview(app) {
     h("thead", null, h("tr", null,
       h("th", { class: "l" }, "#"), h("th", { class: "l" }, "Index"), h("th", { class: "l" }, "Score"),
       h("th", { title: "Rank change vs a week ago" }, "Week"), h("th", null, "Excess 1M"),
-      h("th", { class: "l" }, "Quadrant"), h("th", null, "Excess 3M"), h("th", null, "Breadth"))),
+      h("th", { class: "l", title: "Quadrant, with a Caution chip below it when one applies: Stretched = a leader likely to pause, Oversold = a laggard that may bounce (about 2 weeks)" }, "Quadrant"),
+      h("th", null, "Excess 3M"), h("th", null, "Breadth"))),
     h("tbody", null, rows.map((r) => {
       const moved = isNum(r.rank_1w_ago) && isNum(r.rank) ? r.rank_1w_ago - r.rank : null;
       return h("tr", { class: state.sel === r.key ? "sel" : null, tabindex: 0,
@@ -672,7 +683,7 @@ async function viewOverview(app) {
         h("td", { class: moved > 0 ? "pos" : moved < 0 ? "neg" : "muted" },
           moved == null ? "–" : moved === 0 ? "–" : `${moved > 0 ? "+" : "−"}${Math.abs(moved)}`),
         h("td", { class: sign(r.excess_1m) }, fmtPct(r.excess_1m)),
-        h("td", { class: "l" }, quadChip(r.quadrant)),
+        h("td", { class: "l" }, quadChip(r.quadrant), r.caution ? h("div", { class: "caution-under" }, cautionChip(r.caution)) : null),
         h("td", { class: sign(r.excess_3m) }, fmtPct(r.excess_3m)),
         h("td", null, isNum(r.breadth_50) ? `${Math.round(r.breadth_50)}%` : "–"));
     })));
@@ -698,7 +709,9 @@ async function viewOverview(app) {
       h("div", { class: "legend" }, QUAD.map((q) => h("span", null, h("i", { style: `background:var(${QVAR[q]})` }), q)))),
     h("div", { class: "panel" },
       h("h2", null, `${state.group} ranking`),
-      h("p", { class: "sub" }, "Score 0–100 from relative strength trend and momentum, excess return, price trend and breadth. Tap a row for detail."),
+      h("p", { class: "sub" }, "Score 0–100 from relative strength trend and momentum, excess return, price trend and breadth. Caution: ",
+        cautionChip({ kind: "stretched", label: "Stretched" }), " a leader likely to pause; ", cautionChip({ kind: "oversold", label: "Oversold" }),
+        " a laggard that may bounce (hover for the reason). Tap a row for detail."),
       h("div", { class: "table-scroll" }, table)));
 
   // breadth section
@@ -936,7 +949,8 @@ function rotationSection(ld, sec) {
           h("th", { title: "Return since the market's low, minus Nifty 500's" }, "Since low vs market"),
           h("th", { title: "Relative-strength line vs its own 52-week high; 0% = at the high" }, "RS line vs high"),
           h("th", { title: "Strength-score rank at the market's peak, and now" }, "Rank: peak → now"),
-          h("th", { class: "l" }, "Quadrant"))),
+          h("th", { class: "l" }, "Quadrant"),
+          h("th", { class: "l", title: "Short-term (about 2 weeks) warning: Stretched leaders tend to pause, Oversold laggards may bounce" }, "Caution"))),
         h("tbody", null, rows.map((r) => h("tr", { tabindex: 0, onclick: () => { location.hash = `#/sector/${r.key}`; } },
           h("td", { class: "l muted" }, fmtNum(r.nl_rank)),
           h("td", { class: "l name" }, sec.names[r.key]),
@@ -945,9 +959,12 @@ function rotationSection(ld, sec) {
           h("td", { class: dc.off_low_valid ? sign(r.since_low_pct) : "muted" }, dc.off_low_valid ? fmtPct(r.since_low_pct) : "–"),
           h("td", null, fmtPct(r.rs_vs_high)),
           h("td", null, `${fmtNum(r.rank_at_peak)} → ${fmtNum(r.rank_now)}`),
-          h("td", { class: "l" }, quadChip(r.quadrant))))))),
-      h("div", { class: "legend status-legend" }, Object.keys(STATUS_HELP).map((k) => h("span", null, statusChip(k), " ", STATUS_HELP[k]))),
-      h("p", { class: "note" }, "How these statuses did in past corrections: ", h("a", { href: "#/record" }, "track record"), ". Few corrections have been tested so far, so treat the statuses as leads, not rules.")));
+          h("td", { class: "l" }, quadChip(r.quadrant)),
+          h("td", { class: "l" }, cautionChip(r.caution, true))))))),
+      h("div", { class: "legend status-legend" }, Object.keys(STATUS_HELP).map((k) => h("span", null, statusChip(k), " ", STATUS_HELP[k])),
+        h("span", null, cautionChip({ kind: "stretched", label: "Stretched" }), " ", CAUTION_HELP.stretched),
+        h("span", null, cautionChip({ kind: "oversold", label: "Oversold" }), " ", CAUTION_HELP.oversold)),
+      h("p", { class: "note" }, "How these statuses did in past corrections: ", h("a", { href: "#/record" }, "track record"), ". Few corrections have been tested so far, so treat the statuses as leads, not rules. Caution was tested on two years of data (Oct 2024 – Nov 2026): over the next 10 sessions, Stretched leaders averaged −0.5% and Oversold laggards +1.4%, both with dips of about 2.5% on the way.")));
 }
 
 function nextLeadersSection(ld, st, sec) {
