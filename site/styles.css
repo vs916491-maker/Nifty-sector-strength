@@ -600,3 +600,7 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .cc-legend { margin-top: 4px; font-size: 12px; }
 .cc-legend i.dash { width: 18px; height: 0; border-radius: 0; vertical-align: 3px; }
 .cc-legend i.line { width: 16px; }
+
+/* Prediction Records (8 Nov 2026) */
+.res { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px; border: 1px solid currentColor; white-space: nowrap; }
+.res.good { color: var(--pos-text); } .res.bad { color: var(--neg-text); } .res.warn { color: var(--amber-text); } .res.mute { color: var(--muted); }

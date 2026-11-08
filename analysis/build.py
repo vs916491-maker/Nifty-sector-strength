@@ -25,7 +25,7 @@ import pandas as pd
 
 from collector import config
 
-from . import turning, breadth as breadth_mod, data, leaders as leaders_mod, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
+from . import records, turning, breadth as breadth_mod, data, leaders as leaders_mod, regime as regime_mod, sectors, setups as setups_mod, stocks as stock_mod, validate
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "data"
 BENCHMARKS = ["NIFTY500", "NIFTY50"]       # first = default on the website
@@ -206,6 +206,8 @@ def main() -> int:
     reg50 = regime_mod.latest(rg50)
     reg50["turning"] = turning.latest(tp50, rg50)
     reg_out["benchmarks"] = {"NIFTY50": reg50}
+    recs = {"as_of": as_of, "benchmarks": {"NIFTY500": records.build(rg, tp), "NIFTY50": records.build(rg50, tp50)}}
+    (OUT / "records.json").write_text(json.dumps(clean(recs), separators=(",", ":")), encoding="utf-8")
     val["regime"]["turning_events"] = turning.events(tp, rg["n500"])
     (OUT / "regime.json").write_text(json.dumps(clean(reg_out), separators=(",", ":")),
                                      encoding="utf-8")

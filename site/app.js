@@ -740,7 +740,7 @@ function cycleChart(K, NAME) {
   plot.append(tip);
   function draw(W) {
     plot.querySelector("svg")?.remove();
-    const narrow = W < 560, H = narrow ? 250 : 310;
+    const narrow = W < 560, H = narrow ? 250 : (K.height || 310);
     const m = { l: 48, r: narrow ? 64 : 96, t: 14, b: 24 };
     const n = K.dates.length, iw = W - m.l - m.r, ih = H - m.t - m.b;
     const vals = [...K.close, ...K.sma50, ...(K.fail ? [K.fail] : [])].filter(isNum);
@@ -803,6 +803,13 @@ function cycleChart(K, NAME) {
         label(pt, mx - pt.length * 3.2 - 10, [my, my - 16, my + 16], txt, "cc-label strong", true);
       }
     }
+    // real tops and bottoms (Prediction Records)
+    for (const w of K.swings || []) {
+      const i = at(w.date); if (i < 0) continue;
+      const top = w.kind === "Top";
+      svg.append(s("circle", { cx: x(i), cy: y(w.price), r: 6, fill: "none", stroke: css("--ink"), "stroke-width": 1.8 }));
+      if (!narrow) label(`${w.kind} ${fmtNum(w.price, 0)}`, x(i), top ? [y(w.price) - 12, y(w.price) - 26] : [y(w.price) + 20, y(w.price) + 34], css("--ink"), "cc-label", false);
+    }
     // today
     svg.append(s("circle", { cx: x(n - 1), cy: y(K.close[n - 1]), r: 4.5, fill: css("--ink") }));
     label(fmtNum(K.close[n - 1], 0), x(n - 1) + 7 + 20, [y(K.close[n - 1]) - 6], css("--ink"), "cc-label strong", true);
@@ -847,13 +854,14 @@ function cycleChart(K, NAME) {
   onResize(plot, draw);
   const sw = (v, t, dash) => h("span", null, h("i", { class: dash ? "dash" : "line", style: `background:${dash ? "transparent" : `var(${v})`};${dash ? `border-top:2px dashed var(${v})` : ""}` }), t);
   return h("div", { class: "cycle-chart" },
-    h("div", { class: "cc-head" }, h("b", null, `${NAME}: the cycle on the chart`), h("span", { class: "muted" }, `Last ${K.dates.length} sessions · shaded by phase`)),
+    h("div", { class: "cc-head" }, h("b", null, `${NAME}: the cycle on the chart`), h("span", { class: "muted" }, `${K.swings ? `${fmtDate(K.dates[0], { day: "numeric", month: "short", year: "numeric" })} to ${fmtDate(K.dates[K.dates.length - 1], { day: "numeric", month: "short", year: "numeric" })}` : `Last ${K.dates.length} sessions`} · shaded by phase`)),
     plot,
     h("div", { class: "legend cc-legend" },
       ["bottom", "up", "top", "down"].map((k) => h("span", null, h("i", { style: `background:var(${PH_VAR[k]});opacity:.35` }), PHASE[k])),
       sw("--ink", NAME), sw("--s1", "20-day average"), sw("--down", "50-day average", true),
       K.anchor ? sw(K.anchor.kind === "bottom" ? "--q-leading" : "--q-lagging", K.anchor.kind === "bottom" ? "Bottom → today" : "Top → today") : null,
-      K.anchor ? sw(K.anchor.kind === "bottom" ? "--neg-text" : "--pos-text", K.anchor.kind === "bottom" ? "Failure line" : "Top fails above", true) : null));
+      K.anchor ? sw(K.anchor.kind === "bottom" ? "--neg-text" : "--pos-text", K.anchor.kind === "bottom" ? "Failure line" : "Top fails above", true) : null,
+      K.swings ? h("span", null, h("i", { style: "background:transparent;border:1.8px solid var(--ink)" }), "Real top / bottom (6%+ turn)") : null));
 }
 
 function trackersBlock(T, NAME = "Nifty 500") {
@@ -1549,6 +1557,89 @@ function leadershipSection(L, names) {
     h("p", { class: "note" }, "Only a few corrections fall inside the stored data. In the 2026 one the next leaders clearly beat the old leaders; in the 2025 one the rally was led by the most beaten-down stocks and the next leaders lagged. More episodes will be added automatically as they happen."));
 }
 
+/* Prediction Records (#/predictions, 8 Nov 2026): the turning-point cycle's full history from the first
+   valid day: score, the cycle chart over the whole period, real tops and bottoms vs the signals, every
+   cycle signal with what followed, and how long each phase lasted. Data: records.json (analysis/records.py). */
+async function viewPredictions(app) {
+  const R = await load("records");
+  const X = R?.benchmarks?.[state.bench];
+  const NAME = state.bench === "NIFTY50" ? "Nifty 50" : "Nifty 500";
+  if (!X?.score) { app.replaceChildren(filtersRow(null, { noGroup: true }), h("p", { class: "empty" }, "No prediction records yet. They are built with the evening update.")); return; }
+  const S = X.score, rules = X.rules || {};
+  const dlong = (x) => fmtDate(x, { day: "numeric", month: "short", year: "2-digit" });
+  const pct = (v, d = 1) => (isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(d)}%` : "–");
+  const cls = (v, invert) => (!isNum(v) ? "muted" : (invert ? v < 0 : v > 0) ? "pos" : "neg");
+  const RES = { "Good": "good", "Good warning": "good", "False bottom": "bad", "Whipsaw": "bad", "Wrong": "bad", "Early": "warn", "Too recent": "mute" };
+  const res = (v) => (v ? h("span", { class: `res ${RES[v] || "mute"}` }, v) : "");
+  const tile = (v, k) => h("div", { class: "stat" }, h("div", { class: "v" }, v), h("div", { class: "d" }, k));
+
+  const score = h("div", { class: "stats" },
+    tile(`${S.bottoms_caught} of ${S.bottoms}`, `bottoms caught${S.bottoms_caught ? `, on average ${S.bottom_lag} sessions after the low and ${S.bottom_gap}% above it` : ""}`),
+    tile(`${S.tops_caught} of ${S.tops}`, `tops caught${S.tops_caught ? `, on average ${S.top_lag} sessions after the high and ${Math.abs(S.top_gap)}% below it` : ""}`),
+    tile(`${S.false_bottoms} of ${S.bottom_signals}`, "bottom signals were false (the index fell 5%+ further within 3 months)"),
+    tile(`${S.bad_breakdowns} of ${S.breakdowns}`, `breakdowns were wrong or reversed within ${rules.whipsaw_sessions || 15} sessions`));
+
+  const K = { ...X.chart, height: 360 };
+  const chart = cycleChart(K, NAME);
+
+  const swingRows = X.swings.map((s) => h("tr", null,
+    h("td", { class: "l" }, h("span", { class: `res ${s.kind === "Bottom" ? "good" : "bad"}` }, s.kind)),
+    h("td", { class: "l" }, dlong(s.date)), h("td", null, fmtNum(s.price, 0)),
+    h("td", { class: "l" }, s.signal ? [h("span", { class: "pos" }, "Caught "), dlong(s.signal)] : h("span", { class: "neg" }, "Missed")),
+    h("td", null, s.lag ?? "–"), h("td", { class: s.gap == null ? "muted" : "" }, s.gap == null ? "–" : pct(s.gap)),
+    h("td", { class: "l" }, s.warn ? [`${s.warn_event} · ${dlong(s.warn)} `, h("span", { class: "muted" }, `(${s.warn_lag < 0 ? `${-s.warn_lag} sessions before` : s.warn_lag === 0 ? "same day" : `${s.warn_lag} after`})`)] : h("span", { class: "muted" }, "none"))));
+  const LE = X.last_extreme;
+  swingRows.push(h("tr", null, h("td", { class: "l" }, h("span", { class: "res mute" }, LE.kind === "H" ? "High so far" : "Low so far")),
+    h("td", { class: "l" }, dlong(LE.date)), h("td", null, fmtNum(LE.price, 0)), h("td", { class: "l muted", colspan: 4 }, `The current move has not turned ${rules.swing_pct || 6}% yet.`)));
+  const swings = h("div", { class: "panel" }, h("h2", null, "Real tops and bottoms"),
+    h("p", { class: "sub" }, `Each turn of ${rules.swing_pct || 6}% or more on closing prices, the first matching signal within ${rules.match_sessions || 45} sessions (Bottom confirmed for a bottom, Breakdown for a top), how late it came and how far price had already moved. The early warning is the washout before a bottom, or the up move weakening near a top.`),
+    h("div", { class: "table-scroll" }, h("table", { class: "static" },
+      h("thead", null, h("tr", null, ["Turn", "Date", "Close", "Signal", "Sessions late", "Price moved", "Early warning"].map((t, i) => h("th", { class: [0, 1, 3, 6].includes(i) ? "l" : null }, t)))),
+      h("tbody", null, swingRows))));
+
+  const DOWNISH = ["Top confirmed", "Up trend weakened", "Extended without a confirmed bottom"];
+  const signals = h("div", { class: "panel" }, h("h2", null, "Every cycle signal"),
+    h("p", { class: "sub" }, `Newest first. The index ${R.as_of ? "" : ""}1 month (21 sessions) and 3 months (63) later. A bottom signal is false if the index fell 5%+ below it within 3 months; a breakdown is a whipsaw if the top failed within ${rules.whipsaw_sessions || 15} sessions.`),
+    h("div", { class: "table-scroll" }, h("table", { class: "static" },
+      h("thead", null, h("tr", null, ["Date", "Signal", "Moves to", "Close", "1 month", "3 months", "Result"].map((t, i) => h("th", { class: [0, 1, 2, 6].includes(i) ? "l" : null }, t)))),
+      h("tbody", null, X.signals.map((s) => {
+        const dn = DOWNISH.includes(s.event);
+        return h("tr", null, h("td", { class: "l" }, dlong(s.date)), h("td", { class: "l" }, s.event),
+          h("td", { class: "l" }, h("span", { class: `hchip tone-${PH_TONE[s.phase]}` }, PHASE[s.phase])),
+          h("td", null, fmtNum(s.price, 0)), h("td", { class: cls(s.f21, dn) }, pct(s.f21)), h("td", { class: cls(s.f63, dn) }, pct(s.f63)),
+          h("td", { class: "l" }, res(s.verdict)));
+      })))));
+
+  const PA = X.phase_avg;
+  const phases = h("div", { class: "panel" }, h("h2", null, "Phase summary"),
+    h("p", { class: "sub" }, "Finished spells of each phase: how long they lasted and what the index did, measured from the day the phase started. Best and worst are the highest and lowest close during the spell."),
+    h("div", { class: "table-scroll" }, h("table", { class: "static" },
+      h("thead", null, h("tr", null, ["Phase", "Spells", "Average length", "Best point", "Worst point", "Start to end", "Ended higher"].map((t, i) => h("th", { class: i === 0 ? "l" : null }, t)))),
+      h("tbody", null, ["bottom", "up", "top", "down"].map((p) => {
+        const a = PA[p];
+        return h("tr", null, h("td", { class: "l" }, h("span", { class: `hchip tone-${PH_TONE[p]}` }, a.name)), h("td", null, a.count),
+          h("td", null, isNum(a.avg_sessions) ? `${a.avg_sessions} sessions` : "–"),
+          h("td", { class: cls(a.avg_high) }, pct(a.avg_high)), h("td", { class: cls(a.avg_low) }, pct(a.avg_low)),
+          h("td", { class: cls(a.avg_change) }, pct(a.avg_change)), h("td", null, isNum(a.up_share) ? `${Math.round(a.up_share)}%` : "–"));
+      })))),
+    fold("pred-spells", `Every spell (${X.spells.length})`,
+      h("div", { class: "table-scroll" }, h("table", { class: "static" },
+        h("thead", null, h("tr", null, ["Phase", "From", "To", "Sessions", "Best", "Worst", "Start to end"].map((t, i) => h("th", { class: i < 3 ? "l" : null }, t)))),
+        h("tbody", null, X.spells.map((s) => h("tr", null,
+          h("td", { class: "l" }, h("span", { class: `hchip tone-${PH_TONE[s.phase]}` }, PHASE[s.phase])),
+          h("td", { class: "l" }, dlong(s.start)), h("td", { class: "l" }, s.open ? "now" : dlong(s.end)), h("td", null, s.sessions),
+          h("td", { class: cls(s.high_pct) }, pct(s.high_pct)), h("td", { class: cls(s.low_pct) }, pct(s.low_pct)),
+          h("td", { class: cls(s.change_pct) }, pct(s.change_pct)))))))));
+
+  app.replaceChildren(filtersRow(null, { noGroup: true }),
+    h("div", { class: "sector-title", style: "margin-top:18px" }, h("h1", null, "Prediction Records")),
+    h("p", { class: "lede" }, `How the turning-point cycle has called tops and bottoms on ${NAME}, ${dlong(S.from)} to ${dlong(S.to)} (${S.sessions} sessions). Signals start once the readings have about 200 sessions of history. Rebuilt every evening with the live rules, so a rule change rewrites this history too.`),
+    score,
+    h("div", { class: "panel" }, chart),
+    swings, signals, phases,
+    h("p", { class: "note" }, "Personal analysis, not investment advice. Breadth uses today's index member lists, so older readings lean slightly towards stocks that later joined the index."));
+}
+
 async function viewRecord(app) {
   const v = await load("validation");
   const SB = v.stocks.by_score, SP = v.stocks.picks, SS = v.setups.summary || {}, G = v.setups.by_grade || {};
@@ -2205,7 +2296,7 @@ async function route() {
   const app = document.getElementById("app");
   const hash = location.hash || "#/";
   const m = hash.match(/^#\/sector\/([A-Z0-9]+)/);
-  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/record") ? "record" : hash.startsWith("#/trades") ? "trades" : hash.startsWith("#/watch") ? "watch" : "overview";
+  const page = m ? "sector" : hash.startsWith("#/picks") ? "picks" : hash.startsWith("#/predictions") ? "predictions" : hash.startsWith("#/record") ? "record" : hash.startsWith("#/trades") ? "trades" : hash.startsWith("#/watch") ? "watch" : "overview";
   document.querySelectorAll(".nav a").forEach((a) => a.toggleAttribute("aria-current", a.dataset.page === page));
   document.querySelectorAll(".nav a").forEach((a) => { if (a.dataset.page === page) a.setAttribute("aria-current", "page"); });
   // the whole site is private: sign in first (same email and password as the F&O Desk)
@@ -2230,6 +2321,7 @@ async function route() {
     if (page === "sector") await viewSector(app, m[1]);
     else if (page === "picks") await viewPicks(app);
     else if (page === "record") await viewRecord(app);
+    else if (page === "predictions") await viewPredictions(app);
     else if (page === "trades") await viewTrades(app);
     else if (page === "watch") await viewWatch(app);
     else await viewOverview(app);
