@@ -97,12 +97,15 @@ def compact_stocks() -> dict:
     return {"rows_before": before, "rows_after": after}
 
 
-def update_corporate_actions(client: NSEClient, today: dt.date) -> dict:
+def update_corporate_actions(client: NSEClient, today: dt.date, since: dt.date | None = None) -> dict:
     path = META / "corporate_actions.csv"
     old = pd.read_csv(path, dtype={"factor": float}) if path.exists() else None
     start = config.BACKFILL_START
     if old is not None and len(old):
         start = max(start, today - dt.timedelta(days=120))
+    if since is not None:
+        # a re-fetch from an earlier date (--start) also needs that period's splits and bonuses
+        start = min(start, since)
     new = corporate_actions.fetch(client, start, today + dt.timedelta(days=60))
     df = new if old is None else pd.concat([old, new], ignore_index=True)
     df = df.drop_duplicates(subset=["symbol", "ex_date", "subject"], keep="last")
@@ -419,7 +422,7 @@ def main() -> int:
 
     print("Corporate actions ...")
     try:
-        status["corporate_actions"] = update_corporate_actions(client, today)
+        status["corporate_actions"] = update_corporate_actions(client, today, args.start)
     except Exception as exc:  # noqa: BLE001 - not fatal; retried next run
         status["corporate_actions"] = {"ok": False}
         problems.append(f"Corporate actions: {type(exc).__name__}: {exc}"[:200])

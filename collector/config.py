@@ -6,7 +6,7 @@ import datetime as dt
 
 # How far back the first (backfill) run goes. Two years gives enough history
 # for 200-day averages, 52-week highs and a weekly Relative Rotation Graph.
-BACKFILL_START = dt.date(2024, 10, 1)
+BACKFILL_START = dt.date(2023, 10, 1)   # was 2024-10-01; extended 8 Nov 2026 for a 2-year backtest of the turning-point cycle
 
 # Normal NSE equity session and one-off special sessions (e.g. Diwali Muhurat
 # trading, which can fall on a weekend). Run scan works from 15 minutes before
