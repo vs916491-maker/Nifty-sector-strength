@@ -54,7 +54,7 @@ from . import sectors as S
 
 GREEN, AMBER = 5, 3
 LEAVE_GREEN, ENTER_RED, LEAVE_RED, SMOOTH = 4, 2.5, 3.5, 5
-LIFT_POINTS, LIFT_STAY, LIFT_KEEP = 4, 3, 10   # see adjust_light
+LIFT_POINTS, LIFT_STAY = 4, 3   # see adjust_light
 EXTENDED_CAP = False
 WASHOUT = 20
 THRUST_FROM, THRUST_TO, THRUST_DAYS, THRUST_KEEP = 20, 50, 15, 20
@@ -104,12 +104,13 @@ def _buffered_light(avg: pd.Series) -> pd.Series:
 def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
     """Let the turning-point trackers nudge the light (call after turning.build).
 
-    Lift: while seller exhaustion has been Confirmed within the last LIFT_KEEP
-    sessions, a Red light shows Amber once LIFT_POINTS of the 6 checks pass on
-    the day, and stays Amber while at least LIFT_STAY pass. It never lifts
-    Amber to Green. Reason: the light is a 5-session average of the checks with
-    a buffer, so after a real bottom it stayed Red for several sessions even
-    though 5 of 6 checks passed and the tracker had confirmed the low.
+    Lift: after seller exhaustion is Confirmed (one confirmation per cycle, see
+    turning.py) and while trend continuation is not Down, a Red light shows
+    Amber once LIFT_POINTS of the 6 checks pass on the day, and stays Amber
+    while at least LIFT_STAY pass. It never lifts Amber to Green. Reason: the
+    light is a 5-session average of the checks with a buffer, so after a real
+    bottom it stayed Red for several sessions even though 5 of 6 checks passed
+    and the tracker had confirmed the low.
 
     Cap (EXTENDED_CAP, off): Green shows Amber while Distribution stage 1
     (Extended) is on. Off because, in the data so far, Extended is on for
@@ -119,11 +120,13 @@ def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
     """
     base = rg["light"]
     rg["light_checks"] = base
-    b3 = tp["b3"].reindex(rg.index).fillna(False).astype(float).rolling(LIFT_KEEP, min_periods=1).max().astype(bool)
+    ok = (tp["cycle_on"].reindex(rg.index).fillna(False).astype(bool)
+          & (tp["tc_state"].reindex(rg.index) != "Down"))
+    rg["light_conf"] = tp["conf_idx"].reindex(rg.index).map(lambda i: rg.index[int(i)] if i is not None and i >= 0 else pd.NaT)
     pts = rg["points"]
     lifted, on = [], False
-    for lt, ok, p in zip(base, b3, pts):
-        if lt == "Red" and ok and pd.notna(p):
+    for lt, g, p in zip(base, ok, pts):
+        if lt == "Red" and g and pd.notna(p):
             on = p >= LIFT_STAY if on else p >= LIFT_POINTS
         else:
             on = False
@@ -264,7 +267,7 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
         "light_checks": last["light_checks"] if "light_checks" in df else last["light"],
         "lifted": bool(last["light_lifted"]) if "light_lifted" in df else False,
         "capped": bool(last["light_capped"]) if "light_capped" in df else False,
-        "note": (f"Seller exhaustion is confirmed and {int(last['points'])} of {len(CHECKS)} checks pass, so the light is lifted from Red to Amber. "
+        "note": (f"Seller exhaustion was confirmed on {pd.Timestamp(last['light_conf']).strftime('%d %b')} and the bounce is holding: {int(last['points'])} of {len(CHECKS)} checks pass, so the light is lifted from Red to Amber. "
                  f"The checks alone would still say Red because their 5-session average is only {last['points_avg']:.1f} (it needs {LEAVE_RED}).")
                 if "light_lifted" in df and bool(last["light_lifted"]) else None,
         "pct_above_50": float(last["pct_above_50"]),
@@ -288,6 +291,6 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
             "last_bottoming": (lambda e: e[-1].date().isoformat() if e else None)(warning_events(df, "bottoming")),
         },
         "rules": {"green": GREEN, "amber": AMBER, "washout": WASHOUT,
-                  "lift": f"Red shows Amber while seller exhaustion is confirmed (within {LIFT_KEEP} sessions) and {LIFT_POINTS}+ checks pass",
+                  "lift": f"Red shows Amber after a confirmed bottom, while the trend is not Down and {LIFT_POINTS}+ checks pass",
                   "thrust": f"under {THRUST_FROM}% to over {THRUST_TO}% within {THRUST_DAYS} sessions"},
     }

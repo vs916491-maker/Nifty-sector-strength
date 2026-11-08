@@ -330,6 +330,10 @@ footer p { margin: 4px 0; max-width: 80ch; }
 .stage-chip.s1 { border-color: var(--q-weakening); }
 .stage-chip.s2 { border-color: var(--q-weakening); background: var(--q-weakening-wash); color: var(--ink); }
 .stage-chip.s3 { border-color: var(--ink); background: var(--ink); color: var(--surface); }
+.tracker.wide { grid-column: 1 / -1; }
+.stage-chip.up { border-color: var(--pos-text); color: var(--pos-text); }
+.stage-chip.down { border-color: var(--neg-text); color: var(--neg-text); }
+.stage-chip.watch { border-color: var(--q-weakening); background: var(--q-weakening-wash); color: var(--ink); }
 .stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .stages > li summary { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13.5px; list-style: none; }
 .stages > li summary::-webkit-details-marker { display: none; }

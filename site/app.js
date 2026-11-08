@@ -570,18 +570,20 @@ function fold(id, summary, ...content) {
 }
 
 /* Turning-point trackers: seller exhaustion (bottom) and distribution (top) */
-function trackerCard(title, sub, stages, extra) {
+function trackerCard(title, sub, stages, extra, noSignal) {
   // current stage = the stage that fired most recently (ties: the higher one), if within 10 sessions;
   // a later stage-1 signal resets an older stage 2 (e.g. a failed exhaustion followed by new lows)
   let reached = 0, best = Infinity;
   stages.forEach((s, i) => { if (isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
   const recentStage = (s, i) => i < reached && isNum(s.sessions_ago) && s.sessions_ago <= 10 + (reached - 1 - i) * 10;
-  const when = (s) => s.met_today ? "met today"
+  const when = (s) => s.met_today ? (s.key === "b3" ? "confirmed today" : "met today")
+    : s.last_met && s.key === "b3" ? `confirmed ${fmtDate(s.last_met, { day: "numeric", month: "short" })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} session${s.sessions_ago === 1 ? "" : "s"} ago)` : ""}`
     : s.last_met ? `last met ${fmtDate(s.last_met, { day: "numeric", month: "short", year: s.sessions_ago > 200 ? "numeric" : undefined })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} sessions ago)` : ""}` : "not met yet";
   return h("div", { class: "tracker" },
     h("div", { class: "tracker-head" }, h("h3", null, title),
-      h("span", { class: `stage-chip s${reached}` }, reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "No signal")),
+      h("span", { class: `stage-chip s${noSignal ? 0 : reached}` }, !noSignal && reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "No signal")),
     h("p", { class: "sub" }, sub),
+    noSignal ? h("p", { class: "note", style: "margin:0 0 6px" }, noSignal) : null,
     h("ol", { class: "stages" }, stages.map((s, i) => h("li", { class: s.met_today ? "on" : recentStage(s, i) ? "recent" : "off" },
       h("details", null,
         h("summary", null, h("span", { class: "dot", "aria-hidden": "true" }), h("b", null, `${i + 1}. ${s.name}`), h("span", { class: "when" }, when(s))),
@@ -589,6 +591,27 @@ function trackerCard(title, sub, stages, extra) {
         h("ul", { class: "conds" }, s.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
           h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
     extra || null);
+}
+/* Trend continuation: after seller exhaustion confirms a bottom, is the move holding (Up) or failing (Down)? */
+function continuationCard(C, R, NAME) {
+  if (!C) return null;
+  const d = (x) => fmtDate(x, { day: "numeric", month: "short" });
+  const label = { Up: "Up continuation", Down: "Down: bottom failed", Watching: "Watching" }[C.state] || "Waiting";
+  const cls = { Up: "up", Down: "down", Watching: "watch" }[C.state] || "s0";
+  const val = (p) => p.kind === "index" ? `${NAME} ${fmtNum(R.n500, 0)} vs ${fmtNum(p.ref, 0)}`
+    : p.kind === "p50" ? `${isNum(R.p50) ? Math.round(R.p50) : "–"}% (needs 50%+)`
+    : `${isNum(R.gauge) ? Math.round(R.gauge) : "–"} (needs above 0)`;
+  return h("div", { class: "tracker wide" },
+    h("div", { class: "tracker-head" }, h("h3", null, "Trend continuation"), h("span", { class: `stage-chip ${cls}` }, label)),
+    h("p", { class: "sub" }, "After seller exhaustion confirms a bottom: is the move holding or failing? Watched until the next washout."),
+    C.active ? h("div", null,
+      h("p", { class: "note", style: "margin:0 0 6px" },
+        `Bottom confirmed ${d(C.confirmed)} at ${fmtNum(C.n500_confirmed, 0)}; now ${fmtNum(C.n500_now, 0)} (${C.change_pct > 0 ? "+" : ""}${C.change_pct.toFixed(1)}%), ${C.sessions_since} session${C.sessions_since === 1 ? "" : "s"} later. ${label} since ${d(C.state_since)}.`),
+      h("ul", { class: "conds", style: "margin-left:0" }, C.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
+        h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), `${p.label}: ${val(p)}`))),
+      h("p", { class: "note", style: "margin:6px 0 0" },
+        `Up when 3 of 4 hold. Down when ${NAME} closes below the earlier low (${fmtNum(C.pivot_low, 0)}) or only 1 of 4 holds. Otherwise Watching.`))
+      : h("p", { class: "note", style: "margin:0" }, `Waiting for seller exhaustion to confirm a bottom.${C.last_confirmed ? ` Last confirmed ${d(C.last_confirmed)}.` : ""}`));
 }
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T) return null;
@@ -607,7 +630,9 @@ function trackersBlock(T, NAME = "Nifty 500") {
         cmp("New 52-week lows", R.new_lows, P.new_lows, (v) => fmtNum(v), (a, b) => a < b),
         cmp("RSI (equal weight)", R.rsi, P.rsi, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a > b))))) : null;
   return h("div", { class: "trackers" },
-    trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.", T.bottom, lowTable),
+    continuationCard(T.continuation, R, NAME),
+    trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.", T.bottom, lowTable,
+      T.bottom_no_signal ? `Distribution is at Stage 1 (Extended), so no bottom signal is expected.${T.continuation?.last_confirmed ? ` Last confirmed ${fmtDate(T.continuation.last_confirmed, { day: "numeric", month: "short" })}.` : ""}` : null),
     trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
       h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high, only after an Extended reading; the count restarts when seller exhaustion confirms). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
 }
