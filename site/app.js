@@ -783,6 +783,31 @@ function trackersBlock(T, NAME = "Nifty 500") {
     h("div", { class: "tcards" }, others));
 }
 
+/* Current turning-point stage, shown in the regime header; clicking it scrolls to the cycle */
+function stageBox(T) {
+  const C = T?.cycle;
+  if (!C) return null;
+  const n = PH_ORDER.indexOf(C.phase) + 1;
+  let title = PHASE[C.phase], sub;
+  if (C.failed) { title = "Exhaustion failed"; sub = `Downtrend continues · since ${dshort(C.since)}`; }
+  else if (C.phase === "up" || C.phase === "down") {
+    const side = C[C.phase];
+    const status = C.phase === "up" ? (!C.proven ? " · not proven yet" : C.weak_days ? ` · weakening ${C.weak_days}/${C.weak_needed}` : "")
+      : side.count >= 3 ? "" : " · losing steam";
+    sub = `Since ${dshort(C.since)} · ${side.count} of 4 hold${status}`;
+  } else {
+    const stages = C.phase === "bottom" ? T.bottom : T.top;
+    let reached = 0, best = Infinity;
+    stages.forEach((s, i) => { if (isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best && !(C.failed && s.last_met < C.since)) { best = s.sessions_ago; reached = i + 1; } });
+    sub = `Since ${dshort(C.since)} · ${reached ? `stage ${reached} of 3: ${stages[reached - 1].name}` : "watching"}`;
+  }
+  const tone = C.failed ? "red" : PH_TONE[C.phase];
+  return h("button", { type: "button", class: `stage-box tone-${tone}`, title: "Go to the turning-point cycle",
+      onclick: () => document.querySelector(".cycle-a")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+    h("span", { class: "ph-n", "aria-hidden": "true" }, String(n)),
+    h("span", { class: "sb-text" }, h("span", { class: "sb-k" }, "Current stage"), h("b", null, title), h("span", { class: "sb-sub" }, sub)));
+}
+
 /* Market breadth at a glance (all NSE / Nifty 500 stocks), shown at the top of the regime panel.
    Each value is coloured by whether it supports buying, with a month-ago comparison. */
 function breadthTiles(L) {
@@ -822,9 +847,10 @@ function regimePanel(rgAll, L, breadthCharts) {
   const I = rg.internals;
   return h("div", { class: "panel regime" },
     h("div", { class: "regime-head" },
-      h("div", null, h("h2", null, `Market regime: ${NAME}`),
+      h("div", { class: "regime-title" }, h("h2", null, `Market regime: ${NAME}`),
         h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`,
           rg.lifted ? h("span", { class: "pos" }, " · lifted from Red (bottom confirmed)") : rg.capped && rg.light_checks === "Green" ? h("span", { class: "neg" }, " · held back from Green (breakdown)") : null)),
+      stageBox(rg.turning),
       lightChip(rg.light, true)),
     h("p", { class: "guidance" }, rg.guidance),
     breadthTiles(L),
