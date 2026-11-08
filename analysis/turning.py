@@ -56,7 +56,10 @@ The cycle (8 Nov 2026): only one box is live at a time.
                     at the next Washout, which starts Seller exhaustion again.
   Failed moves      a close below the low the bottom was made at (lowest close
                     of the 40 sessions up to Confirmed), or a new Washout,
-                    sends Up back to Seller exhaustion; a close above the high
+                    sends Up back to Seller exhaustion ("Exhaustion failed";
+                    the website's Trend continuation box then shows
+                    "Exhaustion failed: downtrend continues" until a new
+                    bottom is confirmed); a close above the high
                     the top was made at sends Down back to Distribution.
   Shortcuts         a Washout while Distribution is live (the market fell
                     without a Breakdown signal) moves to Seller exhaustion; an
@@ -102,7 +105,7 @@ def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd
                 pl, weak, proven = float(np.nanmin(arr[max(0, i - LOOK_TO):i + 1])), 0, up_n[i] >= 3
         elif ph == "up":
             if arr[i] < pl or b1[i]:
-                ph, ev = "bottom", "Bottom failed"
+                ph, ev = "bottom", "Exhaustion failed: new low" if arr[i] < pl else "Exhaustion failed: new washout"
             else:
                 proven = proven or up_n[i] >= 3
                 weak = weak + 1 if (proven and up_n[i] <= 2) else 0
@@ -349,10 +352,16 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
            "weak_days": int(df["weak_days"].iloc[-1]), "weak_needed": UP_WEAK_DAYS, "proven": bool(df["proven"].iloc[-1]),
            "pivot_low": float(df["pivot_low"].iloc[-1]) if pd.notna(df["pivot_low"].iloc[-1]) else None,
            "pivot_high": float(df["pivot_high"].iloc[-1]) if pd.notna(df["pivot_high"].iloc[-1]) else None,
+           "failed": None,
            "n500_since": float(n500.iloc[si]), "n500_now": float(n500.iloc[-1]),
            "change_pct": float((n500.iloc[-1] / n500.iloc[si] - 1) * 100),
            "history": [{"date": t.date().isoformat(), "event": e, "phase": p, "n500": float(n500[t])}
                        for t, e, p in zip(ch.index[-8:], ch["phase_event"].iloc[-8:], ch["phase"].iloc[-8:])][::-1]}
+    # back in Seller exhaustion because the confirmed bottom failed: keep what failed for the website
+    if ph == "bottom" and si > 0 and str(out["event"] or "").startswith("Exhaustion failed"):
+        ci = int(df["phase_since"].iloc[si - 1])
+        out["failed"] = {"confirmed": d(ci), "n500_confirmed": float(n500.iloc[ci]),
+                         "pivot_low": float(df["pivot_low"].iloc[si - 1]), "n500_failed": float(n500.iloc[si])}
     for side, col in (("up", "up_n"), ("down", "dn_n")):
         parts = df.attrs["parts"][side].loc[last]
         refs = [(df.at[last, "sma20"], "index"), (df.at[last, "sma50"], "index"), (50.0, "p50"), (0.0, "gauge")]

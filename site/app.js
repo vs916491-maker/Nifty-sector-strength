@@ -574,8 +574,8 @@ function trackerCard(title, sub, stages, extra, override) {
   // current stage = the stage that fired most recently (ties: the higher one), if within 10 sessions;
   // a later stage-1 signal resets an older stage 2 (e.g. a failed exhaustion followed by new lows)
   let reached = 0, best = Infinity;
-  stages.forEach((s, i) => { if (isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
-  const recentStage = (s, i) => !override && i < reached && isNum(s.sessions_ago) && s.sessions_ago <= 10 + (reached - 1 - i) * 10;
+  stages.forEach((s, i) => { if (!s.old && isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
+  const recentStage = (s, i) => !override && !s.old && i < reached && isNum(s.sessions_ago) && s.sessions_ago <= 10 + (reached - 1 - i) * 10;
   const when = (s) => s.met_today ? (s.key === "b3" ? "confirmed today" : "met today")
     : s.last_met && s.key === "b3" ? `confirmed ${fmtDate(s.last_met, { day: "numeric", month: "short" })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} session${s.sessions_ago === 1 ? "" : "s"} ago)` : ""}`
     : s.last_met ? `last met ${fmtDate(s.last_met, { day: "numeric", month: "short", year: s.sessions_ago > 200 ? "numeric" : undefined })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} sessions ago)` : ""}` : "not met yet";
@@ -616,6 +616,15 @@ function continuationCard(C, R, NAME) {
     : `${isNum(R.gauge) ? Math.round(R.gauge) : "–"} (needs ${dir === "up" ? "above" : "below"} 0)`;
   const list = (side) => h("ul", { class: "conds", style: "margin-left:0" }, C[side].parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
     h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), `${p.label}: ${val(p, side)}`)));
+  if (C.failed) {
+    const F = C.failed;
+    return h("div", { class: "tracker wide" },
+      h("div", { class: "tracker-head" }, h("h3", null, "Trend continuation: Down"), h("span", { class: "stage-chip down" }, "Exhaustion failed · downtrend continues")),
+      h("p", { class: "note", style: "margin:2px 0 6px" },
+        `Seller exhaustion confirmed a bottom on ${dshort(F.confirmed)} at ${fmtNum(F.n500_confirmed, 0)}, but on ${dshort(C.since)} ${NAME} ${C.event.endsWith("washout") ? "had a fresh washout" : `closed at ${fmtNum(F.n500_failed, 0)}, below the low the bottom was made at (${fmtNum(F.pivot_low, 0)})`}. Now ${fmtNum(C.n500_now, 0)}. ${C.down.count} of 4 down conditions hold.`),
+      list("down"),
+      h("p", { class: "note", style: "margin:6px 0 0" }, "Seller exhaustion is live again and looks for a new bottom. When it confirms, this box switches back to Up continuation."));
+  }
   if (!live) {
     // last finished continuation, from the cycle history (newest first)
     const H = C.history || [];
@@ -643,12 +652,14 @@ function sellerCard(T, lowTable) {
   const rest = { up: `Bottom confirmed ${dshort(C.since)}. Resting while the up move runs; it wakes up at the next washout.`,
     top: "Resting while Distribution looks for a top. Wakes up at the next washout.",
     down: "Resting while the down move runs. Wakes up at the next washout." }[C.phase];
+  // after a failed bottom the tracker starts fresh: stages from before the failure are history only
+  const stages = C.failed ? T.bottom.map((s) => (s.last_met && s.last_met < C.since ? { ...s, old: true } : s)) : T.bottom;
   return trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.",
-    T.bottom, rest ? null : lowTable, rest ? { chip: "Resting", cls: "s0", note: rest } : null);
+    stages, rest ? null : lowTable, rest ? { chip: "Resting", cls: "s0", note: rest } : null);
 }
 function distributionCard(T, R) {
   const C = T.cycle || {};
-  const rest = { bottom: "Resting while Seller exhaustion looks for a bottom.",
+  const rest = { bottom: C.failed ? "Resting: the confirmed bottom failed and Seller exhaustion is looking for a new one." : "Resting while Seller exhaustion looks for a bottom.",
     up: `Resting while the up trend holds. Wakes up when 2 or more of the 4 up conditions fail for ${C.weak_needed} days in a row${C.weak_days ? ` (${C.weak_days} so far)` : ""}.`,
     down: `Top confirmed ${dshort(C.since)}. Resting while the down move runs.` }[C.phase];
   return trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
