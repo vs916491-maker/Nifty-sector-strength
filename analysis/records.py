@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .turning import chop_series
+from .turning import CHOP_BAND, chop_series
 
 SWING_PCT = 6.0       # a real top/bottom = a turn of this % or more on closing prices
 MATCH_SESSIONS = 45   # a signal within this many sessions after the turn counts as catching it
@@ -197,5 +197,5 @@ def _chop(n: pd.Series, v: int, signals: list, d, r1) -> dict:
     cnt = lambda bad, inz: sum(1 for s in done if s["bad"] == bad and (s["zone"] == "chop") == inz)
     return {"dates": [d(i) for i in range(v, len(arr))], "close": [r1(x) for x in arr[v:]],
             "ema50": [r1(x) for x in cs["ema"].iloc[v:]], "zones": zones, "signals": sig,
-            "summary": {"bad_in": cnt(True, True), "bad_out": cnt(True, False), "good_in": cnt(False, True), "good_out": cnt(False, False),
+            "band": CHOP_BAND, "summary": {"bad_in": cnt(True, True), "bad_out": cnt(True, False), "good_in": cnt(False, True), "good_out": cnt(False, False),
                         "chop_days": int(sum(1 for i in range(v, len(st)) if st[i] == "chop")), "days": int(len(st) - v)}}

@@ -414,7 +414,7 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
 
 
 # Choppy market warning (Vivek's rules, 8 Nov 2026). Context only: changes no signal or light. Uses the 50-day EMA.
-#   Choppy     = 1 OR 2 holds (his change 8 Nov 2026, was AND), unless an exception below applies:
+#   Choppy     = 1 AND 2 hold (he tried OR on 8 Nov 2026, then went back to AND), unless an exception below applies:
 #     1. today within ±CHOP_BAND% of the 50 EMA, and in the last CHOP_LOOK sessions price never held beyond
 #        CHOP_BAND% for CHOP_HOLD+ days in a row (could not push away and hold)
 #     2. the 50 EMA lost momentum over CHOP_LOOK sessions: moved < CHOP_EMA_FLAT%, or its direction
@@ -429,16 +429,17 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
 #   5. EMA trending (his rule, 8 Nov 2026: the ±3% test only applies while the 50 EMA is flat or getting flat):
 #        the 50 EMA moved CHOP_TREND%+ in CHOP_TREND_DAYS sessions, or is picking up a trend (that move grew
 #        CHOP_PICKUP_DAYS days in a row with price more than CHOP_PICKUP_DEV% on that side) -> no warning
-CHOP_BAND = 3.0
+CHOP_BAND = 3.5         # was 3.0 (his test 8 Nov 2026)
 CHOP_HOLD = 3
 CHOP_LOOK = 30
 CHOP_EMA_FLAT = 2.0
 CHOP_EMA_FLIPS = 2
 CHOP_SLOPE_DAYS = 5
 CHOP_PUSH_DAYS = 4
+CHOP_PUSH = False       # quick-push exception (rule 3) off since his 8 Nov 2026 test
 CONG_BAND = 1.0
 CONG_DAYS = 10
-CHOP_TREND = 0.5
+CHOP_TREND = 1.5        # was 0.5 (his test 8 Nov 2026)
 CHOP_TREND_DAYS = 10
 CHOP_PICKUP_DAYS = 3
 CHOP_PICKUP_DEV = 1.0
@@ -466,7 +467,7 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
         if i < 60:
             rows.append(r); continue
         # 3. quick push after a cross
-        if abs(dv[i]) > CHOP_BAND and i - cross <= CHOP_PUSH_DAYS:
+        if CHOP_PUSH and abs(dv[i]) > CHOP_BAND and i - cross <= CHOP_PUSH_DAYS:
             push = side
         if push is not None and (side != push or (abs(dv[i]) <= CHOP_BAND and sl[i] != push)):
             push = None
@@ -508,7 +509,7 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
             r.update(state="break", zone_lo=zone[0], zone_hi=zone[1], brk=brk)
         elif steep or pickup:
             r["state"] = "trend"
-        elif rule1 or rule2:
+        elif rule1 and rule2:
             r.update(state="chop", rule1=bool(rule1), rule2=bool(rule2))
         rows.append(r)
     return pd.DataFrame(rows, index=close.index)
