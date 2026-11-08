@@ -83,6 +83,9 @@ DIST_DAYS = 7      # heavy-volume down days in 25 sessions (in this data the med
 EXT_LOOK, EXT_LOOK_NAME = 63, "3-month"    # Extended: within 3% of the highest close of this many sessions
                                            # (6-month until 8 Nov 2026; 3-month also sees lower highs, e.g. Nifty 50 Aug 2026)
 EXT_BOUNCE, EXT_BOUNCE_LOOK = 5, 60        # ...or a bounce of this % off the lowest close of this many sessions (0 = off; on since 8 Nov 2026)
+AD_DIV = False      # (test) Stage 2 also when the market-wide A/D line falls while the index holds near its high
+AD_DIV_LOOK = 20    # ...A/D line lower than this many sessions ago, and below its 50-day average; index at/above its level then
+AD_UP_END = 0       # (test, 0 = off) Up continuation also ends, into Distribution, after this many days in a row of A/D divergence near the high
 DIV_NEAR_HIGH = 3   # Distribution divergence counts while the index is within this % of the earlier high (was 1; 3 since 8 Nov 2026)
 T1_ACTIVE = 30     # stage 2 (distribution) needs stage 1 (extended) in the last 30 sessions
 
@@ -93,7 +96,7 @@ BD_CONFIRM = 0     # (test) Breakdown needs: 0 = the day's reading; 1 = two days
 PHASES = ["bottom", "up", "top", "down"]
 
 
-def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd.DataFrame:
+def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom", addiv=None) -> pd.DataFrame:
     """Walk the cycle day by day. Returns, per day: phase at the close, phase
     before the day, the session the phase began, pivots, the weak-day count and
     whether the up move has been proven, plus the event text on change days."""
@@ -101,10 +104,13 @@ def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd
     arr = close.to_numpy()
     b1, b3, t1, t3 = (np.asarray(pd.Series(x).fillna(False), bool) for x in (b1, b3, t1, t3))
     up_n = np.asarray(up_n, float)
+    addiv = np.zeros(n, bool) if addiv is None else np.asarray(pd.Series(addiv).fillna(False), bool)
+    adrun = 0
     ph, since, pl, phh, weak, proven, strong = start, 0, np.nan, np.nan, 0, False, 0
     rows = []
     for i in range(n):
         strong = strong + 1 if up_n[i] >= 3 else 0
+        adrun = adrun + 1 if addiv[i] else 0
         prev, ev = ph, None
         if ph == "bottom":
             if t1[i] and not b3[i]:
@@ -120,6 +126,8 @@ def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd
                 weak = weak + 1 if (proven and up_n[i] <= 2) else 0
                 if weak >= UP_WEAK_DAYS:
                     ph, ev = "top", "Up trend weakened"
+                elif AD_UP_END and adrun >= AD_UP_END:
+                    ph, ev = "top", "A/D divergence: breadth fading near the high"
         elif ph == "top":
             if b1[i] and not t3[i]:
                 ph, ev = "bottom", "Washout without a confirmed top"
@@ -171,7 +179,7 @@ def _at(series: pd.Series, locs: pd.Series) -> pd.Series:
 
 
 def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | None,
-          turnover: pd.Series | None, hl_key: str = "TOTALMKT") -> pd.DataFrame:
+          turnover: pd.Series | None, hl_key: str = "TOTALMKT", ad_market: pd.DataFrame | None = None) -> pd.DataFrame:
     n500 = rg["n500"]
     idx = n500.index
     gauge, p50, p200, rsi = rg["internals"], rg["pct_above_50"], rg["pct_above_200"], rg["ew_rsi"]
@@ -279,7 +287,18 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
         frm = max(i - 24, starts[k - 1] if k else 0)
         cnt[i] = cs[i + 1] - cs[frm]
     dist_count = pd.Series(cnt, index=idx)
-    t2_today = _recent(t1_today, T1_ACTIVE) & near60 & (neg_div | (dist_count >= DIST_DAYS))
+    # A/D divergence: the broad market (all NSE stocks) stops participating while the index holds up
+    adm = ad_market if ad_market is not None else ad
+    if adm is not None:
+        adl = (adm["advances"] - adm["declines"]).cumsum().reindex(idx).ffill()
+        ad_div = (adl < adl.rolling(50).mean()) & (adl < adl.shift(AD_DIV_LOOK)) & (n500 >= n500.shift(AD_DIV_LOOK))
+    else:
+        ad_div = pd.Series(False, index=idx)
+    ad_div_raw = (ad_div.fillna(False) & near60).astype(bool)
+    ad_div = ad_div.fillna(False) & AD_DIV
+    t2_today = _recent(t1_today, T1_ACTIVE) & near60 & (neg_div | (dist_count >= DIST_DAYS) | ad_div)
+    if AD_DIV:
+        div_parts["market A/D line falling while the index holds up"] = ad_div
     cross_dn = (p50 < p200) & _recent((p50 > p200).shift(1), 10)
     t3_parts = pd.DataFrame({
         "gauge below 0": gauge < 0,
@@ -292,7 +311,8 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     # the readings need ~200 sessions of history (200-day averages, 52-week highs/lows); before the
     # regime light is valid no signal may move the cycle, so it starts cleanly in Seller exhaustion
     ok = rg["light"].notna() if "light" in rg else pd.Series(True, index=idx)
-    cyc = _phases(*(x & ok for x in (b1_today, b3_today, t1_today, t3_today)), up_parts.sum(axis=1), n500)
+    cyc = _phases(*(x & ok for x in (b1_today, b3_today, t1_today, t3_today)), up_parts.sum(axis=1), n500,
+                  addiv=ad_div_raw & ok)
     df = df.join(cyc)
     live_b = (cyc["phase_prev"] == "bottom") | (cyc["phase"] == "bottom")
     live_t = (cyc["phase_prev"] == "top") | (cyc["phase"] == "top")
