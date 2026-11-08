@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-07T03:15:57+05:30",
+  "run_at_ist": "2026-11-08T15:45:25+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -163,26 +163,35 @@
   },
   "corporate_actions": {
     "ok": true,
-    "events": 210,
-    "fetched": 28
+    "events": 330,
+    "fetched": 334
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 2337,
-    "upcoming": 591,
-    "next_7_days": 587
+    "fetched": 2386,
+    "upcoming": 613,
+    "next_7_days": 609
   },
   "universe_size": 765,
   "indices": {
-    "error": "Failed after 3 attempts: https://nsearchives.nseindia.com/content/indices/ind_close_all_07112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/content/indices/ind_close_all_07112026.csv)",
+    "days_added": 769,
+    "first": "2023-10-03",
+    "last": "2026-11-06",
+    "days_without_file": 366,
+    "unreadable_files": [],
     "latest_stored": "2026-11-06"
   },
   "stocks": {
-    "error": "Failed after 3 attempts: https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_07112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_07112026.csv)",
+    "days_added": 769,
+    "first": "2023-10-03",
+    "last": "2026-11-06",
+    "days_without_file": 366,
+    "unreadable_files": [],
     "latest_stored": "2026-11-06"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 769,
+    "total_days": 769
   },
   "mcap": {
     "ok": true,
@@ -190,11 +199,12 @@
     "stocks": 2597
   },
   "price_jump_check": {
-    "big_drops": 85,
-    "explained_by_split_bonus": 83,
+    "big_drops": 125,
+    "explained_by_split_bonus": 122,
     "unexplained": [
       "2026-09-02 INDIAGLYCO 0.21",
-      "2026-09-24 POLICYBZR 0.64"
+      "2026-09-24 POLICYBZR 0.64",
+      "2024-01-23 ZEEL 0.67"
     ]
   },
   "index_name_match": {
@@ -230,9 +240,6 @@
     "DIGITAL": "Nifty India Digital",
     "TOURISM": "Nifty India Tourism"
   },
-  "problems": [
-    "indices: Failed after 3 attempts: https://nsearchives.nseindia.com/content/indices/ind_close_all_07112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/content/indices/ind_close_all_07112026.csv)",
-    "stocks: Failed after 3 attempts: https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_07112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_07112026.csv)"
-  ],
-  "requests_made": 48
+  "problems": [],
+  "requests_made": 2321
 }

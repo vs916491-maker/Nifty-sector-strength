@@ -1,6 +1,4 @@
 symbol,date,purpose
-GMBREW,2026-10-08,Financial Results
-TCS,2026-10-08,Financial Results/Dividend
 ANANDRATHI,2026-10-09,Financial Results/Dividend
 CANFINHOME,2026-10-09,Financial Results
 CANHLIFE,2026-10-09,Financial Results
@@ -690,7 +688,7 @@ DIXON,2026-10-30,Financial Results
 DMCC,2026-10-30,Financial Results
 DYNPRO,2026-10-30,Financial Results
 EMAMIPAP,2026-10-30,Financial Results
-ENGINERSIN,2026-10-30,Financial Results
+ENGINERSIN,2026-10-30,Financial Results/Dividend
 FINPIPE,2026-10-30,Financial Results
 GABRIEL,2026-10-30,Financial Results/Dividend
 GAIL,2026-10-30,Financial Results
@@ -1799,6 +1797,7 @@ GANGOTRI,2026-11-11,Financial Results
 GLOTTIS,2026-11-11,Financial Results
 GREENPOWER,2026-11-11,Financial Results
 GRSE,2026-11-11,Financial Results
+HALEOSLABS,2026-11-11,Financial Results/Other business matters
 HINDCOPPER,2026-11-11,Financial Results
 ICDSLTD,2026-11-11,Financial Results
 INSPIRISYS,2026-11-11,Financial Results
@@ -1819,6 +1818,7 @@ SALONA,2026-11-11,Financial Results
 SECURKLOUD,2026-11-11,Financial Results/Other business matters
 SEPC,2026-11-11,Financial Results
 SICALLOG,2026-11-11,Financial Results
+SOMATEX,2026-11-11,Financial Results
 SRD,2026-11-11,Financial Results
 TALBROAUTO,2026-11-11,Financial Results/Dividend/Other business matters
 TATAPOWER,2026-11-11,Financial Results/Other business matters
@@ -1834,6 +1834,7 @@ ALBERTDAVD,2026-11-12,Financial Results
 ALICON,2026-11-12,Financial Results
 ALKEM,2026-11-12,Financial Results
 ALPHAGEO,2026-11-12,Financial Results/Other business matters
+AMBER,2026-11-12,Financial Results
 ANTGRAPHIC,2026-11-12,Financial Results
 APCL,2026-11-12,Financial Results
 APEX,2026-11-12,Financial Results
@@ -1844,6 +1845,7 @@ ASAHISONG,2026-11-12,Financial Results
 ASALCBR,2026-11-12,Financial Results
 ASIANHOTNR,2026-11-12,Financial Results
 ASTRAMICRO,2026-11-12,Financial Results
+AUTOAXLES,2026-11-12,Financial Results/Other business matters
 AVALON,2026-11-12,Financial Results
 BALAXI,2026-11-12,Financial Results/Other business matters
 BDL,2026-11-12,Financial Results
@@ -1852,6 +1854,7 @@ BONDADA,2026-11-12,Financial Results
 BONFIG,2026-11-12,Financial Results
 CANTABIL,2026-11-12,Financial Results
 CAPLIPOINT,2026-11-12,Financial Results
+CCHHL,2026-11-12,Financial Results
 CEINSYS,2026-11-12,Financial Results/Other business matters
 CEREBRAINT,2026-11-12,Financial Results
 CLSEL,2026-11-12,Financial Results
@@ -1903,19 +1906,23 @@ INDUSFILA,2026-11-12,Financial Results
 IRCTC,2026-11-12,Financial Results
 ITDC,2026-11-12,Financial Results
 JBFIND,2026-11-12,Financial Results
+JKIPL,2026-11-12,Financial Results
 JMA,2026-11-12,Financial Results
 JPOLYINVST,2026-11-12,Financial Results
 KARMAENG,2026-11-12,Financial Results/Other business matters
 KCPSUGIND,2026-11-12,Financial Results
 KESORAMIND,2026-11-12,Financial Results
+KUNDANMM,2026-11-12,Financial Results/Other business matters
 LAL,2026-11-12,Financial Results
 LANCORHOL,2026-11-12,Financial Results/Other business matters
 LANDMARK,2026-11-12,Financial Results
 LASERPOWER,2026-11-12,Financial Results
+LEEL,2026-11-12,Financial Results
 LIBERTSHOE,2026-11-12,Financial Results
 LOKESHMACH,2026-11-12,Financial Results
 LOYALTEX,2026-11-12,Financial Results
 MADRASFERT,2026-11-12,Financial Results/Other business matters
+MAHAPEXLTD,2026-11-12,Financial Results
 MALLCOM,2026-11-12,Financial Results/Other business matters
 MANAKALUCO,2026-11-12,Financial Results
 MANAPPURAM,2026-11-12,Financial Results/Dividend/Other business matters
@@ -1948,6 +1955,7 @@ PICCADIL,2026-11-12,Financial Results
 POCL,2026-11-12,Financial Results/Other business matters
 POWERINDIA,2026-11-12,Financial Results
 PPL,2026-11-12,Financial Results
+PRAENG,2026-11-12,Financial Results
 PRAKASH,2026-11-12,Financial Results
 PREMEXPLN,2026-11-12,Financial Results
 PRIMESECU,2026-11-12,Financial Results
@@ -2002,6 +2010,7 @@ WSI,2026-11-12,Financial Results/Other business matters
 YATRA,2026-11-12,Financial Results
 ZUARIIND,2026-11-12,Financial Results/Dividend
 A2ZINFRA,2026-11-13,Financial Results
+AAATECH,2026-11-13,Financial Results
 AARVI,2026-11-13,Financial Results
 ABB,2026-11-13,Financial Results
 ABMINTLLTD,2026-11-13,Financial Results
@@ -2019,6 +2028,7 @@ BALAJITELE,2026-11-13,Financial Results
 BALLARPUR,2026-11-13,Financial Results
 BBOX,2026-11-13,Financial Results
 BBTC,2026-11-13,Financial Results
+BELRISE,2026-11-13,Financial Results
 BFINVEST,2026-11-13,Financial Results/Dividend
 BHARATRAS,2026-11-13,Financial Results/Other business matters
 BLUECHIP,2026-11-13,Financial Results
@@ -2031,6 +2041,7 @@ CENTRUM,2026-11-13,Financial Results/Other business matters
 CMLL,2026-11-13,Financial Results
 CMSINFO,2026-11-13,Financial Results
 COMPUSOFT,2026-11-13,Financial Results
+CONFIPET,2026-11-13,Financial Results/Other business matters
 CREATIVEYE,2026-11-13,Financial Results/Other business matters
 CSM,2026-11-13,Financial Results
 DCAL,2026-11-13,Financial Results
@@ -2080,7 +2091,10 @@ INDOMIM,2026-11-13,Financial Results/Other business matters
 INNOVACAP,2026-11-13,Financial Results
 INOXGREEN,2026-11-13,Financial Results
 INOXWIND,2026-11-13,Financial Results
+INTLCONV,2026-11-13,Financial Results/Other business matters
+ITI,2026-11-13,Financial Results
 IZMO,2026-11-13,Financial Results/Other business matters
+JAGRAN,2026-11-13,Financial Results
 JAICORPLTD,2026-11-13,Financial Results/Other business matters
 JAYKAY,2026-11-13,Financial Results
 JAYSREETEA,2026-11-13,Financial Results/Other business matters
@@ -2117,6 +2131,7 @@ MIRZAINT,2026-11-13,Financial Results
 MKPL,2026-11-13,Financial Results/Other business matters
 MODIRUBBER,2026-11-13,Financial Results
 MOTOGENFIN,2026-11-13,Financial Results/Other business matters
+MSPL,2026-11-13,Financial Results
 MTNL,2026-11-13,Financial Results
 MUNJALAU,2026-11-13,Financial Results/Other business matters
 MUNJALSHOW,2026-11-13,Financial Results
@@ -2124,11 +2139,14 @@ MVGJL,2026-11-13,Financial Results/Other business matters
 NATCAPSUQ,2026-11-13,Financial Results/Other business matters
 NATCOPHARM,2026-11-13,Financial Results/Dividend
 NDGL,2026-11-13,Financial Results
+NIRAJ,2026-11-13,Financial Results/Other business matters
+OMFREIGHT,2026-11-13,Financial Results
 OMKARCHEM,2026-11-13,Financial Results
 ORIENTBELL,2026-11-13,Financial Results
 PALASHSECU,2026-11-13,Financial Results
 PALREDTEC,2026-11-13,Financial Results
 PARKHOSPS,2026-11-13,Financial Results
+PEARLPOLY,2026-11-13,Financial Results
 PENIND,2026-11-13,Financial Results/Other business matters
 PENINLAND,2026-11-13,Financial Results
 PFOCUS,2026-11-13,Financial Results/Other business matters
@@ -2162,6 +2180,7 @@ SHRIRAMPPS,2026-11-13,Financial Results
 SINTERCOM,2026-11-13,Financial Results/Other business matters
 SMLT,2026-11-13,Financial Results/Other business matters
 SOLEX,2026-11-13,Financial Results
+SPCENET,2026-11-13,Financial Results
 SPLIL,2026-11-13,Financial Results
 SREEL,2026-11-13,Financial Results/Other business matters
 STARTECK,2026-11-13,Financial Results
@@ -2172,6 +2191,7 @@ SUNDARAM,2026-11-13,Financial Results/Other business matters
 SUNDRMBRAK,2026-11-13,Financial Results
 SUNFLAG,2026-11-13,Financial Results/Other business matters
 SUPREME,2026-11-13,Financial Results
+SUPREMEINF,2026-11-13,Financial Results
 SUTLEJTEX,2026-11-13,Financial Results
 SWELECTES,2026-11-13,Financial Results/Other business matters
 SYNCOMF,2026-11-13,Financial Results/Other business matters
@@ -2201,23 +2221,28 @@ ZENITHEXPO,2026-11-13,Financial Results
 ZETWERK,2026-11-13,Financial Results
 AAREYDRUGS,2026-11-14,Financial Results
 AARTECH,2026-11-14,Financial Results/Other business matters
+AARTISURF,2026-11-14,Financial Results
 ABCIND,2026-11-14,Financial Results
 ABHISHEK,2026-11-14,Financial Results
 AFFORDABLE,2026-11-14,Financial Results/Other business matters
 AGASTYAEN,2026-11-14,Financial Results
 AGL,2026-11-14,Financial Results
 AHLADA,2026-11-14,Financial Results
+AIRAN,2026-11-14,Financial Results/Other business matters
 ALPA,2026-11-14,Financial Results/Other business matters
 AMDIND,2026-11-14,Financial Results
 ANIKINDS,2026-11-14,Financial Results/Other business matters
+ARCHIES,2026-11-14,Financial Results
 ARCOTECH,2026-11-14,Financial Results/Other business matters
 ARENTERP,2026-11-14,Financial Results/Other business matters
 ARHAM,2026-11-14,Financial Results/Other business matters
 ASHOKLEY,2026-11-14,Financial Results
 ATALREAL,2026-11-14,Financial Results/Other business matters
+ATAM,2026-11-14,Financial Results
 BALUFORGE,2026-11-14,Financial Results/Fund Raising/Other business matters
 BANG,2026-11-14,Financial Results
 BBTCL,2026-11-14,Financial Results/Other business matters
+BCG,2026-11-14,Financial Results/Other business matters
 BEARDSELL,2026-11-14,Financial Results/Other business matters
 BHANDARI,2026-11-14,Financial Results
 BILVYAPAR,2026-11-14,Financial Results
@@ -2227,22 +2252,29 @@ BONLON,2026-11-14,Financial Results
 BRIGHTOUTD,2026-11-14,Financial Results
 BRNL,2026-11-14,Financial Results
 BTML,2026-11-14,Financial Results/Other business matters
+CALSOFT,2026-11-14,Financial Results/Other business matters
 CAPTRUST,2026-11-14,Financial Results
+CENTEXT,2026-11-14,Financial Results
 CHEVIOT,2026-11-14,Financial Results/Other business matters
 COASTCORP,2026-11-14,Financial Results
 DCMSIL,2026-11-14,Financial Results
 DOLATALGO,2026-11-14,Financial Results
+DSFCL,2026-11-14,Financial Results
+EUROBOND,2026-11-14,Financial Results
 EXPLEOSOL,2026-11-14,Financial Results
 FIRSTCRY,2026-11-14,Financial Results
+GENUSPOWER,2026-11-14,Financial Results
 GFLLIMITED,2026-11-14,Financial Results
 GICL,2026-11-14,Financial Results
 GLOBECIVIL,2026-11-14,Financial Results
 GLOSTERLTD,2026-11-14,Financial Results
 GOENKA,2026-11-14,Financial Results/Other business matters
+GOKUL,2026-11-14,Financial Results/Other business matters
 GUFICBIO,2026-11-14,Financial Results/Other business matters
 GUJAPOLLO,2026-11-14,Financial Results/Other business matters
 GUJTHEM,2026-11-14,Financial Results/Other business matters
 HEALTHX,2026-11-14,Financial Results
+HEROMOTORS,2026-11-14,Financial Results
 HEXAGON,2026-11-14,Financial Results/Other business matters
 HILINFRA,2026-11-14,Financial Results
 HISARMETAL,2026-11-14,Financial Results/Other business matters
@@ -2251,6 +2283,7 @@ INNOVANA,2026-11-14,Financial Results/Other business matters
 JAMNAAUTO,2026-11-14,Financial Results/Dividend
 JSLL,2026-11-14,Financial Results
 KAVDEFENCE,2026-11-14,Financial Results/Other business matters
+KEEPLEARN,2026-11-14,Financial Results/Other business matters
 KHAZANCHI,2026-11-14,Financial Results
 KNAGRI,2026-11-14,Financial Results
 KRISHANA,2026-11-14,Financial Results/Other business matters
@@ -2268,6 +2301,7 @@ MCL,2026-11-14,Financial Results
 MOKSH,2026-11-14,Financial Results/Other business matters
 MOTISONS,2026-11-14,Financial Results
 NAHARINDUS,2026-11-14,Financial Results
+NATHBIOGEN,2026-11-14,Financial Results
 NECLIFE,2026-11-14,Financial Results/Other business matters
 NIBE,2026-11-14,Financial Results
 NITIRAJ,2026-11-14,Financial Results
@@ -2275,13 +2309,18 @@ NOVAAGRI,2026-11-14,Financial Results
 OMINFRAL,2026-11-14,Financial Results
 OSWALSEEDS,2026-11-14,Financial Results/Other business matters
 PANACEABIO,2026-11-14,Financial Results
+PAVNAIND,2026-11-14,Financial Results
 PRUDMOULI,2026-11-14,Financial Results
 PTCIL,2026-11-14,Financial Results
 QMSMEDI,2026-11-14,Financial Results
+RAJMET,2026-11-14,Financial Results
 RAMASTEEL,2026-11-14,Financial Results/Other business matters
 RCOM,2026-11-14,Financial Results/Other business matters
 RMC,2026-11-14,Financial Results/Other business matters
 RVHL,2026-11-14,Financial Results
+SAHLIBHFI,2026-11-14,Financial Results
+SALASAR,2026-11-14,Financial Results
+SANWARIA,2026-11-14,Financial Results
 SGL,2026-11-14,Financial Results/Other business matters
 SHAH,2026-11-14,Financial Results/Other business matters
 SHANTI,2026-11-14,Financial Results
@@ -2289,24 +2328,33 @@ SHRADHA,2026-11-14,Financial Results/Other business matters
 SHREEJISPG,2026-11-14,Financial Results/Stock Split
 SIGIND,2026-11-14,Financial Results
 SINDHUTRAD,2026-11-14,Financial Results
+SKYWAYS,2026-11-14,Financial Results/Dividend/Other business matters
 SOMICONVEY,2026-11-14,Financial Results
 SONA,2026-11-14,Financial Results
 SRHHYPOLTD,2026-11-14,Financial Results
 SSDL,2026-11-14,Financial Results
+STARPAPER,2026-11-14,Financial Results
+STYLEBAAZA,2026-11-14,Financial Results
 SUPERHOUSE,2026-11-14,Financial Results
 SWARAJ,2026-11-14,Financial Results
 TARMAT,2026-11-14,Financial Results
+TECHNOCRAF,2026-11-14,Financial Results
 THEMISMED,2026-11-14,Financial Results
 TIL,2026-11-14,Financial Results
+TOLINS,2026-11-14,Financial Results
 TVSELECT,2026-11-14,Financial Results
 TVSSRICHAK,2026-11-14,Financial Results
 TVVISION,2026-11-14,Financial Results
+UDAYJEW,2026-11-14,Financial Results/Other business matters
 UMAEXPORTS,2026-11-14,Financial Results
 UNIDT,2026-11-14,Financial Results/Other business matters
 UNIINFO,2026-11-14,Financial Results/Other business matters
+URAVIDEF,2026-11-14,Financial Results
 USK,2026-11-14,Financial Results
+VAISHALI,2026-11-14,Financial Results/Other business matters
 VASWANI,2026-11-14,Financial Results
 VISHWARAJ,2026-11-14,Financial Results
+VPRPL,2026-11-14,Financial Results
 VRAJ,2026-11-14,Financial Results/Dividend/Other business matters
 WCIL,2026-11-14,Financial Results/Other business matters
 XLENERGY,2026-11-14,Financial Results

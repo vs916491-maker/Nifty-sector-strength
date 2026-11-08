@@ -1,10 +1,130 @@
 symbol,series,ex_date,subject,factor
+FOCUS,EQ,2023-10-06,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+SURYAROSNI,EQ,2023-10-06,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+SIGACHI,EQ,2023-10-09,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+THEMISMED,EQ,2023-10-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+GENSOL,EQ,2023-10-17,Bonus 2:1,0.3333333333333333
+MBAPL,EQ,2023-10-20,Bonus 1:1,0.5
+GEEKAYWIRE,EQ,2023-10-23,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+KRISHANA,EQ,2023-10-25,Bonus 1:1,0.5
+JAYBARMARU,EQ,2023-10-26,Face Value Split (Sub-Division) - From Rs 5/- Per Share To Rs 2/- Per Share,0.4
+BCLIND,EQ,2023-10-27,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+TALBROAUTO,EQ,2023-10-27,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+MITTAL,EQ,2023-11-01,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+CANTABIL,EQ,2023-11-02,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+DPWIRES,EQ,2023-11-08,Bonus 1:7,0.875
+HPAL,EQ,2023-11-09,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+HINDCON,EQ,2023-11-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+MKPL,EQ,2023-11-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+ATALREAL,EQ,2023-11-16,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+SHAILY,EQ,2023-11-23,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+SAFARI,EQ,2023-12-12,Bonus 1:1,0.5
+SONATSOFTW,EQ,2023-12-12,Bonus 1:1,0.5
+TPHQ,EQ,2023-12-14,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+KRITIKA,EQ,2023-12-19,Bonus 2:1,0.3333333333333333
+AXITA,EQ,2023-12-22,Bonus 1:3,0.75
+HMAAGRO,EQ,2023-12-29,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+ALLCARGO,EQ,2024-01-02,Bonus 3:1,0.25
+NESTLEIND,EQ,2024-01-05,Face Value Split (Sub-Division) - From Rs10/- Per Share To Re 1/- Per Share,0.1
+PGIL,EQ,2024-01-05,Face Value Split (Sub-Division) - From Rs10/- Per Share To Rs 5/- Per Share,0.5
+COCHINSHIP,EQ,2024-01-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+ESSENTIA,EQ,2024-01-11,Bonus 1:1,0.5
+NEWGEN,EQ,2024-01-12,Bonus 1:1,0.5
+SBC,EQ,2024-01-19,Bonus 1:2,0.6666666666666666
+DOLPHIN,EQ,2024-01-25,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+KANANIIND,EQ,2024-01-30,Bonus 1:1,0.5
+SALASAR,EQ,2024-02-01,Bonus 4:1,0.2
+OSWALSEEDS,EQ,2024-02-02,Bonus 1:5,0.8333333333333334
+SANDUMA,EQ,2024-02-02,Bonus 5:1,0.16666666666666666
+AKSHAR,EQ,2024-02-15,Bonus 1:5,0.8333333333333334
+KPIGREEN,EQ,2024-02-15,Bonus 1:2,0.6666666666666666
+CHOICEIN,EQ,2024-02-20,Bonus 1:1,0.5
+MASFIN,EQ,2024-02-22,Bonus 2:1,0.3333333333333333
+RPPL,EQ,2024-02-26,Bonus 2:1,0.3333333333333333
+DRCSYSTEMS,EQ,2024-02-27,Bonus 2:1,0.3333333333333333
+FIEMIND,EQ,2024-02-28,Bonus 1:1,0.5
+CGCL,EQ,2024-03-05,Bonus 1:1,0.5
+CGCL,EQ,2024-03-05,Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share,0.5
+MANORAMA,EQ,2024-03-07,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+GAEL,EQ,2024-03-15,Bonus 1:1,0.5
+MKPL,EQ,2024-03-15,Bonus 2:1,0.3333333333333333
+RAMASTEEL,EQ,2024-03-19,Bonus 2:1,0.3333333333333333
+ADVANIHOTR,EQ,2024-03-20,Bonus 1:1,0.5
+NRL,EQ,2024-03-20,Bonus 1:2,0.6666666666666666
+PAISALO,EQ,2024-03-20,Bonus 1:1,0.5
+REFEX,EQ,2024-03-22,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+LAL,EQ,2024-03-28,Bonus 6:11,0.6470588235294118
+LAL,EQ,2024-03-28,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+PERSISTENT,EQ,2024-03-28,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+CUPID,EQ,2024-04-04,Bonus 1:1,0.5
+CUPID,EQ,2024-04-04,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+BTML,EQ,2024-04-05,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+SBGLP,EQ,2024-04-18,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+ANUP,EQ,2024-04-23,Bonus 1:1,0.5
+BBL,EQ,2024-04-24,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+BHAGCHEM,EQ,2024-05-02,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 1/- Per Share,0.1
+SONAMLTD,EQ,2024-05-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+CANBK,EQ,2024-05-15,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+VARDMNPOLY,EQ,2024-05-17,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+BDL,EQ,2024-05-24,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+GMBREW,EQ,2024-05-24,Bonus 1:4,0.8
+INOXWIND,EQ,2024-05-24,Bonus 3:1,0.25
+SDBL,EQ,2024-05-24,Face Value Split (Sub-Division) - From Rs 5/- Per Share To Rs 2/- Per Share,0.4
+BALAXI,EQ,2024-05-30,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+DAVANGERE,EQ,2024-05-31,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+MOTILALOFS,EQ,2024-06-10,Bonus 3:1,0.25
+KAMOPAINTS,EQ,2024-06-14,Face Value Split (Sub-Division) - From Rs 5/- Per Share To Re 1/- Per Share,0.2
+BPCL,EQ,2024-06-21,Bonus 1:1,0.5
+HINDPETRO,EQ,2024-06-21,Bonus 1:2,0.6666666666666666
+PREMEXPLN,EQ,2024-06-21,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+AURIONPRO,EQ,2024-06-27,Bonus 1:1,0.5
+SHAREINDIA,EQ,2024-06-27,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+AVONMORE,EQ,2024-06-28,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 1/- Per Share,0.1
+OIL,EQ,2024-07-02,Bonus 1:2,0.6666666666666666
+GPTINFRA,EQ,2024-07-03,Bonus 1:1,0.5
+REMSONSIND,EQ,2024-07-05,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+VERTOZ,EQ,2024-07-05,Bonus 1:1,0.5
+VERTOZ,EQ,2024-07-05,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+PGEL,EQ,2024-07-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+MMFL,EQ,2024-07-16,Bonus 1:1,0.5
+KPIGREEN,EQ,2024-07-18,Face Value Split (Sub-Division) - From Rs10/- Per Share To Rs 5/- Per Share,0.5
+ELECON,EQ,2024-07-19,Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share,0.5
+ALMONDZ,EQ,2024-07-23,Face Value Split (Sub-Division) - From Rs 6/- Per Share To Re 1/- Per Share,0.16666666666666666
+KSB,EQ,2024-07-25,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+AARTECH,EQ,2024-08-09,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+AARTECH,EQ,2024-08-09,Bonus 1:2,0.6666666666666666
+DJML,EQ,2024-08-09,Bonus 2:1,0.3333333333333333
+FILATFASH,EQ,2024-08-09,Face Value Split (Sub-Division) - From Rs 5/- Per Share To Re 1/- Per Share,0.2
+KAPSTON,EQ,2024-08-09,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+RUSHIL,EQ,2024-08-09,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+SAKUMA,EQ,2024-08-09,Bonus 4:1,0.2
+GRPLTD,EQ,2024-08-12,Bonus 3:1,0.25
+EIHAHOTELS,EQ,2024-08-13,Bonus 1:1,0.5
+CDSL,EQ,2024-08-23,Bonus 1:1,0.5
+SAPPHIRE,EQ,2024-09-05,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+VSTIND,EQ,2024-09-06,Bonus 10:1,0.09090909090909091
+ANDHRAPAP,EQ,2024-09-11,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+BIGBLOC,EQ,2024-09-12,Bonus 1:1,0.5
+VBL,EQ,2024-09-12,Face Value Split (Sub-Division) - From Rs 5/- Per Share To Rs 2/- Per Share,0.4
+KIMS,EQ,2024-09-13,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
+MONARCH,EQ,2024-09-13,Bonus 1:1,0.5
+SPORTKING,EQ,2024-09-13,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+RPPL,EQ,2024-09-17,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
+NDL,EQ,2024-09-19,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
+SAKSOFT,EQ,2024-09-19,Bonus 1:4,0.8
+AXITA,EQ,2024-09-20,Bonus 1:3,0.75
+MINDTECK,EQ,2024-09-20,Bonus 1:4,0.8
+PHOENIXLTD,EQ,2024-09-20,Bonus 1:1,0.5
+RITES,EQ,2024-09-20,Bonus 1:1,0.5
+UEL,EQ,2024-09-20,Bonus 1:4,0.8
+NDRAUTO,EQ,2024-09-25,Bonus 1:1,0.5
+SANGHVIMOV,EQ,2024-09-27,Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share,0.5
 GPIL,EQ,2024-10-04,Face Value Split (Sub-Division) - From Rs 5/- Per Share To Re 1/- Per Share,0.2
 NBCC,EQ,2024-10-07,Bonus 1:2,0.6666666666666666
 POWERMECH,EQ,2024-10-08,Bonus 1:1,0.5
 JINDALSAW,EQ,2024-10-09,Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share,0.5
-VAISHALI,EQ,2024-10-15,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
 VAISHALI,EQ,2024-10-15,Bonus 1:1,0.5
+VAISHALI,EQ,2024-10-15,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
 POCL,EQ,2024-10-16,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
 HEGAM,EQ,2024-10-18,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
 SUKHJITS,EQ,2024-10-25,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 5/- Per Share,0.5
@@ -72,8 +192,8 @@ UEL,EQ,2025-05-30,Bonus 17:25,0.5952380952380952
 COFORGE,EQ,2025-06-04,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Rs 2/- Per Share,0.2
 VESUVIUS,EQ,2025-06-10,Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share,0.1
 VIMTALABS,EQ,2025-06-13,Bonus 1:1,0.5
-BAJFINANCE,EQ,2025-06-16,Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share,0.5
 BAJFINANCE,EQ,2025-06-16,Bonus 4:1,0.2
+BAJFINANCE,EQ,2025-06-16,Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share,0.5
 VMART,EQ,2025-06-23,Bonus 3:1,0.25
 CONCOR,EQ,2025-07-04,Bonus 1:4,0.8
 IRISDOREME,EQ,2025-07-04,Bonus 1:1,0.5

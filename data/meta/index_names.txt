@@ -32,6 +32,10 @@ Nifty 8-13 yr G-Sec
 Nifty AI Catalysts
 Nifty Alpha 50
 Nifty Auto
+Nifty BHARAT Bond Index - April 2030
+Nifty BHARAT Bond Index - April 2031
+Nifty BHARAT Bond Index - April 2032
+Nifty BHARAT Bond Index - April 2033
 Nifty Bank
 Nifty CPSE
 Nifty Capital Goods
@@ -144,6 +148,7 @@ Nifty50 PR 2x Leverage
 Nifty50 Shariah
 Nifty50 TR 1x Inverse
 Nifty50 TR 2x Leverage
+Nifty50 USD
 Nifty50 Value 20
 Nifty500 Ahimsa
 Nifty500 Equal Weight
