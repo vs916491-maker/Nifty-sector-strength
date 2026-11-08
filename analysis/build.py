@@ -55,6 +55,13 @@ def series_dict(df: pd.DataFrame) -> dict[str, list]:
 def main() -> int:
     idx = data.index_closes()
     stocks = data.stock_tables()
+    # NSE sometimes posts the index file for a day before the stock file (e.g. the Sunday
+    # Muhurat session): score only up to the last day both have, the rest arrives next run
+    last = min(idx.index[-1], stocks["close"].index[-1])
+    if idx.index[-1] != stocks["close"].index[-1]:
+        print(f"Index and stock data end on different days; scoring up to {last.date()}")
+    idx = idx.loc[:last]
+    stocks = {k: v.loc[:last] for k, v in stocks.items()}
     cons = data.constituents()
     members = {k: list(v["symbol"]) for k, v in cons.items()}
     brd = sectors.breadth(stocks["close"], members)
