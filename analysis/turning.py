@@ -414,7 +414,7 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
 
 
 # Choppy market warning (Vivek's rules, 8 Nov 2026). Context only: changes no signal or light. Uses the 50-day EMA.
-#   Choppy     = 1 and 2 hold:
+#   Choppy     = 1 OR 2 holds (his change 8 Nov 2026, was AND), unless an exception below applies:
 #     1. today within ±CHOP_BAND% of the 50 EMA, and in the last CHOP_LOOK sessions price never held beyond
 #        CHOP_BAND% for CHOP_HOLD+ days in a row (could not push away and hold)
 #     2. the 50 EMA lost momentum over CHOP_LOOK sessions: moved < CHOP_EMA_FLAT%, or its direction
@@ -508,8 +508,8 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
             r.update(state="break", zone_lo=zone[0], zone_hi=zone[1], brk=brk)
         elif steep or pickup:
             r["state"] = "trend"
-        elif rule1 and rule2:
-            r["state"] = "chop"
+        elif rule1 or rule2:
+            r.update(state="chop", rule1=bool(rule1), rule2=bool(rule2))
         rows.append(r)
     return pd.DataFrame(rows, index=close.index)
 
@@ -522,6 +522,8 @@ def chop(df: pd.DataFrame, n500: pd.Series) -> dict:
            "look": CHOP_LOOK, "band": CHOP_BAND, "cong_band": CONG_BAND}
     if x["state"] in ("congestion", "break"):
         out.update(zone_lo=g("zone_lo"), zone_hi=g("zone_hi"))
+    if x["state"] == "chop":
+        out.update(price_band=bool(x["rule1"]), ema_flat=bool(x["rule2"]))
     if x["state"] == "congestion":
         out["cong_days"] = int(x["cong_days"])
     return out

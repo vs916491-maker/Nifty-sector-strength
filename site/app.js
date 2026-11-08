@@ -891,7 +891,9 @@ function chopNote(C, NAME) {
   if (st === "chop") {
     const flat = Math.abs(X.ema_move) < 2;
     const ema = flat ? `the 50 EMA is flat (${sg(X.ema_move)} in ${X.look} sessions)` : `the 50 EMA is zig-zagging (turned ${X.flips} times in ${X.look} sessions)`;
-    return h("span", { class: "chop-note" }, `${NAME} is stuck within ±${X.band}% of its 50 EMA (now ${sg(X.dev)}) without holding a bigger move, and ${ema}. Signals can whipsaw here: keep size small.`);
+    const band = `${NAME} is stuck within ±${X.band}% of its 50 EMA (now ${sg(X.dev)}) without holding a bigger move`;
+    const why = X.price_band === false ? `${ema[0].toUpperCase()}${ema.slice(1)} (${NAME} ${sg(X.dev)} from it)` : X.ema_flat === false ? band : `${band}, and ${ema}`;
+    return h("span", { class: "chop-note" }, `${why}. Signals can whipsaw here: keep size small.`);
   }
   if (st === "congestion")
     return h("span", { class: "chop-note cong" }, `Within ±${X.cong_band}% of the 50 EMA for ${X.cong_days} sessions (closes ${zone()}). A close outside this zone could be a real breakout or breakdown.`);
