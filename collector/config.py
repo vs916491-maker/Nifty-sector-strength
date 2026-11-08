@@ -8,6 +8,15 @@ import datetime as dt
 # for 200-day averages, 52-week highs and a weekly Relative Rotation Graph.
 BACKFILL_START = dt.date(2024, 10, 1)
 
+# Normal NSE equity session and one-off special sessions (e.g. Diwali Muhurat
+# trading, which can fall on a weekend). Run scan works from 15 minutes before
+# "open" (pre-open) to 15 minutes after "close". Add each year's Muhurat date
+# here and in SPECIAL_SESSIONS in site/app.js.
+SESSION = {"open": "09:15", "close": "15:30"}
+SPECIAL_SESSIONS = {
+    "2026-11-08": {"name": "Muhurat trading", "open": "14:20", "close": "15:30"},   # Sunday, Diwali
+}
+
 ARCHIVE = "https://nsearchives.nseindia.com"
 INDEX_CLOSE_URL = ARCHIVE + "/content/indices/ind_close_all_{ddmmyyyy}.csv"
 BHAVCOPY_URL = ARCHIVE + "/products/content/sec_bhavdata_full_{ddmmyyyy}.csv"

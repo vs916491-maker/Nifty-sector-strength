@@ -13,6 +13,8 @@ Live data
              constituent lists (NSE's per-index stock API is no longer public)
   volume     scaled up to a full day (x 375 / minutes traded) so volume
              tests (breakouts, accumulation) compare like with like
+  hours      09:15-15:30 on weekdays; special sessions such as Muhurat
+             trading (even on a weekend) come from config.SPECIAL_SESSIONS
   A/D        NSE's live advances/declines for Nifty Total Market, scaled to
              the size of the whole NSE list (the evening file counts every
              NSE stock)
@@ -118,13 +120,21 @@ def main() -> int:
         probe(client)
         return 0
 
+    from . import config
     now = dt.datetime.now(IST)
     today = now.date()
-    hhmm = now.strftime("%H:%M")
-    if not args.force and (now.weekday() >= 5 or not ("09:15" <= hhmm <= "15:45")):
+    special = config.SPECIAL_SESSIONS.get(today.isoformat())
+    sess = special or config.SESSION
+    at = lambda hm: now.replace(hour=int(hm[:2]), minute=int(hm[3:]), second=0, microsecond=0)
+    t_open, t_close = at(sess["open"]), at(sess["close"])
+    trading_day = bool(special) or now.weekday() < 5
+    in_hours = t_open - dt.timedelta(minutes=15) <= now <= t_close + dt.timedelta(minutes=15)
+    if not args.force and not (trading_day and in_hours):
         print(f"::notice title=Intraday scan::Market is closed ({now:%a %H:%M} IST). "
               "The evening update provides the final end-of-day data.")
         return 0
+    if special:
+        print(f"::notice title=Intraday scan::Special session today: {special['name']} {sess['open']}-{sess['close']} IST.")
 
     # ------------------------------------------------------------- indices
     alli = (get_json(client, API_ALL) or {}).get("data", [])
@@ -148,7 +158,9 @@ def main() -> int:
     # ------------------------------------------------------------- stocks (Yahoo daily candle so far)
     # NSE's per-index stock list API is no longer public, so today's open/high/low/last/volume
     # come from Yahoo's chart API, one request per stock (about a minute for ~800 stocks)
-    minutes = max(5, min(MARKET_MINUTES, (now - now.replace(hour=9, minute=15, second=0, microsecond=0)).seconds // 60))
+    # minutes traded so far in today's session (a short special session is scaled the same
+    # way, as if it ran at that pace for a normal day)
+    minutes = max(5, min(MARKET_MINUTES, int((min(now, t_close) - t_open).total_seconds() // 60)))
     scale = MARKET_MINUTES / minutes
     universe = set()
     for f in (DATA / "constituents").glob("*.csv"):

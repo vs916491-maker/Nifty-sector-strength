@@ -1850,13 +1850,21 @@ function toast(text, kind) {
   el.textContent = text;
   el.style.display = text ? "block" : "none";
 }
+// Special sessions (e.g. Diwali Muhurat trading, which can be on a weekend): keep in step with
+// SPECIAL_SESSIONS in collector/config.py. Times are open/close as HHMM; Run scan works 15 min either side.
+const SPECIAL_SESSIONS = { "2026-11-08": { name: "Muhurat trading", open: 1420, close: 1530 } };
 function scanButton() {
   const btn = h("button", { class: "theme-btn scan-btn", type: "button", title: "Refresh with live NSE prices (market hours)" }, "Run scan");
   btn.addEventListener("click", async () => {
     const ist = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000);
     const hm = ist.getHours() * 100 + ist.getMinutes(), day = ist.getDay();
-    if (day === 0 || day === 6 || hm < 915 || hm > 1545) {
-      toast("The market is closed. The site shows the end-of-day data from the evening update; Run scan works from 9:15 to 15:45 on market days.", "info");
+    const key = `${ist.getFullYear()}-${String(ist.getMonth() + 1).padStart(2, "0")}-${String(ist.getDate()).padStart(2, "0")}`;
+    const sp = SPECIAL_SESSIONS[key];
+    const mins = (x) => Math.floor(x / 100) * 60 + (x % 100);
+    const open = sp ? mins(sp.open) - 15 : mins(915), close = sp ? mins(sp.close) + 15 : mins(1545), m = mins(hm);
+    if ((!sp && (day === 0 || day === 6)) || m < open || m > close) {
+      toast(sp ? `Today is ${sp.name}: Run scan works from ${Math.floor(open / 60)}:${String(open % 60).padStart(2, "0")} to ${Math.floor(close / 60)}:${String(close % 60).padStart(2, "0")}.`
+        : "The market is closed. The site shows the end-of-day data from the evening update; Run scan works from 9:15 to 15:45 on market days.", "info");
       setTimeout(() => toast(""), 9000);
       return;
     }
