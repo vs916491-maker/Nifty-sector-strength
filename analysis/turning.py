@@ -27,8 +27,9 @@ Seller exhaustion (bottom)
                   sessions after its 20-day low).
 
 Distribution (top)
-  1 Extended      Nifty 500 within 3% of its 6-month high after a strong
-                  rally (p50 reached 65%+ or RSI 68+ in the last 20 sessions).
+  1 Extended      Nifty 500 within 3% of its 3-month high (EXT_LOOK; was
+                  6-month until 8 Nov 2026) after a strong rally (p50 reached
+                  65%+ or RSI 68+ in the last 20 sessions; optional EXT_BOUNCE).
   2 Distribution  after an extended reading (stage 1 in the last 30
                   sessions), near the high (within 3% of the 60-day high), either a
                   negative divergence (Nifty 500 at or above its highest
@@ -78,6 +79,10 @@ from . import sectors as S
 
 LOOK_FROM, LOOK_TO = 3, 40
 DIST_DAYS = 7      # heavy-volume down days in 25 sessions (in this data the median is 5)
+EXT_LOOK, EXT_LOOK_NAME = 63, "3-month"    # Extended: within 3% of the highest close of this many sessions
+                                           # (6-month until 8 Nov 2026; 3-month also sees lower highs, e.g. Nifty 50 Aug 2026)
+EXT_BOUNCE, EXT_BOUNCE_LOOK = 0, 60        # ...and a bounce of this % off the lowest close of this many sessions (0 = off)
+DIV_NEAR_HIGH = 1   # Distribution divergence counts while the index is within this % of the earlier high
 T1_ACTIVE = 30     # stage 2 (distribution) needs stage 1 (extended) in the last 30 sessions
 
 
@@ -233,17 +238,20 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     })
 
     # ---------------------------------------------------------- top
-    near6m = n500 >= n500.rolling(126, min_periods=60).max() * 0.97
+    near_hi = n500 >= n500.rolling(EXT_LOOK, min_periods=min(60, EXT_LOOK)).max() * 0.97
+    bounce = (n500 / n500.rolling(EXT_BOUNCE_LOOK).min() - 1) * 100 >= EXT_BOUNCE if EXT_BOUNCE else pd.Series(False, index=idx)
     t1_parts = pd.DataFrame({
-        "within 3% of 6-month high": near6m,
+        f"within 3% of {EXT_LOOK_NAME} high": near_hi,
         "p50 reached 65%+": p50.rolling(20).max() >= 65,
         "RSI reached 68+": rsi.rolling(20).max() >= 68,
     })
-    t1_today = near6m & (t1_parts[["p50 reached 65%+", "RSI reached 68+"]].any(axis=1))
+    if EXT_BOUNCE:
+        t1_parts[f"bounced {EXT_BOUNCE}%+ from its {EXT_BOUNCE_LOOK}-day low"] = bounce
+    t1_today = near_hi & (t1_parts.iloc[:, 1:].any(axis=1))
 
     phigh, phloc = _prior_extreme(n500, lowest=False)
     near60 = n500 >= n500.rolling(60).max() * 0.97
-    retest_hi = n500 >= phigh * 0.99
+    retest_hi = n500 >= phigh * (1 - DIV_NEAR_HIGH / 100)
     div_parts = pd.DataFrame({
         "gauge lower": gauge <= _at(gauge, phloc) - 10,
         "p50 lower": p50 < _at(p50, phloc),
