@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-08T17:58:36+05:30",
+  "run_at_ist": "2026-11-08T18:00:20+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -174,10 +174,10 @@
   },
   "universe_size": 765,
   "indices": {
-    "days_added": 1,
-    "first": "2026-11-08",
-    "last": "2026-11-08",
-    "days_without_file": 1,
+    "days_added": 0,
+    "first": null,
+    "last": null,
+    "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-11-08"
   },
@@ -240,5 +240,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 43
+  "requests_made": 41
 }
