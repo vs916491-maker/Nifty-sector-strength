@@ -121,6 +121,9 @@ def main() -> int:
         if breadth_mod.AD_PATH.exists() else None
     ad_line = (ad_raw["advances"] - ad_raw["declines"]).cumsum() if ad_raw is not None else None
     rg = regime_mod.series(idx, stocks["close"], cons, data.index_close_by_name("Nifty500 Equal Weight"), ad_line)
+    # the turning-point trackers run first: a confirmed bottom lifts Red to Amber (regime.adjust_light)
+    tp = turning.build(rg, stocks["close"], cons, ad_raw, data.index_close_by_name("Nifty 500", "turnover_cr"))
+    rg = regime_mod.adjust_light(rg, tp)
     ind = setups_mod.indicators(stocks, idx["NIFTY500"])
     sets = setups_mod.detect(ind)
     last = ind["close"].index[-1]
@@ -184,7 +187,6 @@ def main() -> int:
     (OUT / "breadth.json").write_text(json.dumps(clean(mkt), separators=(",", ":")),
                                       encoding="utf-8")
     reg_out = regime_mod.latest(rg)
-    tp = turning.build(rg, stocks["close"], cons, ad_raw, data.index_close_by_name("Nifty 500", "turnover_cr"))
     reg_out["turning"] = turning.latest(tp, rg)
     # same panel for Nifty 50: breadth, highs/lows and advances/declines from its 50 stocks
     n50 = [s for s in cons.get("NIFTY50", pd.DataFrame(columns=["symbol"]))["symbol"] if s in stocks["close"].columns]
@@ -192,8 +194,9 @@ def main() -> int:
     ad50 = pd.DataFrame({"advances": (d50 > 0).sum(axis=1), "declines": (d50 < 0).sum(axis=1)}).iloc[1:]
     rg50 = regime_mod.series(idx, stocks["close"], cons, data.index_close_by_name("NIFTY50 Equal Weight"),
                              (ad50["advances"] - ad50["declines"]).cumsum(), bench="NIFTY50")
-    reg50 = regime_mod.latest(rg50)
     tp50 = turning.build(rg50, stocks["close"], cons, ad50, data.index_close_by_name("Nifty 50", "turnover_cr"), hl_key="NIFTY50")
+    rg50 = regime_mod.adjust_light(rg50, tp50)
+    reg50 = regime_mod.latest(rg50)
     reg50["turning"] = turning.latest(tp50, rg50)
     reg_out["benchmarks"] = {"NIFTY50": reg50}
     val["regime"]["turning_events"] = turning.events(tp, rg["n500"])

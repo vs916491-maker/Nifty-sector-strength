@@ -630,6 +630,7 @@ function regimePanel(rgAll) {
         h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`)),
       lightChip(rg.light, true)),
     h("p", { class: "guidance" }, rg.guidance),
+    rg.note ? h("p", { class: "note good" }, h("b", null, "Lifted by seller exhaustion. "), rg.note) : null,
     h("div", { class: "chart light-strip" },
       h("p", null, `The light over the last ${rg.history.dates.length} sessions (5-session average of the checks with a buffer, so one or two mixed days don't flip it)`),
       regimeStrip(rg.history),

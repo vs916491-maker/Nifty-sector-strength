@@ -13,7 +13,9 @@ Light   from the 5-session average of the points, with a buffer so it does
         turns Red below 2.5, leaves Red at 3.5+; Amber in between. (Without
         the buffer the light changed 33 times in 15 months; with it, 12.)
         The cost is a few sessions of delay at real turns, which the
-        internals gauge below is meant to cover.
+        internals gauge below is meant to cover. After the turning-point
+        trackers run, adjust_light() lifts Red to Amber on a confirmed bottom
+        (never to Green); see its docstring.
 
 Market internals gauge, -100 to +100 (average of five parts, each -1..+1)
   A/D line       advance-decline line vs its 50-day average, scaled by how
@@ -52,6 +54,8 @@ from . import sectors as S
 
 GREEN, AMBER = 5, 3
 LEAVE_GREEN, ENTER_RED, LEAVE_RED, SMOOTH = 4, 2.5, 3.5, 5
+LIFT_POINTS, LIFT_STAY, LIFT_KEEP = 4, 3, 10   # see adjust_light
+EXTENDED_CAP = False
 WASHOUT = 20
 THRUST_FROM, THRUST_TO, THRUST_DAYS, THRUST_KEEP = 20, 50, 15, 20
 
@@ -95,6 +99,44 @@ def _buffered_light(avg: pd.Series) -> pd.Series:
             cur = "Green" if v >= GREEN else "Amber"
         out.append(cur)
     return pd.Series(out, index=avg.index)
+
+
+def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
+    """Let the turning-point trackers nudge the light (call after turning.build).
+
+    Lift: while seller exhaustion has been Confirmed within the last LIFT_KEEP
+    sessions, a Red light shows Amber once LIFT_POINTS of the 6 checks pass on
+    the day, and stays Amber while at least LIFT_STAY pass. It never lifts
+    Amber to Green. Reason: the light is a 5-session average of the checks with
+    a buffer, so after a real bottom it stayed Red for several sessions even
+    though 5 of 6 checks passed and the tracker had confirmed the low.
+
+    Cap (EXTENDED_CAP, off): Green shows Amber while Distribution stage 1
+    (Extended) is on. Off because, in the data so far, Extended is on for
+    about half of all Green days and those days did not do worse afterwards.
+
+    `light_checks` keeps the light from the checks alone.
+    """
+    base = rg["light"]
+    rg["light_checks"] = base
+    b3 = tp["b3"].reindex(rg.index).fillna(False).astype(float).rolling(LIFT_KEEP, min_periods=1).max().astype(bool)
+    pts = rg["points"]
+    lifted, on = [], False
+    for lt, ok, p in zip(base, b3, pts):
+        if lt == "Red" and ok and pd.notna(p):
+            on = p >= LIFT_STAY if on else p >= LIFT_POINTS
+        else:
+            on = False
+        lifted.append(on)
+    lifted = pd.Series(lifted, index=rg.index)
+    light = base.copy()
+    light[lifted] = "Amber"
+    capped = pd.Series(False, index=rg.index)
+    if EXTENDED_CAP:
+        capped = (light == "Green") & tp["t1"].reindex(rg.index).fillna(False).astype(bool)
+        light[capped] = "Amber"
+    rg["light"], rg["light_lifted"], rg["light_capped"] = light, lifted, capped
+    return rg
 
 
 def internals(n500: pd.Series, ew: pd.Series, ad_line: pd.Series, pct50: pd.Series, net_hl: pd.Series,
@@ -219,6 +261,12 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
         "max_points": len(CHECKS),
         "checks": [{"key": k, "label": label.format(name=name), "ok": bool(last[k])} for k, label in CHECKS],
         "guidance": GUIDANCE.get(last["light"]),
+        "light_checks": last["light_checks"] if "light_checks" in df else last["light"],
+        "lifted": bool(last["light_lifted"]) if "light_lifted" in df else False,
+        "capped": bool(last["light_capped"]) if "light_capped" in df else False,
+        "note": (f"Seller exhaustion is confirmed and {int(last['points'])} of {len(CHECKS)} checks pass, so the light is lifted from Red to Amber. "
+                 f"The checks alone would still say Red because their 5-session average is only {last['points_avg']:.1f} (it needs {LEAVE_RED}).")
+                if "light_lifted" in df and bool(last["light_lifted"]) else None,
         "pct_above_50": float(last["pct_above_50"]),
         "pct_above_200": float(last["pct_above_200"]),
         "net_highs_lows_10d": float(last["net_highs_lows_10d"]) if pd.notna(last["net_highs_lows_10d"]) else None,
@@ -240,5 +288,6 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
             "last_bottoming": (lambda e: e[-1].date().isoformat() if e else None)(warning_events(df, "bottoming")),
         },
         "rules": {"green": GREEN, "amber": AMBER, "washout": WASHOUT,
+                  "lift": f"Red shows Amber while seller exhaustion is confirmed (within {LIFT_KEEP} sessions) and {LIFT_POINTS}+ checks pass",
                   "thrust": f"under {THRUST_FROM}% to over {THRUST_TO}% within {THRUST_DAYS} sessions"},
     }
