@@ -413,33 +413,104 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
     return out
 
 
-# Choppy market warning (8 Nov 2026, Vivek's choice "either rule"). Context only, not a filter: the 2-year
-# test found no choppiness measure that separated failed cycle signals from good ones (the market was choppy
-# on about half of all days), so it changes no signal or light.
-#   price going nowhere: over 120 sessions the net move is under CHOP_ER of the total day-to-day movement
-#                        and the index crossed its 50-day average CHOP_CROSSES+ times
-#   signals flipping:    CHOP_FLIPS+ cycle phase changes in the last CHOP_FLIP_LOOK sessions
-CHOP_LOOK = 120
-CHOP_ER = 0.10
-CHOP_CROSSES = 6
-CHOP_FLIP_LOOK = 60
-CHOP_FLIPS = 3
+# Choppy market warning (Vivek's rules, 8 Nov 2026). Context only: changes no signal or light. Uses the 50-day EMA.
+#   Choppy     = 1 and 2 hold:
+#     1. today within ±CHOP_BAND% of the 50 EMA, and in the last CHOP_LOOK sessions price never held beyond
+#        CHOP_BAND% for CHOP_HOLD+ days in a row (could not push away and hold)
+#     2. the 50 EMA lost momentum over CHOP_LOOK sessions: moved < CHOP_EMA_FLAT%, or its direction
+#        (vs CHOP_SLOPE_DAYS ago) flipped CHOP_EMA_FLIPS+ times (zig-zag)
+#   No warning (exceptions):
+#     3. quick push: price crossed the 50 EMA and got > CHOP_BAND% away within CHOP_PUSH_DAYS sessions. Off while
+#        it holds there; if it falls back inside the band it stays off as long as the 50 EMA has turned the push's
+#        way (his correction); ends if price crosses back over the EMA
+#     4. congestion: the last CONG_DAYS closes within ±CONG_BAND% of the 50 EMA -> "Congestion · watch for break"
+#        (not Choppy); a close outside the congestion's range is a break and stays warning-free while it holds
+#        (ends on a close back inside the range or on the other side of the 50 EMA)
+CHOP_BAND = 3.0
+CHOP_HOLD = 3
+CHOP_LOOK = 30
+CHOP_EMA_FLAT = 2.0
+CHOP_EMA_FLIPS = 2
+CHOP_SLOPE_DAYS = 5
+CHOP_PUSH_DAYS = 4
+CONG_BAND = 1.0
+CONG_DAYS = 10
+
+
+def chop_series(close: pd.Series) -> pd.DataFrame:
+    """Daily choppy-market state: 'chop', 'congestion', 'push', 'break' or None, plus the numbers behind it."""
+    ema = close.ewm(span=50, adjust=False).mean()
+    c, e = close.to_numpy(float), ema.to_numpy(float)
+    dv = (c / e - 1) * 100
+    sl = np.sign(e - np.roll(e, CHOP_SLOPE_DAYS)); sl[:CHOP_SLOPE_DAYS] = 0
+    n = len(c)
+    rows = []
+    side_prev, cross = 0, -999
+    push = None            # direction of a quick push being held
+    zone, brk = None, None  # congestion range (lo, hi, start) and the direction of a break being held
+    cong_start = None
+    for i in range(n):
+        side = 1 if dv[i] > 0 else -1
+        if side != side_prev:
+            cross = i
+        side_prev = side
+        r = {"state": None, "dev": dv[i], "ema": e[i]}
+        if i < 60:
+            rows.append(r); continue
+        # 3. quick push after a cross
+        if abs(dv[i]) > CHOP_BAND and i - cross <= CHOP_PUSH_DAYS:
+            push = side
+        if push is not None and (side != push or (abs(dv[i]) <= CHOP_BAND and sl[i] != push)):
+            push = None
+        # 4. congestion and its break
+        if np.all(np.abs(dv[i - CONG_DAYS + 1:i + 1]) <= CONG_BAND):
+            cong_start = cong_start if cong_start is not None else i - CONG_DAYS + 1
+            seg = c[cong_start:i + 1]
+            zone, brk = (float(seg.min()), float(seg.max()), cong_start), None
+            r.update(state="congestion", zone_lo=zone[0], zone_hi=zone[1], cong_days=i - cong_start + 1)
+            rows.append(r); continue
+        cong_start = None
+        if zone is not None and brk is None:
+            brk = 1 if c[i] > zone[1] else -1 if c[i] < zone[0] else None
+            if brk is None:
+                zone = None
+        elif brk is not None and (side != brk or not (c[i] > zone[1] if brk > 0 else c[i] < zone[0])):
+            zone, brk = None, None
+        # 1 and 2
+        w = dv[i - CHOP_LOOK + 1:i + 1]
+        held = 0
+        for k in range(len(w)):
+            run = 0
+            while k + run < len(w) and abs(w[k + run]) > CHOP_BAND and np.sign(w[k + run]) == np.sign(w[k]):
+                run += 1
+            held = max(held, run)
+        ema_move = (e[i] / e[i - CHOP_LOOK] - 1) * 100
+        s = [x for x in sl[i - CHOP_LOOK + 1:i + 1] if x != 0]
+        flips = int(sum(1 for a, b in zip(s, s[1:]) if a != b))
+        r.update(held=held, ema_move=ema_move, flips=flips)
+        rule1 = abs(dv[i]) <= CHOP_BAND and held < CHOP_HOLD
+        rule2 = abs(ema_move) < CHOP_EMA_FLAT or flips >= CHOP_EMA_FLIPS
+        if push is not None:
+            r["state"] = "push"
+        elif brk is not None:
+            r.update(state="break", zone_lo=zone[0], zone_hi=zone[1], brk=brk)
+        elif rule1 and rule2:
+            r["state"] = "chop"
+        rows.append(r)
+    return pd.DataFrame(rows, index=close.index)
 
 
 def chop(df: pd.DataFrame, n500: pd.Series) -> dict:
-    c = n500.reindex(df.index)
-    moved = c.diff().abs().rolling(CHOP_LOOK).sum()
-    er = ((c - c.shift(CHOP_LOOK)).abs() / moved).iloc[-1]
-    side = np.sign(c - df["sma50"])
-    crosses = int((side != side.shift()).astype(int).iloc[-CHOP_LOOK:].sum())
-    ph = df["phase"]
-    flips = int((ph != ph.shift()).astype(int).iloc[-CHOP_FLIP_LOOK:].sum())
-    net = float((c.iloc[-1] / c.iloc[-1 - CHOP_LOOK] - 1) * 100) if len(c) > CHOP_LOOK else None
-    flat = bool(pd.notna(er) and er < CHOP_ER and crosses >= CHOP_CROSSES)
-    flipping = flips >= CHOP_FLIPS
-    return {"on": flat or flipping, "price_flat": flat, "flipping": flipping,
-            "er": round(float(er), 3) if pd.notna(er) else None, "net_pct": round(net, 1) if net is not None else None,
-            "crosses": crosses, "flips": flips, "look": CHOP_LOOK, "flip_look": CHOP_FLIP_LOOK}
+    x = chop_series(n500.reindex(df.index).dropna()).iloc[-1]
+    g = lambda k: (round(float(x[k]), 2) if pd.notna(x.get(k)) else None) if k in x else None
+    out = {"state": x["state"], "on": x["state"] == "chop", "dev": g("dev"), "ema": g("ema"),
+           "ema_move": g("ema_move"), "flips": int(x["flips"]) if pd.notna(x.get("flips")) else None,
+           "look": CHOP_LOOK, "band": CHOP_BAND, "cong_band": CONG_BAND}
+    if x["state"] in ("congestion", "break"):
+        out.update(zone_lo=g("zone_lo"), zone_hi=g("zone_hi"))
+    if x["state"] == "congestion":
+        out["cong_days"] = int(x["cong_days"])
+    return out
 
 
 CHART_DAYS = 110   # sessions shown in the website's cycle chart

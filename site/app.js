@@ -877,17 +877,27 @@ function cycleChart(K, NAME) {
       K.swings ? h("span", null, h("i", { style: "background:transparent;border:1.8px solid var(--ink)" }), "Real top / bottom (6%+ turn)") : null));
 }
 
-/* Red "Choppy market" warning next to the cycle heading (context only: changes no signal) */
+/* Choppy market / congestion tag next to the cycle heading (his 50 EMA rules; context only, changes no signal) */
 function chopTag(C) {
-  return C?.chop?.on ? h("span", { class: "chop-tag", title: "Range-bound, two-way market: cycle signals have whipsawed in markets like this" }, "✱ Choppy market") : null;
+  const st = C?.chop?.state;
+  if (st === "chop") return h("span", { class: "chop-tag", title: "Price stuck around a flat or zig-zagging 50 EMA: cycle signals can whipsaw" }, "✱ Choppy market");
+  if (st === "congestion") return h("span", { class: "chop-tag cong", title: "Price hugging the 50 EMA: a break out of this zone could be a real move" }, "◆ Congestion · watch for break");
+  return null;
 }
 function chopNote(C, NAME) {
-  const X = C?.chop;
-  if (!X?.on) return null;
-  const why = [];
-  if (X.price_flat) why.push(`${NAME} crossed its 50-day average ${X.crosses} times in 6 months, net ${X.net_pct > 0 ? "+" : ""}${X.net_pct}%`);
-  if (X.flipping) why.push(`the cycle changed phase ${X.flips} times in the last ${X.flip_look} sessions`);
-  return h("span", { class: "chop-note" }, `${why.join("; ")}. Signals can whipsaw here: keep size small.`.replace(/^./, (m) => m.toUpperCase()));
+  const X = C?.chop, st = X?.state;
+  const sg = (v) => `${v > 0 ? "+" : ""}${Number(v).toFixed(1)}%`;
+  const zone = () => `${fmtNum(X.zone_lo)}–${fmtNum(X.zone_hi)}`;
+  if (st === "chop") {
+    const flat = Math.abs(X.ema_move) < 2;
+    const ema = flat ? `the 50 EMA is flat (${sg(X.ema_move)} in ${X.look} sessions)` : `the 50 EMA is zig-zagging (turned ${X.flips} times in ${X.look} sessions)`;
+    return h("span", { class: "chop-note" }, `${NAME} is stuck within ±${X.band}% of its 50 EMA (now ${sg(X.dev)}) without holding a bigger move, and ${ema}. Signals can whipsaw here: keep size small.`);
+  }
+  if (st === "congestion")
+    return h("span", { class: "chop-note cong" }, `Within ±${X.cong_band}% of the 50 EMA for ${X.cong_days} sessions (closes ${zone()}). A close outside this zone could be a real breakout or breakdown.`);
+  if (st === "break")
+    return h("span", { class: "muted" }, `Broke ${X.dev > 0 ? "out above" : "down below"} the congestion zone ${zone()}: no choppy warning while it holds.`);
+  return null;
 }
 
 function trackersBlock(T, NAME = "Nifty 500") {
