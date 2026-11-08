@@ -414,7 +414,7 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
 
 
 # Choppy market warning (Vivek's rules, 8 Nov 2026). Context only: changes no signal or light. Uses the 50-day EMA.
-#   Choppy     = 1 AND 2 hold (he tried OR on 8 Nov 2026, then went back to AND), unless an exception below applies:
+#   Choppy     = 1 OR 2 holds (final, his choice 8 Nov 2026; CHOP_COMBINE), unless an exception below applies:
 #     1. today within ±CHOP_BAND% of the 50 EMA, and in the last CHOP_LOOK sessions price never held beyond
 #        CHOP_BAND% for CHOP_HOLD+ days in a row (could not push away and hold)
 #     2. the 50 EMA lost momentum over CHOP_LOOK sessions: moved < CHOP_EMA_FLAT%, or its direction
@@ -427,20 +427,20 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
 #        (not Choppy); a close outside the congestion's range is a break and stays warning-free while it holds
 #        (ends on a close back inside the range or on the other side of the 50 EMA)
 #   5. EMA trending (his rule, 8 Nov 2026: the ±3% test only applies while the 50 EMA is flat or getting flat):
-#        the 50 EMA moved CHOP_TREND%+ in CHOP_TREND_DAYS sessions, or is picking up a trend (that move grew
-#        CHOP_PICKUP_DAYS days in a row with price more than CHOP_PICKUP_DEV% on that side) -> no warning
-CHOP_BAND = 3.5         # was 3.0 (his test 8 Nov 2026)
+#        the 50 EMA moved CHOP_TREND%+ in CHOP_TREND_DAYS sessions, or is picking up a trend (that move rose
+#        CHOP_PICKUP_DAYS days in a row towards price's side, with price more than CHOP_PICKUP_DEV% on that side) -> no warning
+CHOP_BAND = 3.5         # final 8 Nov 2026 (was 3.0)
 CHOP_HOLD = 3
 CHOP_LOOK = 30
 CHOP_EMA_FLAT = 2.0
 CHOP_EMA_FLIPS = 2
 CHOP_SLOPE_DAYS = 5
 CHOP_PUSH_DAYS = 4
-CHOP_COMBINE = "and"    # "and": price band AND flat EMA; "or": either (tested 8 Nov 2026)
+CHOP_COMBINE = "or"     # final 8 Nov 2026 (his choice): price within the band OR 50 EMA flat/zig-zag; "and" = both
 CHOP_PUSH = False       # quick-push exception (rule 3) off since his 8 Nov 2026 test
 CONG_BAND = 1.0
 CONG_DAYS = 10
-CHOP_TREND = 1.5        # was 0.5 (his test 8 Nov 2026)
+CHOP_TREND = 1.5        # final 8 Nov 2026 (was 0.5)
 CHOP_TREND_DAYS = 10
 CHOP_PICKUP_DAYS = 3
 CHOP_PICKUP_DEV = 1.0
@@ -499,7 +499,9 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
         flips = int(sum(1 for a, b in zip(s, s[1:]) if a != b))
         steep = abs(tr[i]) >= CHOP_TREND
         k = CHOP_PICKUP_DAYS
-        pickup = (all(abs(tr[i - j]) > abs(tr[i - j - 1]) and np.sign(tr[i - j]) == np.sign(tr[i]) for j in range(k))
+        # picking up: the EMA's 10-session move rose (fell) k days in a row towards price's side, now on that side,
+        # with price more than CHOP_PICKUP_DEV% away (counts a slope turning from down to up, 8 Nov 2026 fix)
+        pickup = (all(side * tr[i - j] > side * tr[i - j - 1] for j in range(k))
                   and np.sign(tr[i]) == side and abs(dv[i]) > CHOP_PICKUP_DEV)
         r.update(held=held, ema_move=ema_move, flips=flips, ema_10=tr[i])
         rule1 = abs(dv[i]) <= CHOP_BAND and held < CHOP_HOLD

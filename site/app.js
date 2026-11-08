@@ -1721,7 +1721,7 @@ async function viewPredictions(app) {
     const where = (g) => g.zone === "chop" ? h("span", { class: "res warn" }, "Inside choppy zone") : g.zone === "congestion" ? h("span", { class: "res mute" }, "Congestion") : h("span", { class: "muted" }, "No");
     return h("div", { class: "panel" },
       h("h2", null, "Choppy / sideways market"),
-      h("p", { class: "sub" }, `Price and its 50-day EMA. Boxes are the zones the Choppy market warning flagged (live rules: price within ±${CH.band ?? 3.5}% of a flat or zig-zagging 50 EMA, not trending or breaking out) and the congestion zones (within ±1% for 10 days). Every trend-change signal is marked: ✓ it worked, ✕ it was false. Choppy days ${CH.summary.chop_days} of ${CH.summary.days}.`),
+      h("p", { class: "sub" }, `Price and its 50-day EMA. Boxes are the zones the Choppy market warning flagged (live rules: price stuck within ±${CH.band ?? 3.5}% of the 50 EMA, or the 50 EMA flat or zig-zagging; never while the EMA is trending or picking up, or price is breaking out of a congestion) and the congestion zones (within ±1% for 10 days). Every trend-change signal is marked: ✓ it worked, ✕ it was false. Choppy days ${CH.summary.chop_days} of ${CH.summary.days}.`),
       h("div", { class: "stats" },
         tile(`${Q.bad_in} of ${bad}`, "false trend changes came inside a choppy zone"),
         tile(`${Q.good_in} of ${good}`, "trend changes that worked came inside a choppy zone"),
