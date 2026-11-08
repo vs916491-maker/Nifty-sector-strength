@@ -1,4 +1,4 @@
-/* Sector Strength - static site.
+/* Market Trend Analysis (Sector Strength) - static site.
    Reads JSON produced by analysis/build.py from ./data/ and renders three
    views with hash routing: #/ (overview), #/sector/KEY, #/picks, #/record,
    #/trades (My Trades: private trade log in Supabase, needs sign-in).
@@ -109,14 +109,17 @@ function seg(label, options, current, onPick) {
         onclick: () => onPick(value),
       }, text))));
 }
-function filtersRow(extra) {
+function groupSeg() {
+  return seg("Indices", [["Sectoral", "Sectoral"], ["Thematic", "Thematic"]], state.group, (v) => {
+    state.group = v; state.sel = null; store("ss-group", v); route();
+  });
+}
+function filtersRow(extra, opts = {}) {
   return h("div", { class: "filters" },
     seg("Benchmark", [["NIFTY500", "Nifty 500"], ["NIFTY50", "Nifty 50"]], state.bench, (v) => {
       state.bench = v; store("ss-bench", v); route();
     }),
-    seg("Indices", [["Sectoral", "Sectoral"], ["Thematic", "Thematic"]], state.group, (v) => {
-      state.group = v; state.sel = null; store("ss-group", v); route();
-    }),
+    opts.noGroup ? null : groupSeg(),
     extra || null,
     typeof SB_READY !== "undefined" && SB_READY ? h("div", { class: "scan-slot" }, scanButton()) : null);
 }
@@ -930,7 +933,9 @@ async function viewOverview(app) {
     h("div", { class: "panel" },
       h("h2", null, "Relative rotation"),
       h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to see its full path.`),
-      seg("Path of tapped sector", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); }),
+      h("div", { class: "filters rotation-filters" },
+        groupSeg(),
+        seg("Path of tapped sector", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); })),
       rrg,
       h("div", { class: "legend" }, QUAD.map((q) => h("span", null, h("i", { style: `background:var(${QVAR[q]})` }), q)))),
     h("div", { class: "panel" },
@@ -985,7 +990,7 @@ async function viewOverview(app) {
         h("span", null, Math.round(st.stocks[sym].score)), st.stocks[sym].fno ? h("span", { class: "flag fno" }, "F&O") : null)))
         : h("p", { class: "empty" }, "No stock passes the filters right now.")))) : h("p", { class: "empty" }, "No focus sectors today."));
 
-  app.replaceChildren(filtersRow(), lede, regimePanel(rg, L, breadth), main, rotationSection(ld, sec), focusSec);
+  app.replaceChildren(filtersRow(null, { noGroup: true }), lede, regimePanel(rg, L, breadth), main, rotationSection(ld, sec), focusSec);
   if (state.sel) highlight(null);
 }
 
@@ -1676,7 +1681,7 @@ function signInView(app, message) {
   const msg = h("p", { class: "err", role: "status" }, message || "");
   const btn = h("button", { class: "btn primary", type: "submit" }, "Sign in");
   const form = h("form", { class: "panel signin" },
-    h("h1", null, "Sector Strength"),
+    h("h1", null, "Market Trend Analysis"),
     h("p", { class: "sub" }, "This site is private. Sign in with the same email and password as the F&O Desk; you stay signed in on this device."),
     h("label", null, "Email", email), h("div", { style: "height:10px" }),
     h("label", null, "Password", pass),

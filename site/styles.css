@@ -587,3 +587,5 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .stage-box .sb-k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .9; }
 .stage-box b { font-size: 16px; }
 .stage-box .sb-sub { font-size: 12.5px; opacity: .95; }
+
+.filters.rotation-filters { padding: 6px 0 8px; gap: 8px 16px; }
