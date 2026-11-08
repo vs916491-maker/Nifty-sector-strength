@@ -402,6 +402,7 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
         out["failed"] = {"confirmed": d(ci), "n500_confirmed": float(n500.iloc[ci]),
                          "pivot_low": float(df["pivot_low"].iloc[si - 1]), "n500_failed": float(n500.iloc[si])}
     out["chart"] = chart(df, n500)
+    out["chop"] = chop(df, n500)
     for side, col in (("up", "up_n"), ("down", "dn_n")):
         parts = df.attrs["parts"][side].loc[last]
         refs = [(df.at[last, "sma20"], "index"), (df.at[last, "sma50"], "index"), (50.0, "p50"), (0.0, "gauge")]
@@ -410,6 +411,35 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
                                 "ref": float(r) if pd.notna(r) else None, "kind": kind}
                                for (k, v), (r, kind) in zip(parts.items(), refs)]}
     return out
+
+
+# Choppy market warning (8 Nov 2026, Vivek's choice "either rule"). Context only, not a filter: the 2-year
+# test found no choppiness measure that separated failed cycle signals from good ones (the market was choppy
+# on about half of all days), so it changes no signal or light.
+#   price going nowhere: over 120 sessions the net move is under CHOP_ER of the total day-to-day movement
+#                        and the index crossed its 50-day average CHOP_CROSSES+ times
+#   signals flipping:    CHOP_FLIPS+ cycle phase changes in the last CHOP_FLIP_LOOK sessions
+CHOP_LOOK = 120
+CHOP_ER = 0.10
+CHOP_CROSSES = 6
+CHOP_FLIP_LOOK = 60
+CHOP_FLIPS = 3
+
+
+def chop(df: pd.DataFrame, n500: pd.Series) -> dict:
+    c = n500.reindex(df.index)
+    moved = c.diff().abs().rolling(CHOP_LOOK).sum()
+    er = ((c - c.shift(CHOP_LOOK)).abs() / moved).iloc[-1]
+    side = np.sign(c - df["sma50"])
+    crosses = int((side != side.shift()).astype(int).iloc[-CHOP_LOOK:].sum())
+    ph = df["phase"]
+    flips = int((ph != ph.shift()).astype(int).iloc[-CHOP_FLIP_LOOK:].sum())
+    net = float((c.iloc[-1] / c.iloc[-1 - CHOP_LOOK] - 1) * 100) if len(c) > CHOP_LOOK else None
+    flat = bool(pd.notna(er) and er < CHOP_ER and crosses >= CHOP_CROSSES)
+    flipping = flips >= CHOP_FLIPS
+    return {"on": flat or flipping, "price_flat": flat, "flipping": flipping,
+            "er": round(float(er), 3) if pd.notna(er) else None, "net_pct": round(net, 1) if net is not None else None,
+            "crosses": crosses, "flips": flips, "look": CHOP_LOOK, "flip_look": CHOP_FLIP_LOOK}
 
 
 CHART_DAYS = 110   # sessions shown in the website's cycle chart

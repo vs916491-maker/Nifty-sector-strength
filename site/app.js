@@ -877,6 +877,19 @@ function cycleChart(K, NAME) {
       K.swings ? h("span", null, h("i", { style: "background:transparent;border:1.8px solid var(--ink)" }), "Real top / bottom (6%+ turn)") : null));
 }
 
+/* Red "Choppy market" warning next to the cycle heading (context only: changes no signal) */
+function chopTag(C) {
+  return C?.chop?.on ? h("span", { class: "chop-tag", title: "Range-bound, two-way market: cycle signals have whipsawed in markets like this" }, "✱ Choppy market") : null;
+}
+function chopNote(C, NAME) {
+  const X = C?.chop;
+  if (!X?.on) return null;
+  const why = [];
+  if (X.price_flat) why.push(`${NAME} crossed its 50-day average ${X.crosses} times in 6 months, net ${X.net_pct > 0 ? "+" : ""}${X.net_pct}%`);
+  if (X.flipping) why.push(`the cycle changed phase ${X.flips} times in the last ${X.flip_look} sessions`);
+  return h("span", { class: "chop-note" }, `${why.join("; ")}. Signals can whipsaw here: keep size small.`.replace(/^./, (m) => m.toUpperCase()));
+}
+
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T || !T.cycle) return null;
   const C = T.cycle, R = T.readings || {}, P = R.at_prior_low;
@@ -937,8 +950,8 @@ function trackersBlock(T, NAME = "Nifty 500") {
   }
   return h("div", { class: "cycle-a" },
     h("div", { class: "cycle-head" },
-      h("span", { class: "eyebrow" }, `Turning-point cycle · ${NAME}`),
-      h("span", { class: "muted" }, "Next washout restarts the cycle")),
+      h("div", { class: "cycle-title" }, h("span", { class: "eyebrow" }, `Turning-point cycle · ${NAME}`), chopTag(C)),
+      chopNote(C, NAME) || h("span", { class: "muted" }, "Next washout restarts the cycle")),
     phaseTrack(C),
     C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
       h("div", { class: "hist-chips" }, C.history.map((e) => h("span", { class: `hchip tone-${PH_TONE[e.phase]}` },

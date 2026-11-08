@@ -612,3 +612,8 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
   background: #fff; color: #c62828; border: 1px solid #e57373; }
 .hero-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
 .hero-tags .warn-tag { margin-top: 0; }
+
+/* Choppy market warning next to the Turning-point cycle heading */
+.cycle-title { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.chop-tag { font-size: 13px; font-weight: 800; color: #c62828; background: #fff; border: 1.5px solid #e57373; border-radius: 8px; padding: 3px 10px; }
+.chop-note { color: var(--neg-text); font-weight: 600; max-width: 95ch; }
