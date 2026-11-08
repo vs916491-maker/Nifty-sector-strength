@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-08T18:48:38+05:30",
+  "run_at_ist": "2026-11-08T20:40:12+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -182,19 +182,20 @@
     "latest_stored": "2026-11-08"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 2,
+    "days_added": 1,
+    "first": "2026-11-08",
+    "last": "2026-11-08",
+    "days_without_file": 1,
     "unreadable_files": [],
-    "latest_stored": "2026-11-06"
+    "latest_stored": "2026-11-08"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 770
   },
   "mcap": {
     "ok": true,
-    "date": "2026-11-06",
+    "date": "2026-11-08",
     "stocks": 2597
   },
   "price_jump_check": {
