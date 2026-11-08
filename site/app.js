@@ -593,89 +593,135 @@ function trackerCard(title, sub, stages, extra, override) {
           h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
     extra || null);
 }
-/* The turning-point cycle: Seller exhaustion -> Up -> Distribution -> Down -> (washout) Seller exhaustion.
-   Only one box is live at a time; the others rest. */
+/* The turning-point cycle (layout A, 8 Nov 2026): a 4-step phase track, a hero card in the live
+   phase's colour, and compact tracker cards whose stage dots open to show each stage's conditions.
+   Seller exhaustion -> Up -> Distribution -> Down -> (washout) Seller exhaustion; one phase live at a time. */
 const PHASE = { bottom: "Seller exhaustion", up: "Up continuation", top: "Distribution", down: "Down continuation" };
+const PH_ORDER = ["bottom", "up", "top", "down"];
+const PH_TONE = { bottom: "blue", up: "green", top: "amber", down: "red" };
 const dshort = (x) => fmtDate(x, { day: "numeric", month: "short" });
-function cycleStrip(C) {
-  const steps = ["bottom", "up", "top", "down"];
-  return h("div", { class: "cycle" },
-    h("ol", { class: "cycle-steps" }, steps.map((k, i) => h("li", { class: k === C.phase ? "live" : "" },
-      h("span", { class: "n" }, i + 1), PHASE[k]))),
-    h("p", { class: "note", style: "margin:6px 0 0" },
-      `Live now: ${PHASE[C.phase]}, since ${dshort(C.since)}${C.event ? ` (${C.event.toLowerCase()})` : ""}. After Down continuation, the next washout starts the cycle again.`),
-    C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
-      h("ul", { class: "conds", style: "margin:4px 0 0" }, C.history.map((e) =>
-        h("li", null, h("span", { class: "muted" }, fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })), ` ${e.event} → ${PHASE[e.phase]} (${fmtNum(e.n500, 0)})`)))) : null);
+const sessionsTxt = (n) => `${n} session${n === 1 ? "" : "s"}`;
+
+function phaseTrack(C) {
+  const prev = C.history?.[1]?.phase;
+  const wait = { bottom: "Wakes at the next washout", up: "After a confirmed bottom",
+    top: `Wakes if 2 of 4 fail ${C.weak_needed} days`, down: "After a breakdown" };
+  return h("ol", { class: "ph-track" }, PH_ORDER.map((k, i) => {
+    const state = k === C.phase ? "live" : k === prev ? "done" : "wait";
+    const sub = state === "live" ? (C.failed ? `Bottom failed ${dshort(C.since)}` : `Since ${dshort(C.since)} · ${sessionsTxt(C.sessions_since)}`)
+      : state === "done" ? `${C.event} ${dshort(C.since)}` : wait[k];
+    return h("li", { class: `ph ${state} tone-${PH_TONE[k]}` },
+      h("div", { class: "ph-name" },
+        h("span", { class: "ph-n", "aria-hidden": "true" }, state === "done" ? "✓" : String(i + 1)),
+        state === "live" ? `${PHASE[k]} · LIVE` : `${i + 1} · ${PHASE[k]}`),
+      h("div", { class: "ph-sub" }, sub));
+  }));
 }
-function continuationCard(C, R, NAME) {
-  if (!C) return null;
-  const live = C.phase === "up" || C.phase === "down";
-  const ago = (n) => `${n} session${n === 1 ? "" : "s"}`;
-  const val = (p, dir) => p.kind === "index" ? `${NAME} ${fmtNum(R.n500, 0)} vs ${fmtNum(p.ref, 0)}`
-    : p.kind === "p50" ? `${isNum(R.p50) ? Math.round(R.p50) : "–"}% (needs ${dir === "up" ? "50%+" : "under 50%"})`
-    : `${isNum(R.gauge) ? Math.round(R.gauge) : "–"} (needs ${dir === "up" ? "above" : "below"} 0)`;
-  const list = (side) => h("ul", { class: "conds", style: "margin-left:0" }, C[side].parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
-    h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), `${p.label}: ${val(p, side)}`)));
-  if (C.failed) {
+
+/* Three stage dots; clicking one opens its conditions underneath (click again to close).
+   mode: "live" (fill the stages reached in this cycle), "done" (all reached), "rest" (history only). */
+function stageDots(stages, mode, openIdx = -1) {
+  let reached = 0, best = Infinity;
+  stages.forEach((s, i) => { if (!s.old && isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
+  const filled = (s, i) => !s.old && s.last_met && (mode === "done" || (mode === "live" && i < reached));
+  const whenShort = (s) => s.met_today && mode !== "rest" ? "today" : s.last_met ? `${mode === "rest" || s.old ? "last " : ""}${dshort(s.last_met)}` : "not yet";
+  const whenLong = (s) => s.met_today ? (s.key === "b3" ? "Confirmed today." : "Met today.")
+    : s.last_met ? `${s.key === "b3" ? "Confirmed" : "Last met"} ${fmtDate(s.last_met, { day: "numeric", month: "short", year: "numeric" })}${isNum(s.sessions_ago) ? ` (${sessionsTxt(s.sessions_ago)} ago)` : ""}.` : "Not met yet.";
+  const detail = h("div", { class: "stage-detail" });
+  let open = -1;
+  const btns = stages.map((s, i) => h("button", { type: "button", class: `sdot${filled(s, i) ? " on" : ""}`, "aria-expanded": "false",
+      title: "Show this stage's conditions", onclick: () => toggle(i) },
+    h("span", { class: "pip", "aria-hidden": "true" }), h("b", null, s.name), h("span", { class: "when" }, whenShort(s))));
+  function toggle(i) {
+    open = open === i ? -1 : i;
+    btns.forEach((b, k) => { b.classList.toggle("open", k === open); b.setAttribute("aria-expanded", String(k === open)); });
+    const s = stages[open];
+    detail.replaceChildren(...(open < 0 ? [] : [
+      h("p", { class: "note" }, h("b", null, `${open + 1}. ${s.name}. `), s.help, " ", h("span", { class: "muted" }, whenLong(s))),
+      h("ul", { class: "conds" }, s.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
+        h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))),
+      h("p", { class: "note muted" }, "Ticks show today's readings.")]));
+  }
+  if (openIdx >= 0) toggle(openIdx);
+  return h("div", { class: "stage-dots" }, h("div", { class: "stage-row" }, ...btns), detail);
+}
+
+function trackerChip(stages, mode, label) {
+  if (mode === "done") return h("span", { class: "pill tone-done" }, "Done · resting");
+  if (mode === "rest") return h("span", { class: "pill tone-rest" }, label || "Resting");
+  let reached = 0, best = Infinity;
+  stages.forEach((s, i) => { if (!s.old && isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
+  return h("span", { class: "pill tone-live" }, reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "Watching, no signal");
+}
+
+/* Hero for Up / Down continuation (and a failed bottom): move since the turn, the 4 conditions, failure line */
+function continuationHero(C, R, NAME) {
+  const failed = Boolean(C.failed);
+  const dir = failed ? "down" : C.phase;
+  const tone = dir === "up" ? "green" : "red";
+  const side = C[dir];
+  const pct = (a, b) => (isNum(a) && isNum(b) ? (a / b - 1) * 100 : null);
+  const sgn = (v, d = 1) => (isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(d)}` : "–");
+  const tiles = side.parts.map((p) => {
+    let v, sub, bar = null;
+    if (p.kind === "index") { v = `${sgn(pct(R.n500, p.ref))}%`; sub = `${fmtNum(R.n500, 0)} vs ${fmtNum(p.ref, 0)}`; }
+    else if (p.kind === "p50") { v = isNum(R.p50) ? `${Math.round(R.p50)}%` : "–"; sub = dir === "up" ? "needs 50%+" : "needs under 50%";
+      bar = h("div", { class: "bar" }, h("i", { style: `width:${Math.max(0, Math.min(100, R.p50 || 0))}%` }), h("u", { style: "left:50%" })); }
+    else { v = isNum(R.gauge) ? sgn(R.gauge, 0) : "–"; sub = dir === "up" ? "needs above 0" : "needs below 0"; }
+    const label = p.label.charAt(0).toUpperCase() + p.label.slice(1);
+    return h("div", { class: `ctile ${p.ok ? "ok" : "no"}` },
+      h("div", { class: "k" }, h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓ " : "✕ "), label),
+      h("div", { class: "v" }, v), sub ? h("div", { class: "d" }, sub) : null, bar);
+  });
+  const status = dir === "up" ? (!C.proven ? "not proven yet" : C.weak_days ? `weakening ${C.weak_days} of ${C.weak_needed}` : null)
+    : side.count >= 3 ? null : "losing steam";
+  const head = failed ? "Exhaustion failed · downtrend continues" : PHASE[dir];
+  const since = failed ? "since the bottom failed" : dir === "up" ? "since the bottom" : "since the top";
+  let right;
+  if (dir === "up") {
+    const dist = pct(C.pivot_low, C.n500_now);
+    right = h("div", { class: "cside tone-red" },
+      h("div", { class: "k" }, "Failure line"),
+      h("div", { class: "v mono" }, fmtNum(C.pivot_low, 0)),
+      h("p", null, `${isNum(dist) ? Math.abs(dist).toFixed(1) : "–"}% below today. A close under it = bottom failed.`),
+      h("div", { class: "weak" },
+        h("div", { class: "k" }, "Weak days in a row"),
+        h("div", { class: "weak-bars" }, Array.from({ length: C.weak_needed }, (_, i) => h("span", { class: i < C.weak_days ? "on" : "" }))),
+        h("div", { class: "d" }, !C.proven ? "Starts counting once 3 of 4 hold" : `${C.weak_days} of ${C.weak_needed}: ${C.weak_days ? "up move fading" : "up move intact"}`)));
+  } else if (!failed) {
+    const dist = pct(C.pivot_high, C.n500_now);
+    right = h("div", { class: "cside tone-green" },
+      h("div", { class: "k" }, "Top fails above"),
+      h("div", { class: "v mono" }, fmtNum(C.pivot_high, 0)),
+      h("p", null, `${isNum(dist) ? Math.abs(dist).toFixed(1) : "–"}% above today. A close over it = back to Distribution.`),
+      h("div", { class: "weak" }, h("div", { class: "d" }, "Ends at the next washout: then Seller exhaustion goes live.")));
+  } else {
     const F = C.failed;
-    return h("div", { class: "tracker wide" },
-      h("div", { class: "tracker-head" }, h("h3", null, "Trend continuation: Down"), h("span", { class: "stage-chip down" }, "Exhaustion failed · downtrend continues")),
-      h("p", { class: "note", style: "margin:2px 0 6px" },
-        `Seller exhaustion confirmed a bottom on ${dshort(F.confirmed)} at ${fmtNum(F.n500_confirmed, 0)}, but on ${dshort(C.since)} ${NAME} ${C.event.endsWith("washout") ? "had a fresh washout" : `closed at ${fmtNum(F.n500_failed, 0)}, below the low the bottom was made at (${fmtNum(F.pivot_low, 0)})`}. Now ${fmtNum(C.n500_now, 0)}. ${C.down.count} of 4 down conditions hold.`),
-      list("down"),
-      h("p", { class: "note", style: "margin:6px 0 0" }, "Seller exhaustion is live again and looks for a new bottom. When it confirms, this box switches back to Up continuation."));
+    right = h("div", { class: "cside tone-blue" },
+      h("div", { class: "k" }, "What failed"),
+      h("p", null, `Bottom confirmed ${dshort(F.confirmed)} at ${fmtNum(F.n500_confirmed, 0)}; ${C.event.endsWith("washout") ? `a fresh washout on ${dshort(C.since)}` : `closed at ${fmtNum(F.n500_failed, 0)} on ${dshort(C.since)}, below ${fmtNum(F.pivot_low, 0)}`}.`),
+      h("div", { class: "weak" }, h("div", { class: "d" }, "Seller exhaustion is looking for a new bottom; Up continuation returns when it confirms.")));
   }
-  if (!live) {
-    // last finished continuation, from the cycle history (newest first)
-    const H = C.history || [];
-    const j = H.findIndex((e) => e.phase === "up" || e.phase === "down");
-    const last = j >= 0 ? `Last: ${PHASE[H[j].phase]} from ${dshort(H[j].date)}${j > 0 ? ` to ${dshort(H[j - 1].date)} (${H[j - 1].event.toLowerCase()})` : ""}.` : "";
-    return h("div", { class: "tracker wide resting" },
-      h("div", { class: "tracker-head" }, h("h3", null, "Trend continuation"), h("span", { class: "stage-chip s0" }, "Resting")),
-      h("p", { class: "note", style: "margin:4px 0 0" },
-        `${C.phase === "bottom" ? "Wakes up as Up continuation when seller exhaustion confirms a bottom." : "Wakes up as Down continuation when distribution confirms a breakdown."} ${last}`));
-  }
-  const up = C.phase === "up";
-  const chip = up ? (!C.proven ? ["Up not proven yet", "watch"] : C.weak_days ? [`Weakening: ${C.weak_days} of ${C.weak_needed} days`, "watch"] : ["Up continuation", "up"])
-    : C.down.count >= 3 ? ["Down continuation", "down"] : ["Down losing steam", "watch"];
-  return h("div", { class: "tracker wide" },
-    h("div", { class: "tracker-head" }, h("h3", null, `Trend continuation: ${up ? "Up" : "Down"}`), h("span", { class: `stage-chip ${chip[1]}` }, chip[0])),
-    h("p", { class: "note", style: "margin:2px 0 6px" },
-      `${up ? "Bottom" : "Top"} confirmed ${dshort(C.since)} at ${fmtNum(C.n500_since, 0)}; now ${fmtNum(C.n500_now, 0)} (${C.change_pct > 0 ? "+" : ""}${C.change_pct.toFixed(1)}%), ${ago(C.sessions_since)} later. ${C[up ? "up" : "down"].count} of 4 hold.`),
-    list(up ? "up" : "down"),
-    h("p", { class: "note", style: "margin:6px 0 0" }, up
-      ? `Once 3 of 4 have held, the up move ends when 2 or more fail for ${C.weak_needed} days in a row: then Distribution goes live. A close below ${fmtNum(C.pivot_low, 0)} (the low the bottom was made at) means the bottom failed: back to Seller exhaustion.`
-      : `Ends at the next washout: then Seller exhaustion goes live. A close above ${fmtNum(C.pivot_high, 0)} (the high the top was made at) means the top failed: back to Distribution.`));
+  return h("div", { class: `hero tone-${tone}` },
+    h("div", { class: "hero-main" },
+      h("div", { class: "k" }, head),
+      h("div", { class: "big" }, `${sgn(C.change_pct)}%`),
+      h("div", { class: "d" }, since),
+      h("div", { class: "mono" }, `${fmtNum(C.n500_since, 0)} → `, h("b", null, fmtNum(C.n500_now, 0))),
+      h("span", { class: "pill solid" }, `${side.count} of 4 hold${status ? ` · ${status}` : ""}`)),
+    h("div", { class: "ctiles" }, tiles),
+    right);
 }
-function sellerCard(T, lowTable) {
-  const C = T.cycle || {};
-  const rest = { up: `Bottom confirmed ${dshort(C.since)}. Resting while the up move runs; it wakes up at the next washout.`,
-    top: "Resting while Distribution looks for a top. Wakes up at the next washout.",
-    down: "Resting while the down move runs. Wakes up at the next washout." }[C.phase];
-  // after a failed bottom the tracker starts fresh: stages from before the failure are history only
-  const stages = C.failed ? T.bottom.map((s) => (s.last_met && s.last_met < C.since ? { ...s, old: true } : s)) : T.bottom;
-  return trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.",
-    stages, rest ? null : lowTable, rest ? { chip: "Resting", cls: "s0", note: rest } : null);
-}
-function distributionCard(T, R) {
-  const C = T.cycle || {};
-  const rest = { bottom: C.failed ? "Resting: the confirmed bottom failed and Seller exhaustion is looking for a new one." : "Resting while Seller exhaustion looks for a bottom.",
-    up: `Resting while the up trend holds. Wakes up when 2 or more of the 4 up conditions fail for ${C.weak_needed} days in a row${C.weak_days ? ` (${C.weak_days} so far)` : ""}.`,
-    down: `Top confirmed ${dshort(C.since)}. Resting while the down move runs.` }[C.phase];
-  return trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
-    rest ? null : h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high, only after an Extended reading; the count restarts when seller exhaustion confirms). New 52-week highs today: ${R.new_highs ?? "–"}.`),
-    rest ? { chip: "Resting", cls: "s0", note: rest } : null);
-}
+
 function trackersBlock(T, NAME = "Nifty 500") {
-  if (!T) return null;
-  const R = T.readings || {}, P = R.at_prior_low;
+  if (!T || !T.cycle) return null;
+  const C = T.cycle, R = T.readings || {}, P = R.at_prior_low;
   const cmp = (label, now, then, fmt, better) => h("tr", null, h("td", { class: "l" }, label), h("td", null, fmt(now)), h("td", null, fmt(then)),
     h("td", { class: "l" }, isNum(now) && isNum(then) ? (better(now, then) ? h("span", { class: "pos" }, "better") : h("span", { class: "neg" }, "worse")) : "–"));
   const lowTable = P ? h("div", null,
-    h("p", { class: "note", style: "margin:8px 0 4px" }, `Divergence check: today vs the earlier low on ${fmtDate(R.prior_low, { day: "numeric", month: "short" })}. Stage 2 needs a retest of that low with 3 of 4 readings better.`),
+    h("p", { class: "note", style: "margin:8px 0 4px" }, `Divergence check: today vs the earlier low on ${dshort(R.prior_low)}. Stage 2 needs a retest of that low with 3 of 4 readings better.`),
     h("div", { class: "table-scroll" }, h("table", { class: "static mini" },
-      h("thead", null, h("tr", null, h("th", { class: "l" }, ""), h("th", null, "Now"), h("th", null, fmtDate(R.prior_low, { day: "numeric", month: "short" })), h("th", { class: "l" }, ""))),
+      h("thead", null, h("tr", null, h("th", { class: "l" }, ""), h("th", null, "Now"), h("th", null, dshort(R.prior_low)), h("th", { class: "l" }, ""))),
       h("tbody", null,
         h("tr", null, h("td", { class: "l" }, NAME), h("td", null, fmtNum(R.n500, 0)), h("td", null, fmtNum(P.n500, 0)),
           h("td", { class: "l muted" }, R.n500 <= P.n500 * 1.01 ? "retest or lower low" : "above that low")),
@@ -683,12 +729,58 @@ function trackersBlock(T, NAME = "Nifty 500") {
         cmp("% above 50-day", R.p50, P.p50, (v) => (isNum(v) ? `${Math.round(v)}%` : "–"), (a, b) => a > b),
         cmp("New 52-week lows", R.new_lows, P.new_lows, (v) => fmtNum(v), (a, b) => a < b),
         cmp("RSI (equal weight)", R.rsi, P.rsi, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a > b))))) : null;
-  return h("div", null,
-    T.cycle ? cycleStrip(T.cycle) : null,
-    h("div", { class: "trackers" },
-      continuationCard(T.cycle, R, NAME),
-      sellerCard(T, lowTable),
-      distributionCard(T, R)));
+  const distNote = h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal; 7+ near a high counts as distribution). New 52-week highs today: ${R.new_highs ?? "–"}.`);
+
+  const prev = C.history?.[1]?.phase;
+  // after a failed bottom, Seller exhaustion starts fresh: stages before the failure are history only
+  const bottomStages = C.failed ? T.bottom.map((s) => (s.last_met && s.last_met < C.since ? { ...s, old: true } : s)) : T.bottom;
+  const tracker = (side) => {
+    const isBottom = side === "bottom";
+    const stages = isBottom ? bottomStages : T.top;
+    const mode = C.phase === side ? "live" : prev === side ? "done" : "rest";
+    return { stages, mode, isBottom,
+      title: isBottom ? "Seller exhaustion" : "Distribution",
+      help: isBottom ? "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation."
+        : "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.",
+      rest: isBottom ? "Wakes at the next washout." : `Wakes when the up move weakens (2 of 4 fail ${C.weak_needed} days).` };
+  };
+  const compact = (t) => h("div", { class: `tcard tone-${t.isBottom ? "blue" : "amber"} ${t.mode}` },
+    h("div", { class: "tcard-head" }, h("h3", null, t.title), trackerChip(t.stages, t.mode)),
+    t.mode === "rest" ? h("p", { class: "note muted" }, t.rest) : null,
+    stageDots(t.stages, t.mode));
+
+  // hero: the continuation when one is live (or a failed bottom), else the live tracker opened up
+  let hero, others;
+  if (C.failed || C.phase === "up" || C.phase === "down") {
+    hero = continuationHero(C, R, NAME);
+    others = [compact(tracker("bottom")), compact(tracker("top"))];
+  } else {
+    const t = tracker(C.phase);
+    let reached = 0, best = Infinity;
+    t.stages.forEach((s, i) => { if (!s.old && isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
+    hero = h("div", { class: `hero hero-tracker tone-${PH_TONE[C.phase]}` },
+      h("div", { class: "tcard-head" }, h("h3", null, `${t.title} · live`), trackerChip(t.stages, "live")),
+      h("p", { class: "note" }, t.help),
+      stageDots(t.stages, "live", Math.max(0, reached - 1)),
+      t.isBottom ? lowTable : distNote);
+    const H = C.history || [];
+    const j = H.findIndex((e) => e.phase === "up" || e.phase === "down");
+    const lastCont = j >= 0 ? `Last: ${PHASE[H[j].phase]} from ${dshort(H[j].date)}${j > 0 ? ` to ${dshort(H[j - 1].date)} (${H[j - 1].event.toLowerCase()})` : ""}.` : "";
+    others = [compact(tracker(C.phase === "bottom" ? "top" : "bottom")),
+      h("div", { class: "tcard tone-green rest" },
+        h("div", { class: "tcard-head" }, h("h3", null, "Trend continuation"), h("span", { class: "pill tone-rest" }, "Resting")),
+        h("p", { class: "note muted" }, `${C.phase === "bottom" ? "Becomes Up continuation when seller exhaustion confirms a bottom." : "Becomes Down continuation when Distribution confirms a breakdown."} ${lastCont}`))];
+  }
+  return h("div", { class: "cycle-a" },
+    h("div", { class: "cycle-head" },
+      h("span", { class: "eyebrow" }, `Turning-point cycle · ${NAME}`),
+      h("span", { class: "muted" }, "Next washout restarts the cycle")),
+    phaseTrack(C),
+    C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
+      h("div", { class: "hist-chips" }, C.history.map((e) => h("span", { class: `hchip tone-${PH_TONE[e.phase]}` },
+        `${fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })} · ${e.event} → ${PHASE[e.phase]}`)))) : null,
+    hero,
+    h("div", { class: "tcards" }, others));
 }
 
 /* Market breadth at a glance (all NSE / Nifty 500 stocks), shown at the top of the regime panel.
