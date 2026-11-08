@@ -56,6 +56,7 @@ GREEN, AMBER = 5, 3
 LEAVE_GREEN, ENTER_RED, LEAVE_RED, SMOOTH = 4, 2.5, 3.5, 5
 LIFT_POINTS, LIFT_STAY = 4, 3   # see adjust_light
 EXTENDED_CAP = False
+DOWN_CAP = False   # (test) while the cycle is in Down continuation, a Green light shows Amber
 WASHOUT = 20
 THRUST_FROM, THRUST_TO, THRUST_DAYS, THRUST_KEEP = 20, 50, 15, 20
 
@@ -139,6 +140,10 @@ def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
     if EXTENDED_CAP:
         capped = (light == "Green") & tp["t1"].reindex(rg.index).fillna(False).astype(bool)
         light[capped] = "Amber"
+    if DOWN_CAP:
+        dcap = (light == "Green") & (phase == "down")
+        light[dcap] = "Amber"
+        capped = capped | dcap
     rg["light"], rg["light_lifted"], rg["light_capped"] = light, lifted, capped
     return rg
 

@@ -87,6 +87,8 @@ T1_ACTIVE = 30     # stage 2 (distribution) needs stage 1 (extended) in the last
 
 
 UP_WEAK_DAYS = 3   # Up continuation ends after this many days in a row with 2+ of 4 up conditions failing
+RECLAIM_DAYS = 0   # (test, 0 = off) Down continuation also ends, into Up, after this many days in a row with 3+ of 4 up conditions
+BD_CONFIRM = 0     # (test) Breakdown needs: 0 = the day's reading; 1 = two days in a row; 2 = a close below the lowest close since Distribution went live
 PHASES = ["bottom", "up", "top", "down"]
 
 
@@ -98,9 +100,10 @@ def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd
     arr = close.to_numpy()
     b1, b3, t1, t3 = (np.asarray(pd.Series(x).fillna(False), bool) for x in (b1, b3, t1, t3))
     up_n = np.asarray(up_n, float)
-    ph, since, pl, phh, weak, proven = start, 0, np.nan, np.nan, 0, False
+    ph, since, pl, phh, weak, proven, strong = start, 0, np.nan, np.nan, 0, False, 0
     rows = []
     for i in range(n):
+        strong = strong + 1 if up_n[i] >= 3 else 0
         prev, ev = ph, None
         if ph == "bottom":
             if t1[i] and not b3[i]:
@@ -119,7 +122,8 @@ def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd
         elif ph == "top":
             if b1[i] and not t3[i]:
                 ph, ev = "bottom", "Washout without a confirmed top"
-            elif t3[i]:
+            elif t3[i] and (BD_CONFIRM == 0 or (BD_CONFIRM == 1 and i > 0 and t3[i - 1])
+                            or (BD_CONFIRM == 2 and i > since and arr[i] < np.nanmin(arr[since:i]))):
                 ph, ev = "down", "Top confirmed"
                 phh = float(np.nanmax(arr[max(0, i - LOOK_TO):i + 1]))
         elif ph == "down":
@@ -127,6 +131,9 @@ def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd
                 ph, ev = "top", "Top failed"
             elif b1[i]:
                 ph, ev = "bottom", "Washout"
+            elif RECLAIM_DAYS and strong >= RECLAIM_DAYS:
+                ph, ev = "up", "Trend reclaimed without a washout"
+                pl, weak, proven = float(np.nanmin(arr[max(0, i - LOOK_TO):i + 1])), 0, True
         if ph != prev:
             since = i
         rows.append((ph, prev, since, pl if ph == "up" else np.nan, phh if ph == "down" else np.nan,
