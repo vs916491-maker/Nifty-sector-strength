@@ -273,7 +273,10 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     })
     t3_today = _recent(t2_today, 25) & (t3_parts.sum(axis=1) >= 3)
 
-    cyc = _phases(b1_today, b3_today, t1_today, t3_today, up_parts.sum(axis=1), n500)
+    # the readings need ~200 sessions of history (200-day averages, 52-week highs/lows); before the
+    # regime light is valid no signal may move the cycle, so it starts cleanly in Seller exhaustion
+    ok = rg["light"].notna() if "light" in rg else pd.Series(True, index=idx)
+    cyc = _phases(*(x & ok for x in (b1_today, b3_today, t1_today, t3_today)), up_parts.sum(axis=1), n500)
     df = df.join(cyc)
     live_b = (cyc["phase_prev"] == "bottom") | (cyc["phase"] == "bottom")
     live_t = (cyc["phase_prev"] == "top") | (cyc["phase"] == "top")
