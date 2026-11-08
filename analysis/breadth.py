@@ -37,7 +37,9 @@ def build(idx: pd.DataFrame, close: pd.DataFrame, cons: dict[str, pd.DataFrame],
     new_hi = ((tpx >= hi) & hi.notna()).sum(axis=1)
     new_lo = ((tpx <= lo) & lo.notna()).sum(axis=1)
 
-    frame = pd.DataFrame({"nifty500": idx["NIFTY500"], "pct_above_50": pct50,
+    frame = pd.DataFrame({"nifty500": idx["NIFTY500"], "nifty500_sma50": idx["NIFTY500"].rolling(50).mean(),
+                          "nifty50": idx["NIFTY50"], "nifty50_sma50": idx["NIFTY50"].rolling(50).mean(),
+                          "pct_above_50": pct50,
                           "pct_above_200": pct200, "new_highs": new_hi, "new_lows": new_lo})
 
     if AD_PATH.exists():
@@ -66,6 +68,8 @@ def build(idx: pd.DataFrame, close: pd.DataFrame, cons: dict[str, pd.DataFrame],
         **{c: (float(last[c]) if pd.notna(last[c]) else None) for c in frame.columns},
         "pct_above_50_20d_ago": float(prev20["pct_above_50"]),
         "pct_above_200_20d_ago": float(prev20["pct_above_200"]),
+        "ad_ratio_10_20d_ago": float(prev20["ad_ratio_10"]) if "ad_ratio_10" in prev20 and pd.notna(prev20["ad_ratio_10"]) else None,
+        "new_highs_20d_ago": float(prev20["new_highs"]), "new_lows_20d_ago": float(prev20["new_lows"]),
     }
     out["universe"] = {"pct_above": "Nifty 500", "highs_lows": "Nifty Total Market",
                        "advance_decline": "All NSE EQ/BE stocks"}

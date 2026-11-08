@@ -251,7 +251,8 @@ function timeChart(cfg) {
           d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true;
         });
         svg.append(s("path", { d, fill: "none", stroke: ser.color, "stroke-width": ser.width || 2,
-          "stroke-linejoin": "round", "stroke-linecap": "round", opacity: ser.opacity || 1 }));
+          "stroke-linejoin": "round", "stroke-linecap": "round", opacity: ser.opacity || 1,
+          ...(ser.dash ? { "stroke-dasharray": ser.dash } : {}) }));
       }
     }
     const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" });
@@ -690,7 +691,32 @@ function trackersBlock(T, NAME = "Nifty 500") {
       distributionCard(T, R)));
 }
 
-function regimePanel(rgAll) {
+/* Market breadth at a glance (all NSE / Nifty 500 stocks), shown at the top of the regime panel.
+   Each value is coloured by whether it supports buying, with a month-ago comparison. */
+function breadthTiles(L) {
+  if (!L) return null;
+  const hasAD = isNum(L.advances);
+  const arrow = (now, then, upGood = true) => {
+    if (!isNum(now) || !isNum(then) || Math.abs(now - then) < 1e-9) return "";
+    const up = now > then;
+    return h("span", { class: up === upGood ? "pos" : "neg" }, up ? "▲ " : "▼ ");
+  };
+  const tile = (k, v, cls, d) => h("div", { class: "stat" }, h("div", { class: "k" }, k), h("div", { class: `v ${cls || ""}` }, v), d ? h("div", { class: "d" }, d) : null);
+  const p50 = L.pct_above_50, p200 = L.pct_above_200;
+  return h("div", { class: "stats regime-tiles" },
+    tile("Advances / declines", hasAD ? `${fmtNum(L.advances)} / ${fmtNum(L.declines)}` : "–", hasAD ? (L.advances >= L.declines ? "pos" : "neg") : "",
+      "All NSE stocks, latest session"),
+    tile("A/D ratio, 10 days", hasAD ? fmtNum(L.ad_ratio_10, 2) : "–", hasAD ? (L.ad_ratio_10 >= 1 ? "pos" : "neg") : "",
+      [arrow(L.ad_ratio_10, L.ad_ratio_10_20d_ago), isNum(L.ad_ratio_10_20d_ago) ? `${fmtNum(L.ad_ratio_10_20d_ago, 2)} a month ago` : "Below 1 = more decliners"]),
+    tile("Above 50-day average", `${Math.round(p50)}%`, p50 >= 50 ? "pos" : p50 < 30 ? "neg" : "",
+      [arrow(p50, L.pct_above_50_20d_ago), `${Math.round(L.pct_above_50_20d_ago)}% a month ago`]),
+    tile("Above 200-day average", `${Math.round(p200)}%`, p200 >= 50 ? "pos" : p200 < 30 ? "neg" : "",
+      [arrow(p200, L.pct_above_200_20d_ago), `${Math.round(L.pct_above_200_20d_ago)}% a month ago`]),
+    tile("52-week highs / lows", `${fmtNum(L.new_highs)} / ${fmtNum(L.new_lows)}`, L.new_highs > L.new_lows ? "pos" : L.new_highs < L.new_lows ? "neg" : "",
+      isNum(L.new_highs_20d_ago) ? `${fmtNum(L.new_highs_20d_ago)} / ${fmtNum(L.new_lows_20d_ago)} a month ago` : "Total Market stocks"));
+}
+
+function regimePanel(rgAll, L) {
   const rg = (state.bench === "NIFTY50" && rgAll?.benchmarks?.NIFTY50) || rgAll;
   if (!rg || !rg.light) return null;
   const NAME = rg.name || "Nifty 500";
@@ -705,19 +731,21 @@ function regimePanel(rgAll) {
   return h("div", { class: "panel regime" },
     h("div", { class: "regime-head" },
       h("div", null, h("h2", null, `Market regime: ${NAME}`),
-        h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`)),
+        h("p", { class: "sub" }, `For positional buying. ${rg.points} of ${rg.max_points} checks pass · ${rg.light} since ${fmtDate(rg.light_since, { day: "numeric", month: "short" })}`,
+          rg.lifted ? h("span", { class: "pos" }, " · lifted from Red (bottom confirmed)") : rg.capped && rg.light_checks === "Green" ? h("span", { class: "neg" }, " · held back from Green (breakdown)") : null)),
       lightChip(rg.light, true)),
     h("p", { class: "guidance" }, rg.guidance),
-    rg.note ? h("p", { class: rg.lifted ? "note good" : "note" }, h("b", null, `${rg.note_title || "Lifted by seller exhaustion."} `), rg.note) : null,
-    h("div", { class: "chart light-strip" },
-      h("p", null, `The light over the last ${rg.history.dates.length} sessions (5-session average of the checks with a buffer, so one or two mixed days don't flip it)`),
-      regimeStrip(rg.history),
-      h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l)))),
+    breadthTiles(L),
     trackersBlock(rg.turning, NAME),
     fold("checks", `Why the light is ${rg.light}: ${rg.points} of ${rg.max_points} checks pass`,
+      rg.note ? h("p", { class: rg.lifted ? "note good" : "note" }, h("b", null, `${rg.note_title || "Lifted by seller exhaustion."} `), rg.note) : null,
       h("ul", { class: "checks" }, rg.checks.map((c) => h("li", { class: c.ok ? "ok" : "no" },
         h("span", { class: "mark", "aria-hidden": "true" }, c.ok ? "✓" : "✕"), h("span", { class: "sr" }, c.ok ? "Yes: " : "No: "), c.label))),
-      notes),
+      notes,
+      h("div", { class: "chart light-strip" },
+        h("p", null, `The light over the last ${rg.history.dates.length} sessions (5-session average of the checks with a buffer, so one or two mixed days don't flip it)`),
+        regimeStrip(rg.history),
+        h("div", { class: "legend" }, ["Green", "Amber", "Red"].map((l) => h("span", null, h("i", { style: `background:var(${LVAR[l]})` }), l))))),
     I && isNum(I.value) ? fold("internals", ["Market internals gauge: ", h("b", { class: sign(I.value) }, `${I.value > 0 ? "+" : ""}${Math.round(I.value)}`),
       isNum(I.value_10d_ago) ? ` (${I.value_10d_ago > 0 ? "+" : ""}${Math.round(I.value_10d_ago)} ten sessions ago)` : ""], internalsBlock(rg)) : null,
     h("p", { class: "note" }, NAME === "Nifty 500" ? "" : "Nifty 50 version: breadth, highs/lows and advances/declines come from its 50 stocks, so readings move faster than for Nifty 500. Stock picks and their sizing still use the Nifty 500 light. ",
@@ -801,18 +829,22 @@ async function viewOverview(app) {
       h("h2", null, "Market breadth"),
       h("p", null, `Last ${D.length} sessions, to ${fmtDate(L.date)}`)),
     h("div", { class: "panel" },
-      h("div", { class: "stats" },
-        stat("Advances / declines", hasAD ? `${fmtNum(L.advances)} / ${fmtNum(L.declines)}` : "–", "All NSE stocks, latest session"),
-        stat("A/D ratio, 10 days", hasAD ? fmtNum(L.ad_ratio_10, 2) : "–", "Below 1 means more decliners"),
-        stat("Above 50-day average", `${Math.round(L.pct_above_50)}%`, `${Math.round(L.pct_above_50_20d_ago)}% a month ago`),
-        stat("Above 200-day average", `${Math.round(L.pct_above_200)}%`, `${Math.round(L.pct_above_200_20d_ago)}% a month ago`),
-        stat("52-week highs / lows", `${fmtNum(L.new_highs)} / ${fmtNum(L.new_lows)}`, "Total Market stocks")),
       h("div", { class: "charts" },
-        chartCard("Nifty 500", "Daily close", timeChart({ dates: D, series: [{ name: "Nifty 500", values: S2.nifty500, color: css("--ink-2") }], fmt: (v) => fmtNum(v, 2) })),
+        (() => {
+          const k = state.bench === "NIFTY50" && S2.nifty50 ? "nifty50" : "nifty500";
+          const nm = k === "nifty50" ? "Nifty 50" : "Nifty 500";
+          const ma = S2[`${k}_sma50`];
+          return chartCard(nm, `Daily close${ma ? ", with its 50-day average (red dotted)" : ""}`,
+            timeChart({ dates: D, series: [{ name: nm, values: S2[k], color: css("--ink-2") },
+              ...(ma ? [{ name: "50-day average", values: ma, color: css("--down"), width: 1.6, dash: "2 4" }] : [])], fmt: (v) => fmtNum(v, 2) }),
+            ma ? lineLegend([[nm, css("--ink-2")], ["50-day average", css("--down")]]) : null);
+        })(),
         hasAD ? chartCard("Advance–decline line", "Running total of advances minus declines, all NSE stocks, with its 50-day average. Above the average = breadth improving, below = deteriorating. A falling line while the index holds up is a warning sign.",
           timeChart({ dates: D, series: [{ name: "A/D line", values: S2.ad_line, color: css("--s1") },
             ...(S2.ad_mean50 ? [{ name: "50-day average", values: S2.ad_mean50, color: css("--down"), width: 1.5 }] : [])], fmt: (v) => fmtNum(v) }),
-          S2.ad_mean50 ? lineLegend([["A/D line", css("--s1")], ["50-day average", css("--down")]]) : null) : null,
+          S2.ad_mean50 ? lineLegend([["A/D line", css("--s1")], ["50-day average", css("--down")]]) : null) : null),
+      fold("breadth-more", "More breadth charts: stocks above their averages, net advances, 52-week highs and lows",
+        h("div", { class: "charts" },
         chartCard("Stocks above their averages", "Share of Nifty 500 stocks above their 50-day and 200-day averages",
           timeChart({ dates: D, domain: [0, 100], tickFmt: (v) => `${v}%`, fmt: (v) => (isNum(v) ? `${v.toFixed(0)}%` : "–"),
             series: [{ name: "Above 50-day", values: S2.pct_above_50, color: css("--s1") }, { name: "Above 200-day", values: S2.pct_above_200, color: css("--s2") }] }),
@@ -822,7 +854,7 @@ async function viewOverview(app) {
             tipRows: (i) => [["Advances", fmtNum(S2.advances[i])], ["Declines", fmtNum(S2.declines[i])], ["Net", fmtNum(S2.net[i])]] })) : null,
         chartCard("52-week highs and lows", "Total Market stocks closing at a 52-week high or low",
           timeChart({ dates: D, series: [{ name: "New highs", values: S2.new_highs, color: css("--s3") }, { name: "New lows", values: S2.new_lows, color: css("--s2") }] }),
-          lineLegend([["New highs", css("--s3")], ["New lows", css("--s2")]])))));
+          lineLegend([["New highs", css("--s3")], ["New lows", css("--s2")]]))))));
 
   // focus sectors with picks
   const focus = (st.focus[state.bench] || {})[state.group] || [];
@@ -837,7 +869,7 @@ async function viewOverview(app) {
         h("span", null, Math.round(st.stocks[sym].score)), st.stocks[sym].fno ? h("span", { class: "flag fno" }, "F&O") : null)))
         : h("p", { class: "empty" }, "No stock passes the filters right now.")))) : h("p", { class: "empty" }, "No focus sectors today."));
 
-  app.replaceChildren(filtersRow(), lede, regimePanel(rg), main, breadth, rotationSection(ld, sec), focusSec);
+  app.replaceChildren(filtersRow(), lede, regimePanel(rg, L), main, breadth, rotationSection(ld, sec), focusSec);
   if (state.sel) highlight(null);
 }
 
