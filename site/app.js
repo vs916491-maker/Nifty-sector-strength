@@ -1595,6 +1595,102 @@ function leadershipSection(L, names) {
 /* Prediction Records (#/predictions, 8 Nov 2026): the turning-point cycle's full history from the first
    valid day: score, the cycle chart over the whole period, real tops and bottoms vs the signals, every
    cycle signal with what followed, and how long each phase lasted. Data: records.json (analysis/records.py). */
+/* Prediction Records: price + 50 EMA with the choppy / congestion zones (live chop rules) and every trend-change
+   signal marked good (✓) or wrong (✕), to see whether the false signals came inside a choppy zone */
+const SIG_SHORT = { "Bottom confirmed": "Bottom", "Top confirmed": "Breakdown", "Up trend weakened": "Up weakened" };
+function chopChart(K, NAME) {
+  if (!K?.dates?.length) return null;
+  const plot = h("div", { class: "plot cycle-plot" });
+  const tip = h("div", { class: "tip", role: "status" });
+  plot.append(tip);
+  const at = (date) => K.dates.indexOf(date);
+  function draw(W) {
+    plot.querySelector("svg")?.remove();
+    const narrow = W < 560, H = narrow ? 260 : 380;
+    const m = { l: 48, r: narrow ? 40 : 64, t: 16, b: 24 };
+    const n = K.dates.length, iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const vals = [...K.close, ...K.ema50].filter(isNum);
+    let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.07; lo -= pad; hi += pad;
+    const x = (i) => m.l + (i / (n - 1)) * iw, y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * ih;
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+      "aria-label": `${NAME} with its 50-day EMA, choppy and congestion zones, and each trend-change signal marked good or wrong` });
+    for (const t of niceTicks(lo, hi, 4)) {
+      svg.append(s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: css("--grid"), "stroke-width": 1 }));
+      svg.append(s("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end", class: "axis-text" }, fmtCompact(t)));
+    }
+    for (const i of monthTicks(K.dates, Math.max(3, Math.floor(iw / 70))))
+      svg.append(s("text", { x: x(i), y: H - 6, "text-anchor": "middle", class: "axis-text" }, fmtDate(K.dates[i], { month: "short" })));
+    // zones: a box from the first to the last day, lowest to highest close
+    const half = iw / (n - 1) / 2, zp = (hi - lo) * 0.012;
+    for (const z of K.zones) {
+      const a = at(z.start), b = at(z.end); if (a < 0 || b < 0) continue;
+      const chop = z.kind === "chop";
+      svg.append(s("rect", { x: x(a) - half, y: y(z.hi + zp), width: Math.max(3, x(b) - x(a) + 2 * half), height: Math.max(3, y(z.lo - zp) - y(z.hi + zp)), rx: 3,
+        class: chop ? "zone-chop" : "zone-cong" }));
+    }
+    const path = (arr) => { let d = "", pen = false; arr.forEach((v, i) => { if (!isNum(v)) { pen = false; return; } d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; }); return d; };
+    svg.append(s("path", { d: path(K.ema50), fill: "none", stroke: css("--s1"), "stroke-width": 1.8 }));
+    svg.append(s("path", { d: path(K.close), fill: "none", stroke: css("--ink"), "stroke-width": 1.6, "stroke-linejoin": "round" }));
+    // signals
+    const boxes = [];
+    const label = (txt, cx, ys, fill) => {
+      const w = txt.length * 6.3 + 4, anchor = cx + w / 2 > W - 2 ? "end" : cx - w / 2 < m.l ? "start" : "middle";
+      const x1 = anchor === "end" ? cx - w : anchor === "start" ? cx : cx - w / 2;
+      for (const ly of ys) {
+        const bx = { x1, x2: x1 + w, y1: ly - 11, y2: ly + 3 };
+        if (bx.y1 < 0 || bx.y2 > H - 18 || boxes.some((o) => bx.x1 < o.x2 && bx.x2 > o.x1 && bx.y1 < o.y2 && bx.y2 > o.y1)) continue;
+        boxes.push(bx);
+        svg.append(s("text", { x: anchor === "end" ? x1 + w - 2 : anchor === "start" ? x1 + 2 : cx, y: ly, "text-anchor": anchor, class: "cc-label", fill }, txt));
+        return;
+      }
+    };
+    for (const g of K.signals) {
+      const i = at(g.date); if (i < 0) continue;
+      const cx = x(i), cy = y(g.price), recent = g.verdict === "Too recent";
+      const col = recent ? css("--muted") : g.bad ? css("--neg-text") : css("--pos-text");
+      svg.append(s("circle", { cx, cy, r: 7, fill: css("--surface"), stroke: col, "stroke-width": 2 }));
+      if (g.bad) svg.append(s("path", { d: `M${cx - 3.5},${cy - 3.5} l7,7 M${cx + 3.5},${cy - 3.5} l-7,7`, stroke: col, "stroke-width": 2.2, "stroke-linecap": "round" }));
+      else if (!recent) svg.append(s("path", { d: `M${cx - 3.5},${cy + 0.5} l2.5,2.5 l4.5,-5`, fill: "none", stroke: col, "stroke-width": 2.2, "stroke-linecap": "round" }));
+      boxes.push({ x1: cx - 8, x2: cx + 8, y1: cy - 8, y2: cy + 8 });
+    }
+    if (!narrow) for (const g of K.signals) {
+      if (!g.bad) continue;
+      const i = at(g.date); if (i < 0) continue;
+      const cy = y(g.price);
+      label(`${g.verdict} · ${fmtDate(g.date, { day: "numeric", month: "short" })}`, x(i), [cy - 13, cy + 22, cy - 27, cy + 36], css("--neg-text"));
+    }
+    // hover read-out
+    const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" });
+    const hit = s("rect", { x: m.l, y: 0, width: iw, height: H, fill: "transparent", tabindex: 0 });
+    svg.append(cross, hit);
+    const show = (i) => {
+      i = Math.max(0, Math.min(n - 1, i));
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+      const d = K.dates[i], z = K.zones.find((q) => q.start <= d && d <= q.end);
+      tip.replaceChildren(h("div", { class: "t-date" }, fmtDate(d)),
+        h("div", { class: "t-row" }, h("span", null, NAME), h("b", null, fmtNum(K.close[i], 0))),
+        h("div", { class: "t-row" }, h("span", null, "50-day EMA"), h("b", null, fmtNum(K.ema50[i], 0))),
+        z ? h("div", { class: "t-row" }, h("span", null, "Zone"), h("b", null, z.kind === "chop" ? "Choppy" : "Congestion")) : null,
+        ...K.signals.filter((g) => g.date === d).map((g) => h("div", { class: "t-row" }, h("span", null, SIG_SHORT[g.event] || g.event), h("b", null, g.verdict))));
+      tip.style.display = "block";
+      tip.style.left = `${Math.min(W - 170, Math.max(0, x(i) + 12))}px`; tip.style.top = `${m.t}px`;
+    };
+    const idxAt = (ev) => { const r = svg.getBoundingClientRect(); return Math.round(((ev.clientX - r.left) * (W / r.width) - m.l) / iw * (n - 1)); };
+    hit.addEventListener("pointermove", (ev) => show(idxAt(ev)));
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); tip.style.display = "none"; });
+    plot.prepend(svg);
+  }
+  onResize(plot, draw);
+  const dot = (c, mark) => h("i", { class: "sig-dot", style: `border-color:var(${c});color:var(${c})` }, mark);
+  return h("div", { class: "cycle-chart" },
+    h("div", { class: "cc-head" }, h("b", null, `${NAME}: choppy / sideways zones`), h("span", { class: "muted" }, `${fmtDate(K.dates[0], { day: "numeric", month: "short", year: "numeric" })} to ${fmtDate(K.dates[K.dates.length - 1], { day: "numeric", month: "short", year: "numeric" })}`)),
+    plot,
+    h("div", { class: "legend cc-legend" },
+      h("span", null, h("i", { class: "zone-key chop" }), "Choppy zone"), h("span", null, h("i", { class: "zone-key cong" }), "Congestion (±1% of the EMA)"),
+      h("span", null, h("i", { class: "line", style: "background:var(--ink)" }), NAME), h("span", null, h("i", { class: "line", style: "background:var(--s1)" }), "50-day EMA"),
+      h("span", null, dot("--pos-text", "✓"), "Trend change that worked"), h("span", null, dot("--neg-text", "✕"), "False trend change"), h("span", null, dot("--muted", ""), "Too recent")));
+}
+
 async function viewPredictions(app) {
   const R = await load("records");
   const X = R?.benchmarks?.[state.bench];
@@ -1616,6 +1712,26 @@ async function viewPredictions(app) {
 
   const K = { ...X.chart, height: 360 };
   const chart = cycleChart(K, NAME);
+
+  const CH = X.chop;
+  const chopPanel = CH ? (() => {
+    const Q = CH.summary, bad = Q.bad_in + Q.bad_out, good = Q.good_in + Q.good_out;
+    const where = (g) => g.zone === "chop" ? h("span", { class: "res warn" }, "Inside choppy zone") : g.zone === "congestion" ? h("span", { class: "res mute" }, "Congestion") : h("span", { class: "muted" }, "No");
+    return h("div", { class: "panel" },
+      h("h2", null, "Choppy / sideways market"),
+      h("p", { class: "sub" }, `Price and its 50-day EMA. Boxes are the zones the Choppy market warning flagged (live rules: price within ±3% of a flat or zig-zagging 50 EMA, not trending or breaking out) and the congestion zones (within ±1% for 10 days). Every trend-change signal is marked: ✓ it worked, ✕ it was false. Choppy days ${CH.summary.chop_days} of ${CH.summary.days}.`),
+      h("div", { class: "stats" },
+        tile(`${Q.bad_in} of ${bad}`, "false trend changes came inside a choppy zone"),
+        tile(`${Q.good_in} of ${good}`, "trend changes that worked came inside a choppy zone"),
+        tile(`${Math.round(100 * Q.chop_days / Q.days)}%`, "of days were flagged choppy")),
+      chopChart(CH, NAME),
+      fold("pred-chop", `Each trend change and the market at the time (${CH.signals.length})`,
+        h("div", { class: "table-scroll" }, h("table", { class: "static" },
+          h("thead", null, h("tr", null, ["Date", "Signal", "Result", "Choppy warning check that day", "In a choppy zone"].map((t) => h("th", { class: "l" }, t)))),
+          h("tbody", null, [...CH.signals].reverse().map((g) => h("tr", null,
+            h("td", { class: "l" }, dlong(g.date)), h("td", { class: "l" }, g.event), h("td", { class: "l" }, res(g.verdict)),
+            h("td", { class: "l" }, g.state), h("td", { class: "l" }, where(g)))))))));
+  })() : null;
 
   const swingRows = X.swings.map((s) => h("tr", null,
     h("td", { class: "l" }, h("span", { class: `res ${s.kind === "Bottom" ? "good" : "bad"}` }, s.kind)),
@@ -1671,6 +1787,7 @@ async function viewPredictions(app) {
     h("p", { class: "lede" }, `How the turning-point cycle has called tops and bottoms on ${NAME}, ${dlong(S.from)} to ${dlong(S.to)} (${S.sessions} sessions). Signals start once the readings have about 200 sessions of history. Rebuilt every evening with the live rules, so a rule change rewrites this history too.`),
     score,
     h("div", { class: "panel" }, chart),
+    chopPanel,
     swings, signals, phases,
     h("p", { class: "note" }, "Personal analysis, not investment advice. Breadth uses today's index member lists, so older readings lean slightly towards stocks that later joined the index."));
 }

@@ -22,9 +22,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .turning import chop_series
+
 SWING_PCT = 6.0       # a real top/bottom = a turn of this % or more on closing prices
 MATCH_SESSIONS = 45   # a signal within this many sessions after the turn counts as catching it
 WHIPSAW_SESSIONS = 15
+CHOP_MERGE_GAP = 5    # choppy spells this close together are drawn as one zone
+CHOP_MIN_SESSIONS = 3 # shorter spells are not drawn
+BAD_VERDICTS = ("False bottom", "Whipsaw", "Wrong", "Early")
 BOTTOM_EVENTS = ("Bottom confirmed",)
 PHASE_NAMES = {"bottom": "Seller exhaustion", "up": "Up continuation", "top": "Distribution", "down": "Down continuation"}
 
@@ -148,7 +153,49 @@ def build(rg: pd.DataFrame, tp: pd.DataFrame) -> dict:
              "tops": len(tops), "tops_caught": len(ct), "top_lag": mean([s["lag"] for s in ct]), "top_gap": mean([s["gap"] for s in ct]),
              "bottom_signals": len(bs), "false_bottoms": sum(s.get("verdict") == "False bottom" for s in bs),
              "breakdowns": len(bd), "bad_breakdowns": sum(s.get("verdict") in ("Whipsaw", "Wrong") for s in bd)}
-    return {"score": score, "chart": chart, "swings": swings, "signals": signals[::-1],
+    return {"score": score, "chart": chart, "chop": _chop(n, v, signals, d, r1), "swings": swings, "signals": signals[::-1],
             "spells": spells[::-1], "phase_avg": phase_avg,
             "last_extreme": {"kind": last[0], "date": d(last[1] + off), "price": r1(arr[last[1] + off])},
             "rules": {"swing_pct": SWING_PCT, "match_sessions": MATCH_SESSIONS, "whipsaw_sessions": WHIPSAW_SESSIONS}}
+
+
+def _chop(n: pd.Series, v: int, signals: list, d, r1) -> dict:
+    """Choppy / congestion zones (live chop rules, turning.chop_series) on price + 50 EMA, and whether each
+    trend-change signal came inside a choppy zone."""
+    cs = chop_series(n)
+    st = cs["state"].to_numpy()
+    arr = n.to_numpy()
+    zones = []
+    for kind in ("chop", "congestion"):
+        idx = [i for i in range(v, len(st)) if st[i] == kind]
+        spans = []
+        for i in idx:
+            gap = CHOP_MERGE_GAP if kind == "chop" else 1
+            if spans and i - spans[-1][1] <= gap:
+                spans[-1][1] = i
+            else:
+                spans.append([i, i])
+        for a, b in spans:
+            if kind == "chop" and b - a + 1 < CHOP_MIN_SESSIONS:
+                continue
+            seg = arr[a:b + 1]
+            zones.append({"kind": kind, "start": d(a), "end": d(b), "sessions": int(b - a + 1),
+                          "lo": r1(seg.min()), "hi": r1(seg.max())})
+    zones.sort(key=lambda z: z["start"])
+    names = {"chop": "Choppy", "congestion": "Congestion", "trend": "EMA trending", "push": "Quick push",
+             "break": "Broke out of congestion", None: "Not choppy"}
+    sig = []
+    for s in signals[::-1]:
+        if not s.get("verdict"):
+            continue
+        z = next((z for z in zones if z["start"] <= s["date"] <= z["end"]), None)
+        i = n.index.get_loc(pd.Timestamp(s["date"]))
+        sig.append({"date": s["date"], "event": s["event"], "price": s["price"], "verdict": s["verdict"],
+                    "bad": s["verdict"] in BAD_VERDICTS, "zone": z["kind"] if z else None,
+                    "state": names.get(st[i], "Not choppy")})
+    done = [s for s in sig if s["verdict"] != "Too recent"]
+    cnt = lambda bad, inz: sum(1 for s in done if s["bad"] == bad and (s["zone"] == "chop") == inz)
+    return {"dates": [d(i) for i in range(v, len(arr))], "close": [r1(x) for x in arr[v:]],
+            "ema50": [r1(x) for x in cs["ema"].iloc[v:]], "zones": zones, "signals": sig,
+            "summary": {"bad_in": cnt(True, True), "bad_out": cnt(True, False), "good_in": cnt(False, True), "good_out": cnt(False, False),
+                        "chop_days": int(sum(1 for i in range(v, len(st)) if st[i] == "chop")), "days": int(len(st) - v)}}
