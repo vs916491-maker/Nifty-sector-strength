@@ -932,7 +932,7 @@ async function viewOverview(app) {
   const main = h("div", { class: "grid-main" },
     h("div", { class: "panel" },
       h("h2", null, "Relative rotation"),
-      h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to see its full path.`),
+      h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to see its path over the last 4 weeks.`),
       h("div", { class: "filters rotation-filters" },
         groupSeg()),
       rrg,
