@@ -123,6 +123,7 @@ def main() -> int:
     from . import config
     now = dt.datetime.now(IST)
     today = now.date()
+    hhmm = now.strftime("%H:%M")
     special = config.SPECIAL_SESSIONS.get(today.isoformat())
     sess = special or config.SESSION
     at = lambda hm: now.replace(hour=int(hm[:2]), minute=int(hm[3:]), second=0, microsecond=0)
