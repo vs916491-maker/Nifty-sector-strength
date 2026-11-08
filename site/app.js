@@ -11,7 +11,7 @@ const state = {
   group: "Sectoral",
   fnoOnly: false,
   sel: null,                 // highlighted sector on the RRG
-  tail: 4,                   // RRG tail length in weeks
+  tail: 4,                   // RRG path length (weeks) shown for a tapped sector
   pickSort: { key: "score", dir: -1 },
   memberSort: { key: "score", dir: -1 },
   aOnly: true,               // setups: A-grade only
@@ -934,8 +934,7 @@ async function viewOverview(app) {
       h("h2", null, "Relative rotation"),
       h("p", { class: "sub" }, `Weekly, vs ${B.name}. Each dot is a sector now; its short line is last week's move. Sectors usually rotate clockwise: Improving, Leading, Weakening, Lagging. Tap a dot to see its full path.`),
       h("div", { class: "filters rotation-filters" },
-        groupSeg(),
-        seg("Path of tapped sector", [[4, "4 weeks"], [8, "8 weeks"]], state.tail, (v) => { state.tail = v; route(); })),
+        groupSeg()),
       rrg,
       h("div", { class: "legend" }, QUAD.map((q) => h("span", null, h("i", { style: `background:var(${QVAR[q]})` }), q)))),
     h("div", { class: "panel" },
