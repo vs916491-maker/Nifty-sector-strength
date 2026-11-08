@@ -1,6 +1,7 @@
 name: One-off index history download (test only)
 
-# Downloads NSE index closes for a date range into an artifact. Does not commit or touch data/.
+# Downloads NSE index closes for a date range and pushes them to the branch test/index-history.
+# Does not touch main or data/.
 on:
   workflow_dispatch:
     inputs:
@@ -8,7 +9,7 @@ on:
       end: { description: "Last day (YYYY-MM-DD)", required: true, default: "2023-10-02" }
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   fetch:
@@ -35,7 +36,12 @@ jobs:
           s = dt.date.fromisoformat(os.environ["START"]); e = dt.date.fromisoformat(os.environ["END"])
           print(collect_daily(NSEClient(), Path("out"), config.INDEX_CLOSE_URL, parse_index_file, ["date", "index"], s, e))
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: index-history
-          path: out/
+      - name: Push to test branch
+        run: |
+          mkdir -p /tmp/o && cp -r out /tmp/o/
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git checkout --orphan test/index-history
+          git rm -rq --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -r /tmp/o/out ./index-history
+          git add index-history && git commit -qm "Index history test download"
+          git push -f origin test/index-history
