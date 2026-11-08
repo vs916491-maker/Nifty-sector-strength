@@ -524,7 +524,8 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .hero-main .big { font-size: 40px; font-weight: 700; line-height: 1.05; color: var(--tone-text); letter-spacing: -0.01em; }
 .hero-main .d { font-size: 12.5px; color: var(--ink-2); }
 .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; font-size: 14px; }
-.hero-main .pill { margin-top: auto; align-self: flex-start; }
+.hero-main .pill { align-self: flex-start; }
+.hero-main .hero-tags { margin-top: auto; }
 .pill { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
 .pill.solid { background: var(--tone); color: #fff; }
 .pill.tone-done { background: var(--tone-wash, var(--surface-2)); color: var(--tone-text, var(--ink-2)); border: 1px solid var(--tone-bg, var(--hair)); }
@@ -604,3 +605,9 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 /* Prediction Records (8 Nov 2026) */
 .res { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px; border: 1px solid currentColor; white-space: nowrap; }
 .res.good { color: var(--pos-text); } .res.bad { color: var(--neg-text); } .res.warn { color: var(--amber-text); } .res.mute { color: var(--muted); }
+
+/* Red warning tag while an up move is not proven yet (stage box, phase track, chart, hero) */
+.warn-tag { display: inline-block; justify-self: start; margin-top: 4px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; line-height: 1.35;
+  background: #fff; color: #c62828; border: 1px solid #e57373; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.hero-tags .warn-tag { margin-top: 0; }

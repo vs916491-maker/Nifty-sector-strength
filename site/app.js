@@ -605,6 +605,15 @@ const PH_TONE = { bottom: "blue", up: "green", top: "amber", down: "red" };
 const dshort = (x) => fmtDate(x, { day: "numeric", month: "short" });
 const sessionsTxt = (n) => `${n} session${n === 1 ? "" : "s"}`;
 
+/* Red warning while an up move is not trusted yet: shown in the stage box, phase track, chart and hero */
+function upWarning(C) {
+  if (!C || C.failed || C.phase !== "up") return null;
+  if (!C.proven) return "Trend not proven yet · needs 3 of 4";
+  if (C.weak_days) return `Up move weakening · ${C.weak_days} of ${C.weak_needed} days`;
+  return null;
+}
+const warnTag = (C, short = false) => { const w = upWarning(C); return w ? h("span", { class: "warn-tag" }, "⚠ ", short ? w.split(" · ")[0] : w) : null; };
+
 function phaseTrack(C) {
   const prev = C.history?.[1]?.phase;
   const wait = { bottom: "Wakes at the next washout", up: "After a confirmed bottom",
@@ -617,7 +626,8 @@ function phaseTrack(C) {
       h("div", { class: "ph-name" },
         h("span", { class: "ph-n", "aria-hidden": "true" }, state === "done" ? "✓" : String(i + 1)),
         state === "live" ? `${PHASE[k]} · LIVE` : `${i + 1} · ${PHASE[k]}`),
-      h("div", { class: "ph-sub" }, sub));
+      h("div", { class: "ph-sub" }, sub),
+      state === "live" ? warnTag(C) : null);
   }));
 }
 
@@ -711,7 +721,9 @@ function continuationHero(C, R, NAME) {
       h("div", { class: "big" }, `${sgn(C.change_pct)}%`),
       h("div", { class: "d" }, since),
       h("div", { class: "mono" }, `${fmtNum(C.n500_since, 0)} → `, h("b", null, fmtNum(C.n500_now, 0))),
-      h("span", { class: "pill solid" }, `${side.count} of 4 hold${status ? ` · ${status}` : ""}`)),
+      h("div", { class: "hero-tags" },
+        h("span", { class: "pill solid" }, `${side.count} of 4 hold${status && dir !== "up" ? ` · ${status}` : ""}`),
+        dir === "up" ? warnTag(C, true) : null)),
     h("div", { class: "ctiles" }, tiles),
     right);
 }
@@ -801,6 +813,7 @@ function cycleChart(K, NAME) {
         const mx = (x(ia) + x(n - 1)) / 2, my = (y(A.price) + y(K.close[n - 1])) / 2;
         const pt = `${A.change_pct > 0 ? "+" : ""}${A.change_pct.toFixed(1)}% in ${A.sessions} session${A.sessions === 1 ? "" : "s"}`;
         label(pt, mx - pt.length * 3.2 - 10, [my, my - 16, my + 16], txt, "cc-label strong", true);
+        if (K.warn) label(`⚠ ${K.warn}`, mx - K.warn.length * 3.2 - 14, [my + 18, my + 34, my - 34, my + 50], css("--neg-text"), "cc-label strong", true);
       }
     }
     // real tops and bottoms (Prediction Records)
@@ -930,7 +943,7 @@ function trackersBlock(T, NAME = "Nifty 500") {
     C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
       h("div", { class: "hist-chips" }, C.history.map((e) => h("span", { class: `hchip tone-${PH_TONE[e.phase]}` },
         `${fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })} · ${e.event} → ${PHASE[e.phase]}`)))) : null,
-    cycleChart(C.chart, NAME),
+    cycleChart({ ...C.chart, warn: upWarning(C) }, NAME),
     hero,
     h("div", { class: "tcards" }, others));
 }
@@ -944,8 +957,7 @@ function stageBox(T) {
   if (C.failed) { title = "Exhaustion failed"; sub = `Downtrend continues · since ${dshort(C.since)}`; }
   else if (C.phase === "up" || C.phase === "down") {
     const side = C[C.phase];
-    const status = C.phase === "up" ? (!C.proven ? " · not proven yet" : C.weak_days ? ` · weakening ${C.weak_days}/${C.weak_needed}` : "")
-      : side.count >= 3 ? "" : " · losing steam";
+    const status = C.phase === "up" ? "" : side.count >= 3 ? "" : " · losing steam";
     sub = `Since ${dshort(C.since)} · ${side.count} of 4 hold${status}`;
   } else {
     const stages = C.phase === "bottom" ? T.bottom : T.top;
@@ -957,7 +969,7 @@ function stageBox(T) {
   return h("button", { type: "button", class: `stage-box tone-${tone}`, title: "Go to the turning-point cycle",
       onclick: () => document.querySelector(".cycle-a")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
     h("span", { class: "ph-n", "aria-hidden": "true" }, String(n)),
-    h("span", { class: "sb-text" }, h("span", { class: "sb-k" }, "Current stage"), h("b", null, title), h("span", { class: "sb-sub" }, sub)));
+    h("span", { class: "sb-text" }, h("span", { class: "sb-k" }, "Current stage"), h("b", null, title), h("span", { class: "sb-sub" }, sub), warnTag(C)));
 }
 
 /* Market breadth at a glance (all NSE / Nifty 500 stocks), shown at the top of the regime panel.
