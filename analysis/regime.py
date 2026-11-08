@@ -56,7 +56,7 @@ GREEN, AMBER = 5, 3
 LEAVE_GREEN, ENTER_RED, LEAVE_RED, SMOOTH = 4, 2.5, 3.5, 5
 LIFT_POINTS, LIFT_STAY = 4, 3   # see adjust_light
 EXTENDED_CAP = False
-DOWN_CAP = False   # (test) while the cycle is in Down continuation, a Green light shows Amber
+DOWN_CAP = True    # while the cycle is in Down continuation, a Green light shows Amber (on since 8 Nov 2026)
 WASHOUT = 20
 THRUST_FROM, THRUST_TO, THRUST_DAYS, THRUST_KEEP = 20, 50, 15, 20
 
@@ -125,6 +125,7 @@ def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
     ok = phase == "up"
     since = tp["phase_since"].reindex(rg.index)
     rg["light_conf"] = [rg.index[int(i)] if p == "up" and pd.notna(i) else pd.NaT for p, i in zip(phase, since)]
+    rg["light_down_since"] = [rg.index[int(i)] if p == "down" and pd.notna(i) else pd.NaT for p, i in zip(phase, since)]
     pts = rg["points"]
     lifted, on = [], False
     for lt, g, p in zip(base, ok, pts):
@@ -145,6 +146,7 @@ def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
         light[dcap] = "Amber"
         capped = capped | dcap
     rg["light"], rg["light_lifted"], rg["light_capped"] = light, lifted, capped
+    rg["light_down_capped"] = dcap if DOWN_CAP else pd.Series(False, index=rg.index)
     return rg
 
 
@@ -275,7 +277,12 @@ def latest(df: pd.DataFrame, days: int = 260) -> dict:
         "capped": bool(last["light_capped"]) if "light_capped" in df else False,
         "note": (f"Seller exhaustion was confirmed on {pd.Timestamp(last['light_conf']).strftime('%d %b')} and the bounce is holding: {int(last['points'])} of {len(CHECKS)} checks pass, so the light is lifted from Red to Amber. "
                  f"The checks alone would still say Red because their 5-session average is only {last['points_avg']:.1f} (it needs {LEAVE_RED}).")
-                if "light_lifted" in df and bool(last["light_lifted"]) else None,
+                if "light_lifted" in df and bool(last["light_lifted"]) else
+                (f"Distribution confirmed a breakdown on {pd.Timestamp(last['light_down_since']).strftime('%d %b')} and the down move is still live, so a Green light shows Amber. "
+                 f"The checks alone would still say Green ({int(last['points'])} of {len(CHECKS)} pass); they lag at tops because of the 5-session average.")
+                if "light_down_capped" in df and bool(last["light_down_capped"]) else None,
+        "note_title": "Lifted by seller exhaustion." if "light_lifted" in df and bool(last["light_lifted"])
+                else "Held back by a breakdown." if "light_down_capped" in df and bool(last["light_down_capped"]) else None,
         "pct_above_50": float(last["pct_above_50"]),
         "pct_above_200": float(last["pct_above_200"]),
         "net_highs_lows_10d": float(last["net_highs_lows_10d"]) if pd.notna(last["net_highs_lows_10d"]) else None,

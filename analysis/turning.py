@@ -29,7 +29,8 @@ Seller exhaustion (bottom)
 Distribution (top)
   1 Extended      Nifty 500 within 3% of its 3-month high (EXT_LOOK; was
                   6-month until 8 Nov 2026) after a strong rally (p50 reached
-                  65%+ or RSI 68+ in the last 20 sessions; optional EXT_BOUNCE).
+                  65%+ or RSI 68+ in the last 20 sessions, or a 5%+ bounce off
+                  the 60-day low, EXT_BOUNCE: tops inside a range count too).
   2 Distribution  after an extended reading (stage 1 in the last 30
                   sessions), near the high (within 3% of the 60-day high), either a
                   negative divergence (Nifty 500 at or above its highest
@@ -81,8 +82,8 @@ LOOK_FROM, LOOK_TO = 3, 40
 DIST_DAYS = 7      # heavy-volume down days in 25 sessions (in this data the median is 5)
 EXT_LOOK, EXT_LOOK_NAME = 63, "3-month"    # Extended: within 3% of the highest close of this many sessions
                                            # (6-month until 8 Nov 2026; 3-month also sees lower highs, e.g. Nifty 50 Aug 2026)
-EXT_BOUNCE, EXT_BOUNCE_LOOK = 0, 60        # ...and a bounce of this % off the lowest close of this many sessions (0 = off)
-DIV_NEAR_HIGH = 1   # Distribution divergence counts while the index is within this % of the earlier high
+EXT_BOUNCE, EXT_BOUNCE_LOOK = 5, 60        # ...or a bounce of this % off the lowest close of this many sessions (0 = off; on since 8 Nov 2026)
+DIV_NEAR_HIGH = 3   # Distribution divergence counts while the index is within this % of the earlier high (was 1; 3 since 8 Nov 2026)
 T1_ACTIVE = 30     # stage 2 (distribution) needs stage 1 (extended) in the last 30 sessions
 
 
