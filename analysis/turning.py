@@ -20,9 +20,10 @@ Seller exhaustion (bottom)
                   least 3 of 4 readings are better than on that earlier low
                   day: gauge 10+ points higher, p50 higher, fewer new lows,
                   RSI higher (positive divergence). Active for 10 sessions.
-  3 Confirmed     within 20 sessions of stage 2, 2 of 4 (counted once per
-                  cycle: the first day marks the date, later days are not new
-                  signals, and it re-arms only at the next Washout):
+  3 Confirmed     within 20 sessions of stage 2, 2 of 4. Counted once per
+                  cycle: the first day marks the date, then the tracker goes
+                  inactive (no stage 2 or 3 readings) until the next Washout.
+                  The distribution-day count restarts on that date.
                   gauge above 0; p50 crossed above p200 in the last 10
                   sessions (with p50 at 25%+); adr10 above 1.2; a follow-through day in the last
                   10 sessions (Nifty 500 up 1.2%+ on higher turnover, 4+
@@ -179,6 +180,9 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     })
     b3_today = _recent(b2_today, 20) & (b3_parts.sum(axis=1) >= 2)
     cyc = _cycle(b1_today, b3_today, n500)
+    # once confirmed, the tracker goes inactive: no more stage 2 / stage 3 readings until the next Washout
+    done = pd.Series(cyc["on"], index=idx) & ~pd.Series(cyc["event"], index=idx)
+    b2_today = b2_today & ~done
 
     # trend continuation after a confirmed bottom: 3 of 4 up, or down if the earlier low
     # fails (close below it) or 3 of 4 turn false
@@ -217,7 +221,7 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     dist_day = (chg <= -0.2) & (tov > tov.shift(1))
     # count restarts on the first day of each seller-exhaustion confirmation: heavy
     # down days before a confirmed bottom are capitulation, not distribution at a top
-    b3_start = b3_today & ~_recent(b3_today.shift(1), 10)
+    b3_start = pd.Series(cyc["event"], index=idx)
     cs = np.concatenate([[0.0], dist_day.fillna(False).astype(float).cumsum().to_numpy()])
     starts = np.flatnonzero(b3_start.to_numpy())
     cnt = np.full(len(idx), np.nan)
@@ -237,7 +241,7 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     t3_today = _recent(t2_today, 25) & (t3_parts.sum(axis=1) >= 3)
 
     df["b1"], df["b2"], df["b3"] = b1_today, b2_today, b3_today
-    df["b3_event"], df["cycle_on"] = cyc["event"], cyc["on"]
+    df["b3_event"], df["cycle_on"], df["b_done"] = cyc["event"], cyc["on"], done
     df["conf_idx"] = cyc["conf"]
     df["pivot_low"], df["tc_state"], df["sma20"], df["sma50"] = pivot, tc_state, sma20, sma50
     df["t1"], df["t2"], df["t3"] = t1_today, t2_today, t3_today
@@ -280,6 +284,8 @@ def latest(df: pd.DataFrame, rg: pd.DataFrame) -> dict:
     out["continuation"] = continuation(df, rg["n500"])
     # while Distribution is at Stage 1 (Extended) the market is at highs, so the bottom tracker has nothing to say
     out["bottom_no_signal"] = bool(df["t1"].iloc[-1])
+    # confirmed earlier in this cycle: the tracker is inactive until the next Washout
+    out["bottom_done"] = bool(df["b_done"].iloc[-1])
     r = rg.iloc[-1]
     pl, ph = df["prior_low_date"].iloc[-1], df["prior_high_date"].iloc[-1]
     out["readings"] = {

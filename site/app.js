@@ -570,21 +570,21 @@ function fold(id, summary, ...content) {
 }
 
 /* Turning-point trackers: seller exhaustion (bottom) and distribution (top) */
-function trackerCard(title, sub, stages, extra, noSignal) {
+function trackerCard(title, sub, stages, extra, override) {
   // current stage = the stage that fired most recently (ties: the higher one), if within 10 sessions;
   // a later stage-1 signal resets an older stage 2 (e.g. a failed exhaustion followed by new lows)
   let reached = 0, best = Infinity;
   stages.forEach((s, i) => { if (isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
-  const recentStage = (s, i) => i < reached && isNum(s.sessions_ago) && s.sessions_ago <= 10 + (reached - 1 - i) * 10;
+  const recentStage = (s, i) => !override && i < reached && isNum(s.sessions_ago) && s.sessions_ago <= 10 + (reached - 1 - i) * 10;
   const when = (s) => s.met_today ? (s.key === "b3" ? "confirmed today" : "met today")
     : s.last_met && s.key === "b3" ? `confirmed ${fmtDate(s.last_met, { day: "numeric", month: "short" })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} session${s.sessions_ago === 1 ? "" : "s"} ago)` : ""}`
     : s.last_met ? `last met ${fmtDate(s.last_met, { day: "numeric", month: "short", year: s.sessions_ago > 200 ? "numeric" : undefined })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} sessions ago)` : ""}` : "not met yet";
   return h("div", { class: "tracker" },
     h("div", { class: "tracker-head" }, h("h3", null, title),
-      h("span", { class: `stage-chip s${noSignal ? 0 : reached}` }, !noSignal && reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "No signal")),
+      h("span", { class: `stage-chip ${override ? override.cls : `s${reached}`}` }, override ? override.chip : reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "No signal")),
     h("p", { class: "sub" }, sub),
-    noSignal ? h("p", { class: "note", style: "margin:0 0 6px" }, noSignal) : null,
-    h("ol", { class: "stages" }, stages.map((s, i) => h("li", { class: s.met_today ? "on" : recentStage(s, i) ? "recent" : "off" },
+    override ? h("p", { class: "note", style: "margin:0 0 6px" }, override.note) : null,
+    h("ol", { class: "stages" }, stages.map((s, i) => h("li", { class: s.met_today && !override ? "on" : recentStage(s, i) ? "recent" : "off" },
       h("details", null,
         h("summary", null, h("span", { class: "dot", "aria-hidden": "true" }), h("b", null, `${i + 1}. ${s.name}`), h("span", { class: "when" }, when(s))),
         h("p", { class: "note", style: "margin:4px 0 4px" }, s.help),
@@ -613,6 +613,18 @@ function continuationCard(C, R, NAME) {
         `Up when 3 of 4 hold. Down when ${NAME} closes below the earlier low (${fmtNum(C.pivot_low, 0)}) or only 1 of 4 holds. Otherwise Watching.`))
       : h("p", { class: "note", style: "margin:0" }, `Waiting for seller exhaustion to confirm a bottom.${C.last_confirmed ? ` Last confirmed ${d(C.last_confirmed)}.` : ""}`));
 }
+function sellerCard(T, lowTable) {
+  const d = (x) => fmtDate(x, { day: "numeric", month: "short" });
+  const last = T.continuation?.last_confirmed;
+  // Extended (market at highs) wins; otherwise, once confirmed, the tracker rests until the next washout
+  const override = T.bottom_no_signal
+    ? { chip: "No signal", cls: "s0", note: `Distribution is at Stage 1 (Extended), so no bottom signal is expected.${last ? ` Last confirmed ${d(last)}.` : ""}` }
+    : T.bottom_done
+      ? { chip: `Confirmed ${d(last)} · inactive`, cls: "s0", note: `Bottom confirmed on ${d(last)}. The tracker has stopped looking and starts again at the next washout. Follow the move in Trend continuation.` }
+      : null;
+  return trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.",
+    T.bottom, override ? null : lowTable, override);
+}
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T) return null;
   const R = T.readings || {}, P = R.at_prior_low;
@@ -631,8 +643,7 @@ function trackersBlock(T, NAME = "Nifty 500") {
         cmp("RSI (equal weight)", R.rsi, P.rsi, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a > b))))) : null;
   return h("div", { class: "trackers" },
     continuationCard(T.continuation, R, NAME),
-    trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.", T.bottom, lowTable,
-      T.bottom_no_signal ? `Distribution is at Stage 1 (Extended), so no bottom signal is expected.${T.continuation?.last_confirmed ? ` Last confirmed ${fmtDate(T.continuation.last_confirmed, { day: "numeric", month: "short" })}.` : ""}` : null),
+    sellerCard(T, lowTable),
     trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
       h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high, only after an Extended reading; the count restarts when seller exhaustion confirms). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
 }
