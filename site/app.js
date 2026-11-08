@@ -716,7 +716,7 @@ function breadthTiles(L) {
       isNum(L.new_highs_20d_ago) ? `${fmtNum(L.new_highs_20d_ago)} / ${fmtNum(L.new_lows_20d_ago)} a month ago` : "Total Market stocks"));
 }
 
-function regimePanel(rgAll, L) {
+function regimePanel(rgAll, L, breadthCharts) {
   const rg = (state.bench === "NIFTY50" && rgAll?.benchmarks?.NIFTY50) || rgAll;
   if (!rg || !rg.light) return null;
   const NAME = rg.name || "Nifty 500";
@@ -736,6 +736,7 @@ function regimePanel(rgAll, L) {
       lightChip(rg.light, true)),
     h("p", { class: "guidance" }, rg.guidance),
     breadthTiles(L),
+    breadthCharts || null,
     trackersBlock(rg.turning, NAME),
     fold("checks", `Why the light is ${rg.light}: ${rg.points} of ${rg.max_points} checks pass`,
       rg.note ? h("p", { class: rg.lifted ? "note good" : "note" }, h("b", null, `${rg.note_title || "Lifted by seller exhaustion."} `), rg.note) : null,
@@ -821,14 +822,11 @@ async function viewOverview(app) {
         " a laggard that may bounce (hover for the reason). Tap a row for detail."),
       h("div", { class: "table-scroll" }, table)));
 
-  // breadth section
+  // breadth charts: shown at the top, inside the regime panel under the breadth tiles
   const S2 = br.series, D = br.dates;
   const hasAD = Array.isArray(S2.ad_line);
-  const breadth = h("section", null,
-    h("div", { class: "section-head" },
-      h("h2", null, "Market breadth"),
-      h("p", null, `Last ${D.length} sessions, to ${fmtDate(L.date)}`)),
-    h("div", { class: "panel" },
+  const breadth = h("div", { class: "regime-breadth" },
+      h("p", { class: "sub" }, `Market breadth, last ${D.length} sessions to ${fmtDate(L.date)}`),
       h("div", { class: "charts" },
         (() => {
           const k = state.bench === "NIFTY50" && S2.nifty50 ? "nifty50" : "nifty500";
@@ -854,7 +852,7 @@ async function viewOverview(app) {
             tipRows: (i) => [["Advances", fmtNum(S2.advances[i])], ["Declines", fmtNum(S2.declines[i])], ["Net", fmtNum(S2.net[i])]] })) : null,
         chartCard("52-week highs and lows", "Total Market stocks closing at a 52-week high or low",
           timeChart({ dates: D, series: [{ name: "New highs", values: S2.new_highs, color: css("--s3") }, { name: "New lows", values: S2.new_lows, color: css("--s2") }] }),
-          lineLegend([["New highs", css("--s3")], ["New lows", css("--s2")]]))))));
+          lineLegend([["New highs", css("--s3")], ["New lows", css("--s2")]])))));
 
   // focus sectors with picks
   const focus = (st.focus[state.bench] || {})[state.group] || [];
@@ -869,7 +867,7 @@ async function viewOverview(app) {
         h("span", null, Math.round(st.stocks[sym].score)), st.stocks[sym].fno ? h("span", { class: "flag fno" }, "F&O") : null)))
         : h("p", { class: "empty" }, "No stock passes the filters right now.")))) : h("p", { class: "empty" }, "No focus sectors today."));
 
-  app.replaceChildren(filtersRow(), lede, regimePanel(rg, L), main, breadth, rotationSection(ld, sec), focusSec);
+  app.replaceChildren(filtersRow(), lede, regimePanel(rg, L, breadth), main, rotationSection(ld, sec), focusSec);
   if (state.sel) highlight(null);
 }
 

@@ -296,6 +296,9 @@ footer p { margin: 4px 0; max-width: 80ch; }
 .strip svg { display: block; width: 100%; }
 .light-strip { margin: 12px 0 6px; }
 .regime-tiles { margin: 4px 0 6px; }
+.regime-breadth { margin: 10px 0 4px; padding-bottom: 6px; border-bottom: 1px solid var(--grid); }
+.regime-breadth > .sub { margin: 0 0 6px; }
+.regime-breadth .fold { margin-top: 4px; }
 .regime-tiles .v.neg { color: var(--neg-text); }
 .regime-tiles .d .pos, .regime-tiles .d .neg { font-size: 11px; }
 .light-strip .legend { margin-top: 4px; }
