@@ -20,23 +20,11 @@ Seller exhaustion (bottom)
                   least 3 of 4 readings are better than on that earlier low
                   day: gauge 10+ points higher, p50 higher, fewer new lows,
                   RSI higher (positive divergence). Active for 10 sessions.
-  3 Confirmed     within 20 sessions of stage 2, 2 of 4. Counted once per
-                  cycle: the first day marks the date, then the tracker goes
-                  inactive (no stage 2 or 3 readings) until the next Washout.
-                  The distribution-day count restarts on that date.
+  3 Confirmed     within 20 sessions of stage 2, 2 of 4:
                   gauge above 0; p50 crossed above p200 in the last 10
                   sessions (with p50 at 25%+); adr10 above 1.2; a follow-through day in the last
                   10 sessions (Nifty 500 up 1.2%+ on higher turnover, 4+
                   sessions after its 20-day low).
-
-Trend continuation (after a confirmed bottom, until the next Washout)
-  Up        3 of 4: Nifty above its 20-day and 50-day average, 50%+ of stocks
-            above their 50-day average, internals gauge above 0
-  Down      Nifty closes below the earlier low (lowest close in the 40
-            sessions up to the confirmation) or only 1 of the 4 holds
-  Watching  anything in between (2 of 4)
-While Distribution stage 1 (Extended) is on, the website shows Seller
-exhaustion as "No signal" and keeps the last confirmation date.
 
 Distribution (top)
   1 Extended      Nifty 500 within 3% of its 6-month high after a strong
@@ -54,6 +42,28 @@ Distribution (top)
                   gauge below 0; p50 crossed below p200 in the last 10
                   sessions; Nifty 500 closed below its 50-day average;
                   adr10 below 0.8.
+
+The cycle (8 Nov 2026): only one box is live at a time.
+  Seller exhaustion --Confirmed--> Up continuation --up weakens--> Distribution
+  --Breakdown--> Down continuation --Washout--> Seller exhaustion
+  Up continuation   up conditions (3 of 4): index above its 20-day and 50-day
+                    average, 50%+ of stocks above their 50-day average, gauge
+                    above 0. Once the up move has been proven (3 of 4 on some
+                    day), it ends when 2+ of the 4 fail for UP_WEAK_DAYS days
+                    in a row. Before it is proven, only a failure can end it.
+  Down continuation mirror conditions (index below both averages, under 50%
+                    of stocks above their 50-day, gauge below 0); it ends only
+                    at the next Washout, which starts Seller exhaustion again.
+  Failed moves      a close below the low the bottom was made at (lowest close
+                    of the 40 sessions up to Confirmed), or a new Washout,
+                    sends Up back to Seller exhaustion; a close above the high
+                    the top was made at sends Down back to Distribution.
+  Shortcuts         a Washout while Distribution is live (the market fell
+                    without a Breakdown signal) moves to Seller exhaustion; an
+                    Extended reading while Seller exhaustion is live (it rose
+                    without a Confirmed signal) moves to Distribution.
+A stage only counts while its tracker is live (Washout also counts on the day
+it ends Down continuation).
 """
 
 from __future__ import annotations
@@ -68,27 +78,53 @@ DIST_DAYS = 7      # heavy-volume down days in 25 sessions (in this data the med
 T1_ACTIVE = 30     # stage 2 (distribution) needs stage 1 (extended) in the last 30 sessions
 
 
-def _cycle(washout: pd.Series, confirmed: pd.Series, close: pd.Series) -> dict:
-    """One confirmation per cycle. A cycle starts at a Washout; the first day the
-    bottom is Confirmed after it is the event (the date to mark). Later days with
-    the same reading are not new events, and the cycle only re-arms at the next
-    Washout. Also gives the frozen pivot low (lowest close in the 40 sessions up
-    to the event) used to judge whether the bottom fails."""
+UP_WEAK_DAYS = 3   # Up continuation ends after this many days in a row with 2+ of 4 up conditions failing
+PHASES = ["bottom", "up", "top", "down"]
+
+
+def _phases(b1, b3, t1, t3, up_n, close: pd.Series, start: str = "bottom") -> pd.DataFrame:
+    """Walk the cycle day by day. Returns, per day: phase at the close, phase
+    before the day, the session the phase began, pivots, the weak-day count and
+    whether the up move has been proven, plus the event text on change days."""
     n = len(close)
     arr = close.to_numpy()
-    w, c = washout.fillna(False).to_numpy(), confirmed.fillna(False).to_numpy()
-    event, on_, conf, pivot = np.zeros(n, bool), np.zeros(n, bool), [-1] * n, [np.nan] * n
-    armed, on, ci, pv = True, False, -1, np.nan
+    b1, b3, t1, t3 = (np.asarray(pd.Series(x).fillna(False), bool) for x in (b1, b3, t1, t3))
+    up_n = np.asarray(up_n, float)
+    ph, since, pl, phh, weak, proven = start, 0, np.nan, np.nan, 0, False
+    rows = []
     for i in range(n):
-        if w[i]:
-            armed, on = True, False
-        if c[i] and armed:
-            armed, on, ci = False, True, i
-            pv = float(np.nanmin(arr[max(0, i - LOOK_TO):i + 1]))
-            event[i] = True
-        on_[i] = on
-        conf[i], pivot[i] = (ci, pv) if on else (-1, np.nan)
-    return {"event": event, "on": on_, "conf": conf, "pivot": pivot}
+        prev, ev = ph, None
+        if ph == "bottom":
+            if t1[i] and not b3[i]:
+                ph, ev = "top", "Extended without a confirmed bottom"
+            elif b3[i]:
+                ph, ev = "up", "Bottom confirmed"
+                pl, weak, proven = float(np.nanmin(arr[max(0, i - LOOK_TO):i + 1])), 0, up_n[i] >= 3
+        elif ph == "up":
+            if arr[i] < pl or b1[i]:
+                ph, ev = "bottom", "Bottom failed"
+            else:
+                proven = proven or up_n[i] >= 3
+                weak = weak + 1 if (proven and up_n[i] <= 2) else 0
+                if weak >= UP_WEAK_DAYS:
+                    ph, ev = "top", "Up trend weakened"
+        elif ph == "top":
+            if b1[i] and not t3[i]:
+                ph, ev = "bottom", "Washout without a confirmed top"
+            elif t3[i]:
+                ph, ev = "down", "Top confirmed"
+                phh = float(np.nanmax(arr[max(0, i - LOOK_TO):i + 1]))
+        elif ph == "down":
+            if arr[i] > phh:
+                ph, ev = "top", "Top failed"
+            elif b1[i]:
+                ph, ev = "bottom", "Washout"
+        if ph != prev:
+            since = i
+        rows.append((ph, prev, since, pl if ph == "up" else np.nan, phh if ph == "down" else np.nan,
+                     weak if ph == "up" else 0, proven if ph == "up" else False, ev))
+    return pd.DataFrame(rows, index=close.index,
+                        columns=["phase", "phase_prev", "phase_since", "pivot_low", "pivot_high", "weak_days", "proven", "phase_event"])
 
 
 def _recent(cond: pd.Series, n: int) -> pd.Series:
@@ -179,25 +215,19 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
         "follow-through day": _recent(ftd, 10),
     })
     b3_today = _recent(b2_today, 20) & (b3_parts.sum(axis=1) >= 2)
-    cyc = _cycle(b1_today, b3_today, n500)
-    # once confirmed, the tracker goes inactive: no more stage 2 / stage 3 readings until the next Washout
-    done = pd.Series(cyc["on"], index=idx) & ~pd.Series(cyc["event"], index=idx)
-    b2_today = b2_today & ~done
-
-    # trend continuation after a confirmed bottom: 3 of 4 up, or down if the earlier low
-    # fails (close below it) or 3 of 4 turn false
     sma20 = n500.rolling(20).mean()
-    tc_parts = pd.DataFrame({
+    up_parts = pd.DataFrame({
         "above 20-day average": n500 > sma20,
         "above 50-day average": n500 > sma50,
         "50%+ of stocks above their 50-day average": p50 >= 50,
         "internals gauge above 0": gauge > 0,
     })
-    tc_n = tc_parts.sum(axis=1)
-    pivot = pd.Series(cyc["pivot"], index=idx)
-    tc_state = pd.Series(np.where(~cyc["on"], None,
-                         np.where((n500 < pivot) | (tc_n <= 1), "Down", np.where(tc_n >= 3, "Up", "Watching"))),
-                         index=idx, dtype=object)
+    dn_parts = pd.DataFrame({
+        "below 20-day average": n500 < sma20,
+        "below 50-day average": n500 < sma50,
+        "under 50% of stocks above their 50-day average": p50 < 50,
+        "internals gauge below 0": gauge < 0,
+    })
 
     # ---------------------------------------------------------- top
     near6m = n500 >= n500.rolling(126, min_periods=60).max() * 0.97
@@ -221,7 +251,7 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     dist_day = (chg <= -0.2) & (tov > tov.shift(1))
     # count restarts on the first day of each seller-exhaustion confirmation: heavy
     # down days before a confirmed bottom are capitulation, not distribution at a top
-    b3_start = pd.Series(cyc["event"], index=idx)
+    b3_start = b3_today & ~_recent(b3_today.shift(1), 10)
     cs = np.concatenate([[0.0], dist_day.fillna(False).astype(float).cumsum().to_numpy()])
     starts = np.flatnonzero(b3_start.to_numpy())
     cnt = np.full(len(idx), np.nan)
@@ -240,17 +270,22 @@ def build(rg: pd.DataFrame, close: pd.DataFrame, cons: dict, ad: pd.DataFrame | 
     })
     t3_today = _recent(t2_today, 25) & (t3_parts.sum(axis=1) >= 3)
 
-    df["b1"], df["b2"], df["b3"] = b1_today, b2_today, b3_today
-    df["b3_event"], df["cycle_on"], df["b_done"] = cyc["event"], cyc["on"], done
-    df["conf_idx"] = cyc["conf"]
-    df["pivot_low"], df["tc_state"], df["sma20"], df["sma50"] = pivot, tc_state, sma20, sma50
-    df["t1"], df["t2"], df["t3"] = t1_today, t2_today, t3_today
+    cyc = _phases(b1_today, b3_today, t1_today, t3_today, up_parts.sum(axis=1), n500)
+    df = df.join(cyc)
+    live_b = (cyc["phase_prev"] == "bottom") | (cyc["phase"] == "bottom")
+    live_t = (cyc["phase_prev"] == "top") | (cyc["phase"] == "top")
+    df["b1"], df["b2"] = b1_today & live_b, b2_today & live_b
+    df["b3"] = (cyc["phase_prev"] == "bottom") & (cyc["phase"] == "up")
+    df["t1"], df["t2"] = t1_today & live_t, t2_today & live_t
+    df["t3"] = (cyc["phase_prev"] == "top") & (cyc["phase"] == "down")
+    df["up_n"], df["dn_n"] = up_parts.sum(axis=1), dn_parts.sum(axis=1)
+    df["sma20"], df["sma50"] = sma20, sma50
     df["dist_days_25"] = dist_count
     df["ftd"] = ftd
     df["prior_low_date"] = [idx[j] if j >= 0 else pd.NaT for j in ploc]
     df["prior_high_date"] = [idx[j] if j >= 0 else pd.NaT for j in phloc]
     df.attrs["parts"] = {"b1": b1_parts, "b2": b2_parts, "b3": b3_parts,
-                         "t1": t1_parts, "t2": div_parts, "t3": t3_parts, "tc": tc_parts}
+                         "t1": t1_parts, "t2": div_parts, "t3": t3_parts, "up": up_parts, "down": dn_parts}
     return df
 
 
@@ -270,8 +305,7 @@ def latest(df: pd.DataFrame, rg: pd.DataFrame) -> dict:
     for side, stages in STAGES.items():
         items = []
         for key, name, help_ in stages:
-            # Confirmed counts once per cycle (the event day), not on every day the reading holds
-            on = (df["b3_event"] if key == "b3" else df[key]).fillna(False).astype(bool)
+            on = df[key].fillna(False).astype(bool)
             days = df.index[on]
             parts = df.attrs["parts"][key].loc[last]
             items.append({
@@ -281,11 +315,7 @@ def latest(df: pd.DataFrame, rg: pd.DataFrame) -> dict:
                 "parts": [{"label": k, "ok": bool(v) if pd.notna(v) else False} for k, v in parts.items()],
             })
         out[side] = items
-    out["continuation"] = continuation(df, rg["n500"])
-    # while Distribution is at Stage 1 (Extended) the market is at highs, so the bottom tracker has nothing to say
-    out["bottom_no_signal"] = bool(df["t1"].iloc[-1])
-    # confirmed earlier in this cycle: the tracker is inactive until the next Washout
-    out["bottom_done"] = bool(df["b_done"].iloc[-1])
+    out["cycle"] = cycle(df, rg["n500"])
     r = rg.iloc[-1]
     pl, ph = df["prior_low_date"].iloc[-1], df["prior_high_date"].iloc[-1]
     out["readings"] = {
@@ -307,32 +337,29 @@ def latest(df: pd.DataFrame, rg: pd.DataFrame) -> dict:
     return out
 
 
-def continuation(df: pd.DataFrame, n500: pd.Series) -> dict:
-    """Trend continuation box: what the market did since the bottom was confirmed."""
+def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
+    """Where the market is in the cycle, the live continuation box and recent phase changes."""
     last = df.index[-1]
-    ev = df.index[df["b3_event"].astype(bool)]
-    out = {"last_confirmed": ev[-1].date().isoformat() if len(ev) else None,
-           "active": bool(df["cycle_on"].iloc[-1]), "state": None}
-    if not out["active"]:
-        return out
-    ci = int(df["conf_idx"].iloc[-1])
-    cd = df.index[ci]
-    st = df["tc_state"]
-    run = st.iloc[ci:]
-    changed = run.ne(run.shift()).cumsum()
-    since = run[changed == changed.iloc[-1]].index[0]
-    parts = df.attrs["parts"]["tc"].loc[last]
-    now = {"above 20-day average": (df.at[last, "sma20"], "index"), "above 50-day average": (df.at[last, "sma50"], "index"),
-           "50%+ of stocks above their 50-day average": (50.0, "p50"), "internals gauge above 0": (0.0, "gauge")}
-    out.update({
-        "state": st.iloc[-1], "state_since": since.date().isoformat(),
-        "confirmed": cd.date().isoformat(), "sessions_since": int(len(df) - 1 - ci),
-        "pivot_low": float(df["pivot_low"].iloc[-1]),
-        "n500_confirmed": float(n500.iloc[ci]), "n500_now": float(n500.iloc[-1]),
-        "change_pct": float((n500.iloc[-1] / n500.iloc[ci] - 1) * 100),
-        "parts": [{"label": k, "ok": bool(v), "ref": (float(now[k][0]) if pd.notna(now[k][0]) else None), "kind": now[k][1]}
-                  for k, v in parts.items()],
-    })
+    ph = df["phase"].iloc[-1]
+    si = int(df["phase_since"].iloc[-1])
+    d = lambda i: df.index[i].date().isoformat()
+    ch = df[df["phase_event"].notna()]
+    out = {"phase": ph, "since": d(si), "sessions_since": int(len(df) - 1 - si),
+           "event": df["phase_event"].iloc[si] if si > 0 or pd.notna(df["phase_event"].iloc[si]) else None,
+           "weak_days": int(df["weak_days"].iloc[-1]), "weak_needed": UP_WEAK_DAYS, "proven": bool(df["proven"].iloc[-1]),
+           "pivot_low": float(df["pivot_low"].iloc[-1]) if pd.notna(df["pivot_low"].iloc[-1]) else None,
+           "pivot_high": float(df["pivot_high"].iloc[-1]) if pd.notna(df["pivot_high"].iloc[-1]) else None,
+           "n500_since": float(n500.iloc[si]), "n500_now": float(n500.iloc[-1]),
+           "change_pct": float((n500.iloc[-1] / n500.iloc[si] - 1) * 100),
+           "history": [{"date": t.date().isoformat(), "event": e, "phase": p, "n500": float(n500[t])}
+                       for t, e, p in zip(ch.index[-8:], ch["phase_event"].iloc[-8:], ch["phase"].iloc[-8:])][::-1]}
+    for side, col in (("up", "up_n"), ("down", "dn_n")):
+        parts = df.attrs["parts"][side].loc[last]
+        refs = [(df.at[last, "sma20"], "index"), (df.at[last, "sma50"], "index"), (50.0, "p50"), (0.0, "gauge")]
+        out[side] = {"count": int(df[col].iloc[-1]),
+                     "parts": [{"label": k, "ok": bool(v) if pd.notna(v) else False,
+                                "ref": float(r) if pd.notna(r) else None, "kind": kind}
+                               for (k, v), (r, kind) in zip(parts.items(), refs)]}
     return out
 
 
@@ -342,7 +369,7 @@ def events(df: pd.DataFrame, b: pd.Series, gap: int = 10) -> list[dict]:
     names = {k: (side, n) for side, st in STAGES.items() for k, n, _ in st}
     out = []
     for key, (side, name) in names.items():
-        on = (df["b3_event"] if key == "b3" else df[key]).fillna(False).astype(bool)
+        on = df[key].fillna(False).astype(bool)
         last_on = None
         for i, (d, v) in enumerate(on.items()):
             if v:

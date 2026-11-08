@@ -579,7 +579,7 @@ function trackerCard(title, sub, stages, extra, override) {
   const when = (s) => s.met_today ? (s.key === "b3" ? "confirmed today" : "met today")
     : s.last_met && s.key === "b3" ? `confirmed ${fmtDate(s.last_met, { day: "numeric", month: "short" })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} session${s.sessions_ago === 1 ? "" : "s"} ago)` : ""}`
     : s.last_met ? `last met ${fmtDate(s.last_met, { day: "numeric", month: "short", year: s.sessions_ago > 200 ? "numeric" : undefined })}${isNum(s.sessions_ago) ? ` (${s.sessions_ago} sessions ago)` : ""}` : "not met yet";
-  return h("div", { class: "tracker" },
+  return h("div", { class: override ? "tracker resting" : "tracker" },
     h("div", { class: "tracker-head" }, h("h3", null, title),
       h("span", { class: `stage-chip ${override ? override.cls : `s${reached}`}` }, override ? override.chip : reached ? `Stage ${reached} of 3: ${stages[reached - 1].name}` : "No signal")),
     h("p", { class: "sub" }, sub),
@@ -592,38 +592,68 @@ function trackerCard(title, sub, stages, extra, override) {
           h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), p.label))))))),
     extra || null);
 }
-/* Trend continuation: after seller exhaustion confirms a bottom, is the move holding (Up) or failing (Down)? */
+/* The turning-point cycle: Seller exhaustion -> Up -> Distribution -> Down -> (washout) Seller exhaustion.
+   Only one box is live at a time; the others rest. */
+const PHASE = { bottom: "Seller exhaustion", up: "Up continuation", top: "Distribution", down: "Down continuation" };
+const dshort = (x) => fmtDate(x, { day: "numeric", month: "short" });
+function cycleStrip(C) {
+  const steps = ["bottom", "up", "top", "down"];
+  return h("div", { class: "cycle" },
+    h("ol", { class: "cycle-steps" }, steps.map((k, i) => h("li", { class: k === C.phase ? "live" : "" },
+      h("span", { class: "n" }, i + 1), PHASE[k]))),
+    h("p", { class: "note", style: "margin:6px 0 0" },
+      `Live now: ${PHASE[C.phase]}, since ${dshort(C.since)}${C.event ? ` (${C.event.toLowerCase()})` : ""}. After Down continuation, the next washout starts the cycle again.`),
+    C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
+      h("ul", { class: "conds", style: "margin:4px 0 0" }, C.history.map((e) =>
+        h("li", null, h("span", { class: "muted" }, fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })), ` ${e.event} → ${PHASE[e.phase]} (${fmtNum(e.n500, 0)})`)))) : null);
+}
 function continuationCard(C, R, NAME) {
   if (!C) return null;
-  const d = (x) => fmtDate(x, { day: "numeric", month: "short" });
-  const label = { Up: "Up continuation", Down: "Down: bottom failed", Watching: "Watching" }[C.state] || "Waiting";
-  const cls = { Up: "up", Down: "down", Watching: "watch" }[C.state] || "s0";
-  const val = (p) => p.kind === "index" ? `${NAME} ${fmtNum(R.n500, 0)} vs ${fmtNum(p.ref, 0)}`
-    : p.kind === "p50" ? `${isNum(R.p50) ? Math.round(R.p50) : "–"}% (needs 50%+)`
-    : `${isNum(R.gauge) ? Math.round(R.gauge) : "–"} (needs above 0)`;
+  const live = C.phase === "up" || C.phase === "down";
+  const ago = (n) => `${n} session${n === 1 ? "" : "s"}`;
+  const val = (p, dir) => p.kind === "index" ? `${NAME} ${fmtNum(R.n500, 0)} vs ${fmtNum(p.ref, 0)}`
+    : p.kind === "p50" ? `${isNum(R.p50) ? Math.round(R.p50) : "–"}% (needs ${dir === "up" ? "50%+" : "under 50%"})`
+    : `${isNum(R.gauge) ? Math.round(R.gauge) : "–"} (needs ${dir === "up" ? "above" : "below"} 0)`;
+  const list = (side) => h("ul", { class: "conds", style: "margin-left:0" }, C[side].parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
+    h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), `${p.label}: ${val(p, side)}`)));
+  if (!live) {
+    // last finished continuation, from the cycle history (newest first)
+    const H = C.history || [];
+    const j = H.findIndex((e) => e.phase === "up" || e.phase === "down");
+    const last = j >= 0 ? `Last: ${PHASE[H[j].phase]} from ${dshort(H[j].date)}${j > 0 ? ` to ${dshort(H[j - 1].date)} (${H[j - 1].event.toLowerCase()})` : ""}.` : "";
+    return h("div", { class: "tracker wide resting" },
+      h("div", { class: "tracker-head" }, h("h3", null, "Trend continuation"), h("span", { class: "stage-chip s0" }, "Resting")),
+      h("p", { class: "note", style: "margin:4px 0 0" },
+        `${C.phase === "bottom" ? "Wakes up as Up continuation when seller exhaustion confirms a bottom." : "Wakes up as Down continuation when distribution confirms a breakdown."} ${last}`));
+  }
+  const up = C.phase === "up";
+  const chip = up ? (!C.proven ? ["Up not proven yet", "watch"] : C.weak_days ? [`Weakening: ${C.weak_days} of ${C.weak_needed} days`, "watch"] : ["Up continuation", "up"])
+    : C.down.count >= 3 ? ["Down continuation", "down"] : ["Down losing steam", "watch"];
   return h("div", { class: "tracker wide" },
-    h("div", { class: "tracker-head" }, h("h3", null, "Trend continuation"), h("span", { class: `stage-chip ${cls}` }, label)),
-    h("p", { class: "sub" }, "After seller exhaustion confirms a bottom: is the move holding or failing? Watched until the next washout."),
-    C.active ? h("div", null,
-      h("p", { class: "note", style: "margin:0 0 6px" },
-        `Bottom confirmed ${d(C.confirmed)} at ${fmtNum(C.n500_confirmed, 0)}; now ${fmtNum(C.n500_now, 0)} (${C.change_pct > 0 ? "+" : ""}${C.change_pct.toFixed(1)}%), ${C.sessions_since} session${C.sessions_since === 1 ? "" : "s"} later. ${label} since ${d(C.state_since)}.`),
-      h("ul", { class: "conds", style: "margin-left:0" }, C.parts.map((p) => h("li", { class: p.ok ? "ok" : "no" },
-        h("span", { class: "mark", "aria-hidden": "true" }, p.ok ? "✓" : "✕"), h("span", { class: "sr" }, p.ok ? "Yes: " : "No: "), `${p.label}: ${val(p)}`))),
-      h("p", { class: "note", style: "margin:6px 0 0" },
-        `Up when 3 of 4 hold. Down when ${NAME} closes below the earlier low (${fmtNum(C.pivot_low, 0)}) or only 1 of 4 holds. Otherwise Watching.`))
-      : h("p", { class: "note", style: "margin:0" }, `Waiting for seller exhaustion to confirm a bottom.${C.last_confirmed ? ` Last confirmed ${d(C.last_confirmed)}.` : ""}`));
+    h("div", { class: "tracker-head" }, h("h3", null, `Trend continuation: ${up ? "Up" : "Down"}`), h("span", { class: `stage-chip ${chip[1]}` }, chip[0])),
+    h("p", { class: "note", style: "margin:2px 0 6px" },
+      `${up ? "Bottom" : "Top"} confirmed ${dshort(C.since)} at ${fmtNum(C.n500_since, 0)}; now ${fmtNum(C.n500_now, 0)} (${C.change_pct > 0 ? "+" : ""}${C.change_pct.toFixed(1)}%), ${ago(C.sessions_since)} later. ${C[up ? "up" : "down"].count} of 4 hold.`),
+    list(up ? "up" : "down"),
+    h("p", { class: "note", style: "margin:6px 0 0" }, up
+      ? `Once 3 of 4 have held, the up move ends when 2 or more fail for ${C.weak_needed} days in a row: then Distribution goes live. A close below ${fmtNum(C.pivot_low, 0)} (the low the bottom was made at) means the bottom failed: back to Seller exhaustion.`
+      : `Ends at the next washout: then Seller exhaustion goes live. A close above ${fmtNum(C.pivot_high, 0)} (the high the top was made at) means the top failed: back to Distribution.`));
 }
 function sellerCard(T, lowTable) {
-  const d = (x) => fmtDate(x, { day: "numeric", month: "short" });
-  const last = T.continuation?.last_confirmed;
-  // Extended (market at highs) wins; otherwise, once confirmed, the tracker rests until the next washout
-  const override = T.bottom_no_signal
-    ? { chip: "No signal", cls: "s0", note: `Distribution is at Stage 1 (Extended), so no bottom signal is expected.${last ? ` Last confirmed ${d(last)}.` : ""}` }
-    : T.bottom_done
-      ? { chip: `Confirmed ${d(last)} · inactive`, cls: "s0", note: `Bottom confirmed on ${d(last)}. The tracker has stopped looking and starts again at the next washout. Follow the move in Trend continuation.` }
-      : null;
+  const C = T.cycle || {};
+  const rest = { up: `Bottom confirmed ${dshort(C.since)}. Resting while the up move runs; it wakes up at the next washout.`,
+    top: "Resting while Distribution looks for a top. Wakes up at the next washout.",
+    down: "Resting while the down move runs. Wakes up at the next washout." }[C.phase];
   return trackerCard("Seller exhaustion", "Finds bottoms: extreme selling, then breadth holding up while price makes a lower low, then confirmation.",
-    T.bottom, override ? null : lowTable, override);
+    T.bottom, rest ? null : lowTable, rest ? { chip: "Resting", cls: "s0", note: rest } : null);
+}
+function distributionCard(T, R) {
+  const C = T.cycle || {};
+  const rest = { bottom: "Resting while Seller exhaustion looks for a bottom.",
+    up: `Resting while the up trend holds. Wakes up when 2 or more of the 4 up conditions fail for ${C.weak_needed} days in a row${C.weak_days ? ` (${C.weak_days} so far)` : ""}.`,
+    down: `Top confirmed ${dshort(C.since)}. Resting while the down move runs.` }[C.phase];
+  return trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
+    rest ? null : h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high, only after an Extended reading; the count restarts when seller exhaustion confirms). New 52-week highs today: ${R.new_highs ?? "–"}.`),
+    rest ? { chip: "Resting", cls: "s0", note: rest } : null);
 }
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T) return null;
@@ -641,11 +671,12 @@ function trackersBlock(T, NAME = "Nifty 500") {
         cmp("% above 50-day", R.p50, P.p50, (v) => (isNum(v) ? `${Math.round(v)}%` : "–"), (a, b) => a > b),
         cmp("New 52-week lows", R.new_lows, P.new_lows, (v) => fmtNum(v), (a, b) => a < b),
         cmp("RSI (equal weight)", R.rsi, P.rsi, (v) => (isNum(v) ? Math.round(v) : "–"), (a, b) => a > b))))) : null;
-  return h("div", { class: "trackers" },
-    continuationCard(T.continuation, R, NAME),
-    sellerCard(T, lowTable),
-    trackerCard("Distribution", "Finds tops: a stretched rally, then breadth weakening while price holds near the high, then the breakdown.", T.top,
-      h("p", { class: "note" }, `Heavy-volume down days in the last 25 sessions: ${R.dist_days_25 ?? "–"} (5 is normal here; 7+ counts as distribution near a high, only after an Extended reading; the count restarts when seller exhaustion confirms). New 52-week highs today: ${R.new_highs ?? "–"}.`)));
+  return h("div", null,
+    T.cycle ? cycleStrip(T.cycle) : null,
+    h("div", { class: "trackers" },
+      continuationCard(T.cycle, R, NAME),
+      sellerCard(T, lowTable),
+      distributionCard(T, R)));
 }
 
 function regimePanel(rgAll) {

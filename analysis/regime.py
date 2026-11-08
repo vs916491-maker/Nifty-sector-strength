@@ -104,13 +104,13 @@ def _buffered_light(avg: pd.Series) -> pd.Series:
 def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
     """Let the turning-point trackers nudge the light (call after turning.build).
 
-    Lift: after seller exhaustion is Confirmed (one confirmation per cycle, see
-    turning.py) and while trend continuation is not Down, a Red light shows
-    Amber once LIFT_POINTS of the 6 checks pass on the day, and stays Amber
-    while at least LIFT_STAY pass. It never lifts Amber to Green. Reason: the
-    light is a 5-session average of the checks with a buffer, so after a real
-    bottom it stayed Red for several sessions even though 5 of 6 checks passed
-    and the tracker had confirmed the low.
+    Lift: while the turning-point cycle is in Up continuation (seller
+    exhaustion confirmed, the up move not yet weakened or failed, see
+    turning.py), a Red light shows Amber once LIFT_POINTS of the 6 checks pass
+    on the day, and stays Amber while at least LIFT_STAY pass. It never lifts
+    Amber to Green. Reason: the light is a 5-session average of the checks
+    with a buffer, so after a real bottom it stayed Red for several sessions
+    even though 5 of 6 checks passed and the tracker had confirmed the low.
 
     Cap (EXTENDED_CAP, off): Green shows Amber while Distribution stage 1
     (Extended) is on. Off because, in the data so far, Extended is on for
@@ -120,9 +120,10 @@ def adjust_light(rg: pd.DataFrame, tp: pd.DataFrame) -> pd.DataFrame:
     """
     base = rg["light"]
     rg["light_checks"] = base
-    ok = (tp["cycle_on"].reindex(rg.index).fillna(False).astype(bool)
-          & (tp["tc_state"].reindex(rg.index) != "Down"))
-    rg["light_conf"] = tp["conf_idx"].reindex(rg.index).map(lambda i: rg.index[int(i)] if i is not None and i >= 0 else pd.NaT)
+    phase = tp["phase"].reindex(rg.index)
+    ok = phase == "up"
+    since = tp["phase_since"].reindex(rg.index)
+    rg["light_conf"] = [rg.index[int(i)] if p == "up" and pd.notna(i) else pd.NaT for p, i in zip(phase, since)]
     pts = rg["points"]
     lifted, on = [], False
     for lt, g, p in zip(base, ok, pts):
