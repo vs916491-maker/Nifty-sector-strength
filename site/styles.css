@@ -302,7 +302,7 @@ footer p { margin: 4px 0; max-width: 80ch; }
 .strip svg { display: block; width: 100%; }
 .light-strip { margin: 12px 0 6px; }
 .regime-tiles { margin: 4px 0 6px; }
-.regime-breadth { margin: 10px 0 4px; padding-bottom: 6px; border-bottom: 1px solid var(--grid); }
+.regime-breadth { margin: 10px 0 4px; padding-bottom: 6px; }
 .regime-breadth > .sub { margin: 0 0 6px; }
 .regime-breadth .fold { margin-top: 4px; }
 .regime-tiles .v.neg { color: var(--neg-text); }
@@ -498,9 +498,10 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .tone-red   { --tone: var(--q-lagging); --tone-wash: var(--q-lagging-wash); --tone-bg: var(--q-lagging-bg); --tone-text: var(--neg-text); }
 .tone-amber { --tone: var(--q-weakening); --tone-wash: var(--q-weakening-wash); --tone-bg: var(--q-weakening-bg); --tone-text: var(--amber-text); }
 .tone-blue  { --tone: var(--q-improving); --tone-wash: var(--q-improving-wash); --tone-bg: var(--q-improving-bg); --tone-text: var(--blue-text); }
-.cycle-a { display: grid; gap: 12px; margin: 14px 0 4px; }
-.cycle-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
-.cycle-head .eyebrow { font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); font-size: 16px; }
+.cycle-a { display: grid; gap: 12px; margin: 14px 0 4px; padding-top: 18px; border-top: 2px solid var(--ink); }
+.cycle-head { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12.5px; text-align: center; }
+.cycle-head .eyebrow { font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); font-size: 16px;
+  border: 2px solid var(--ink); border-radius: 10px; padding: 6px 20px; background: var(--surface-2); }
 .ph-track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .ph { border-radius: 12px; padding: 11px 13px; display: grid; gap: 3px; min-width: 0; border: 1px dashed var(--tone); background: var(--surface); }
 .ph-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--tone-text); }
