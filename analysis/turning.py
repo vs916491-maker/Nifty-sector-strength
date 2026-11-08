@@ -436,6 +436,7 @@ CHOP_EMA_FLAT = 2.0
 CHOP_EMA_FLIPS = 2
 CHOP_SLOPE_DAYS = 5
 CHOP_PUSH_DAYS = 4
+CHOP_COMBINE = "and"    # "and": price band AND flat EMA; "or": either (tested 8 Nov 2026)
 CHOP_PUSH = False       # quick-push exception (rule 3) off since his 8 Nov 2026 test
 CONG_BAND = 1.0
 CONG_DAYS = 10
@@ -509,7 +510,7 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
             r.update(state="break", zone_lo=zone[0], zone_hi=zone[1], brk=brk)
         elif steep or pickup:
             r["state"] = "trend"
-        elif rule1 and rule2:
+        elif (rule1 and rule2) if CHOP_COMBINE == "and" else (rule1 or rule2):
             r.update(state="chop", rule1=bool(rule1), rule2=bool(rule2))
         rows.append(r)
     return pd.DataFrame(rows, index=close.index)
