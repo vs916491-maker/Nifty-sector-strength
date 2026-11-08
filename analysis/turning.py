@@ -401,6 +401,7 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
         ci = int(df["phase_since"].iloc[si - 1])
         out["failed"] = {"confirmed": d(ci), "n500_confirmed": float(n500.iloc[ci]),
                          "pivot_low": float(df["pivot_low"].iloc[si - 1]), "n500_failed": float(n500.iloc[si])}
+    out["chart"] = chart(df, n500)
     for side, col in (("up", "up_n"), ("down", "dn_n")):
         parts = df.attrs["parts"][side].loc[last]
         refs = [(df.at[last, "sma20"], "index"), (df.at[last, "sma50"], "index"), (50.0, "p50"), (0.0, "gauge")]
@@ -409,6 +410,48 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
                                 "ref": float(r) if pd.notna(r) else None, "kind": kind}
                                for (k, v), (r, kind) in zip(parts.items(), refs)]}
     return out
+
+
+CHART_DAYS = 110   # sessions shown in the website's cycle chart
+
+
+def chart(df: pd.DataFrame, n500: pd.Series) -> dict:
+    """Series for the website's cycle chart: closes, 20/50-day averages, the phase of each day,
+    phase-change and stage markers, the turn the current move started from, and the failure line."""
+    n = len(df)
+    i0 = max(0, n - CHART_DAYS)
+    idx = df.index
+    d = lambda i: idx[i].date().isoformat()
+    r1 = lambda v: round(float(v), 1) if pd.notna(v) else None
+    marks = [{"date": d(idx.get_loc(t)), "event": e, "price": r1(n500[t])}
+             for t, e in df["phase_event"].dropna().items() if idx.get_loc(t) >= i0]
+    # first Exhaustion (stage 2 of a bottom) and first Distribution (stage 2 of a top) in each live spell
+    ph = df["phase"].to_numpy()
+    start = i0
+    for i in range(i0 + 1, n + 1):
+        if i == n or ph[i] != ph[start]:
+            if ph[start] in ("bottom", "top"):
+                col = "b2" if ph[start] == "bottom" else "t2"
+                hit = np.flatnonzero(df[col].to_numpy()[start:i])
+                if len(hit):
+                    j = start + int(hit[0])
+                    marks.append({"date": d(j), "event": "Exhaustion" if col == "b2" else "Distribution", "price": r1(n500.iloc[j])})
+            start = i
+    ph_now, si = df["phase"].iloc[-1], int(df["phase_since"].iloc[-1])
+    anchor, fail = None, None
+    if ph_now in ("up", "down"):
+        lo = max(0, si - LOOK_TO)
+        win = n500.iloc[lo:si + 1].to_numpy()
+        j = lo + int(np.nanargmin(win) if ph_now == "up" else np.nanargmax(win))
+        anchor = {"date": d(j), "price": r1(n500.iloc[j]), "kind": "bottom" if ph_now == "up" else "top",
+                  "sessions": int(n - 1 - j), "change_pct": round(float((n500.iloc[-1] / n500.iloc[j] - 1) * 100), 2)}
+        fail = r1(df["pivot_low"].iloc[-1] if ph_now == "up" else df["pivot_high"].iloc[-1])
+    return {"dates": [d(i) for i in range(i0, n)],
+            "close": [r1(v) for v in n500.iloc[i0:]],
+            "sma20": [r1(v) for v in df["sma20"].iloc[i0:]],
+            "sma50": [r1(v) for v in df["sma50"].iloc[i0:]],
+            "phase": df["phase"].iloc[i0:].tolist(),
+            "marks": sorted(marks, key=lambda m: m["date"]), "anchor": anchor, "fail": fail}
 
 
 def events(df: pd.DataFrame, b: pd.Series, gap: int = 10) -> list[dict]:

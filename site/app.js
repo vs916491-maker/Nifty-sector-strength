@@ -716,6 +716,146 @@ function continuationHero(C, R, NAME) {
     right);
 }
 
+/* Cycle chart (option 1, 8 Nov 2026): the index over the last ~110 sessions, each day shaded by its
+   cycle phase, phase-change and stage markers, the turn the current move started from with a line to
+   today, the failure line, and the 20/50-day averages. Facts only, nothing projected. */
+const MARK_STYLE = {
+  "Bottom confirmed": ["up", "--q-leading", "Confirmed"],
+  "Top confirmed": ["down", "--q-lagging", "Breakdown"],
+  "Washout": ["dot", "--q-improving", "Washout"],
+  "Washout without a confirmed top": ["dot", "--q-improving", "Washout"],
+  "Exhaustion": ["dot", "--q-improving", "Exhaustion"],
+  "Up trend weakened": ["diamond", "--q-weakening", "Up weakened"],
+  "Extended without a confirmed bottom": ["diamond", "--q-weakening", "Extended"],
+  "Distribution": ["diamond", "--q-weakening", "Distribution"],
+  "Top failed": ["x", "--muted", "Top failed"],
+  "Exhaustion failed: new low": ["x", "--q-lagging", "Bottom failed"],
+  "Exhaustion failed: new washout": ["x", "--q-lagging", "Bottom failed"],
+};
+const PH_VAR = { bottom: "--q-improving", up: "--q-leading", top: "--q-weakening", down: "--q-lagging" };
+function cycleChart(K, NAME) {
+  if (!K || !K.dates?.length) return null;
+  const plot = h("div", { class: "plot cycle-plot" });
+  const tip = h("div", { class: "tip", role: "status" });
+  plot.append(tip);
+  function draw(W) {
+    plot.querySelector("svg")?.remove();
+    const narrow = W < 560, H = narrow ? 250 : 310;
+    const m = { l: 48, r: narrow ? 64 : 96, t: 14, b: 24 };
+    const n = K.dates.length, iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const vals = [...K.close, ...K.sma50, ...(K.fail ? [K.fail] : [])].filter(isNum);
+    let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.09; lo -= pad; hi += pad;
+    const x = (i) => m.l + (i / (n - 1)) * iw, y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * ih;
+    const at = (date) => K.dates.indexOf(date);
+    const boxes = [];
+    // place a label if it fits without overlapping earlier ones; tries each candidate y in turn
+    const label = (txt, cx, ys, fill, cls = "cc-label", force = false) => {
+      const w = txt.length * 6.3 + 4, anchor = cx + w / 2 > W - 2 ? "end" : cx - w / 2 < m.l ? "start" : "middle";
+      const x1 = anchor === "end" ? cx - w : anchor === "start" ? cx : cx - w / 2;
+      for (const ly of ys) {
+        const b = { x1, x2: x1 + w, y1: ly - 11, y2: ly + 3 };
+        if (b.y1 < 0 || b.y2 > H) continue;
+        if (!force && boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1)) continue;
+        boxes.push(b);
+        svg.append(s("text", { x: anchor === "end" ? x1 + w - 2 : anchor === "start" ? x1 + 2 : cx, y: ly, "text-anchor": anchor, class: cls, fill }, txt));
+        return true;
+      }
+      return false;
+    };
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+      "aria-label": `${NAME} over the last ${n} sessions, shaded by cycle phase, with markers, the failure line and averages` });
+    // phase bands
+    for (let a = 0, i = 1; i <= n; i++) if (i === n || K.phase[i] !== K.phase[a]) {
+      const xa = a === 0 ? x(0) : (x(a) + x(a - 1)) / 2, xb = i === n ? x(n - 1) : (x(i) + x(i - 1)) / 2;
+      svg.append(s("rect", { x: xa, y: m.t, width: Math.max(1, xb - xa), height: ih, fill: css(PH_VAR[K.phase[a]]), "fill-opacity": 0.11 }));
+      a = i;
+    }
+    for (const t of niceTicks(lo, hi, 4)) {
+      svg.append(s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: css("--grid"), "stroke-width": 1 }));
+      svg.append(s("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end", class: "axis-text" }, fmtCompact(t)));
+    }
+    for (const i of monthTicks(K.dates, Math.max(3, Math.floor(iw / 70))))
+      svg.append(s("text", { x: x(i), y: H - 6, "text-anchor": "middle", class: "axis-text" }, fmtDate(K.dates[i], { month: "short" })));
+    const path = (arr) => { let d = "", pen = false; arr.forEach((v, i) => { if (!isNum(v)) { pen = false; return; } d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; }); return d; };
+    svg.append(s("path", { d: path(K.sma50), fill: "none", stroke: css("--down"), "stroke-width": 1.6, "stroke-dasharray": "2 4" }));
+    svg.append(s("path", { d: path(K.sma20), fill: "none", stroke: css("--s1"), "stroke-width": 1.4, opacity: 0.85 }));
+    // failure line (up: under the bottom; down: above the top)
+    const A = K.anchor;
+    if (A && isNum(K.fail)) {
+      const up = A.kind === "bottom", col = up ? css("--neg-text") : css("--pos-text");
+      svg.append(s("line", { x1: x(Math.max(0, at(A.date) - 8)), x2: x(n - 1), y1: y(K.fail), y2: y(K.fail), stroke: col, "stroke-width": 1.5, "stroke-dasharray": "7 5" }));
+      const ft = `${up ? "Failure" : "Top fails"} ${fmtNum(K.fail, 0)}`;
+      if (narrow) label(ft, x(n - 1), [y(K.fail) + (up ? -6 : 16)], col, "cc-label", true);
+      else svg.append(s("text", { x: x(n - 1) + 6, y: y(K.fail) + 4, class: "cc-label", fill: col }, ft));
+      boxes.push({ x1: x(n - 1) + 4, x2: W, y1: y(K.fail) - 10, y2: y(K.fail) + 6 });
+    }
+    svg.append(s("path", { d: path(K.close), fill: "none", stroke: css("--ink"), "stroke-width": 2, "stroke-linejoin": "round" }));
+    // the move since the turn: straight line from the bottom (or top) to today
+    if (A) {
+      const ia = at(A.date), tone = css(A.kind === "bottom" ? "--q-leading" : "--q-lagging"), txt = css(A.kind === "bottom" ? "--pos-text" : "--neg-text");
+      if (ia >= 0) {
+        svg.append(s("line", { x1: x(ia), y1: y(A.price), x2: x(n - 1), y2: y(K.close[n - 1]), stroke: tone, "stroke-width": 3, "stroke-linecap": "round" }));
+        svg.append(s("circle", { cx: x(ia), cy: y(A.price), r: 6.5, fill: "none", stroke: css("--ink"), "stroke-width": 2 }));
+        label(`${A.kind === "bottom" ? "Bottom" : "Top"} ${fmtNum(A.price, 0)} · ${fmtDate(A.date, { day: "numeric", month: "short" })}`, x(ia),
+          A.kind === "bottom" ? [y(A.price) + 20] : [y(A.price) - 12], css("--ink"), "cc-label", true);
+        const mx = (x(ia) + x(n - 1)) / 2, my = (y(A.price) + y(K.close[n - 1])) / 2;
+        const pt = `${A.change_pct > 0 ? "+" : ""}${A.change_pct.toFixed(1)}% in ${A.sessions} session${A.sessions === 1 ? "" : "s"}`;
+        label(pt, mx - pt.length * 3.2 - 10, [my, my - 16, my + 16], txt, "cc-label strong", true);
+      }
+    }
+    // today
+    svg.append(s("circle", { cx: x(n - 1), cy: y(K.close[n - 1]), r: 4.5, fill: css("--ink") }));
+    label(fmtNum(K.close[n - 1], 0), x(n - 1) + 7 + 20, [y(K.close[n - 1]) - 6], css("--ink"), "cc-label strong", true);
+    // markers (one per date); a label that would overlap another is dropped (hover shows it)
+    const seen = new Set();
+    for (const mk of K.marks) {
+      const st = MARK_STYLE[mk.event], i = at(mk.date);
+      if (!st || i < 0 || seen.has(mk.date)) continue;
+      seen.add(mk.date);
+      const [shape, v, name] = st, col = css(v), cx = x(i), cy = y(mk.price);
+      if (shape === "up") svg.append(s("path", { d: `M${cx},${cy + 6} l-7,12 h14 z`, fill: col }));
+      else if (shape === "down") svg.append(s("path", { d: `M${cx},${cy - 6} l-7,-12 h14 z`, fill: col }));
+      else if (shape === "diamond") svg.append(s("path", { d: `M${cx},${cy - 7} l6,7 l-6,7 l-6,-7 z`, fill: col, stroke: css("--surface"), "stroke-width": 1.5 }));
+      else if (shape === "x") svg.append(s("path", { d: `M${cx - 5},${cy - 5} l10,10 M${cx + 5},${cy - 5} l-10,10`, stroke: col, "stroke-width": 2.2 }));
+      else svg.append(s("circle", { cx, cy, r: 5.5, fill: col, stroke: css("--surface"), "stroke-width": 2 }));
+      if (!narrow) {
+        const t = `${name} ${fmtDate(mk.date, { day: "numeric", month: "short" })}`;
+        const ys = shape === "up" ? [cy + 32, cy - 12] : shape === "down" ? [cy - 22, cy + 22] : [cy - 11, cy + 18, cy - 26, cy + 32];
+        label(t, cx, ys, col);
+      }
+    }
+    // hover read-out
+    const cross = s("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" });
+    const hit = s("rect", { x: m.l, y: 0, width: iw, height: H, fill: "transparent", tabindex: 0 });
+    svg.append(cross, hit);
+    const show = (i) => {
+      i = Math.max(0, Math.min(n - 1, i));
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+      tip.replaceChildren(h("div", { class: "t-date" }, fmtDate(K.dates[i])),
+        h("div", { class: "t-row" }, h("span", null, NAME), h("b", null, fmtNum(K.close[i], 0))),
+        h("div", { class: "t-row" }, h("span", null, "Phase"), h("b", null, PHASE[K.phase[i]])),
+        ...K.marks.filter((mk) => mk.date === K.dates[i]).map((mk) => h("div", { class: "t-row" }, h("span", null, "Signal"), h("b", null, (MARK_STYLE[mk.event] || [0, 0, mk.event])[2]))));
+      tip.style.display = "block";
+      const px = x(i);
+      tip.style.left = `${Math.min(W - 170, Math.max(0, px + 12))}px`; tip.style.top = `${m.t}px`;
+    };
+    const idxAt = (ev) => { const r = svg.getBoundingClientRect(); return Math.round(((ev.clientX - r.left) * (W / r.width) - m.l) / iw * (n - 1)); };
+    hit.addEventListener("pointermove", (ev) => show(idxAt(ev)));
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); tip.style.display = "none"; });
+    plot.prepend(svg);
+  }
+  onResize(plot, draw);
+  const sw = (v, t, dash) => h("span", null, h("i", { class: dash ? "dash" : "line", style: `background:${dash ? "transparent" : `var(${v})`};${dash ? `border-top:2px dashed var(${v})` : ""}` }), t);
+  return h("div", { class: "cycle-chart" },
+    h("div", { class: "cc-head" }, h("b", null, `${NAME}: the cycle on the chart`), h("span", { class: "muted" }, `Last ${K.dates.length} sessions · shaded by phase`)),
+    plot,
+    h("div", { class: "legend cc-legend" },
+      ["bottom", "up", "top", "down"].map((k) => h("span", null, h("i", { style: `background:var(${PH_VAR[k]});opacity:.35` }), PHASE[k])),
+      sw("--ink", NAME), sw("--s1", "20-day average"), sw("--down", "50-day average", true),
+      K.anchor ? sw(K.anchor.kind === "bottom" ? "--q-leading" : "--q-lagging", K.anchor.kind === "bottom" ? "Bottom → today" : "Top → today") : null,
+      K.anchor ? sw(K.anchor.kind === "bottom" ? "--neg-text" : "--pos-text", K.anchor.kind === "bottom" ? "Failure line" : "Top fails above", true) : null));
+}
+
 function trackersBlock(T, NAME = "Nifty 500") {
   if (!T || !T.cycle) return null;
   const C = T.cycle, R = T.readings || {}, P = R.at_prior_low;
@@ -782,6 +922,7 @@ function trackersBlock(T, NAME = "Nifty 500") {
     C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
       h("div", { class: "hist-chips" }, C.history.map((e) => h("span", { class: `hchip tone-${PH_TONE[e.phase]}` },
         `${fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })} · ${e.event} → ${PHASE[e.phase]}`)))) : null,
+    cycleChart(C.chart, NAME),
     hero,
     h("div", { class: "tcards" }, others));
 }
