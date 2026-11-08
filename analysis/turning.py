@@ -426,6 +426,9 @@ def cycle(df: pd.DataFrame, n500: pd.Series) -> dict:
 #     4. congestion: the last CONG_DAYS closes within ±CONG_BAND% of the 50 EMA -> "Congestion · watch for break"
 #        (not Choppy); a close outside the congestion's range is a break and stays warning-free while it holds
 #        (ends on a close back inside the range or on the other side of the 50 EMA)
+#   5. EMA trending (his rule, 8 Nov 2026: the ±3% test only applies while the 50 EMA is flat or getting flat):
+#        the 50 EMA moved CHOP_TREND%+ in CHOP_TREND_DAYS sessions, or is picking up a trend (that move grew
+#        CHOP_PICKUP_DAYS days in a row with price more than CHOP_PICKUP_DEV% on that side) -> no warning
 CHOP_BAND = 3.0
 CHOP_HOLD = 3
 CHOP_LOOK = 30
@@ -435,6 +438,10 @@ CHOP_SLOPE_DAYS = 5
 CHOP_PUSH_DAYS = 4
 CONG_BAND = 1.0
 CONG_DAYS = 10
+CHOP_TREND = 0.5
+CHOP_TREND_DAYS = 10
+CHOP_PICKUP_DAYS = 3
+CHOP_PICKUP_DEV = 1.0
 
 
 def chop_series(close: pd.Series) -> pd.DataFrame:
@@ -443,6 +450,7 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
     c, e = close.to_numpy(float), ema.to_numpy(float)
     dv = (c / e - 1) * 100
     sl = np.sign(e - np.roll(e, CHOP_SLOPE_DAYS)); sl[:CHOP_SLOPE_DAYS] = 0
+    tr = (e / np.roll(e, CHOP_TREND_DAYS) - 1) * 100; tr[:CHOP_TREND_DAYS] = 0
     n = len(c)
     rows = []
     side_prev, cross = 0, -999
@@ -487,13 +495,19 @@ def chop_series(close: pd.Series) -> pd.DataFrame:
         ema_move = (e[i] / e[i - CHOP_LOOK] - 1) * 100
         s = [x for x in sl[i - CHOP_LOOK + 1:i + 1] if x != 0]
         flips = int(sum(1 for a, b in zip(s, s[1:]) if a != b))
-        r.update(held=held, ema_move=ema_move, flips=flips)
+        steep = abs(tr[i]) >= CHOP_TREND
+        k = CHOP_PICKUP_DAYS
+        pickup = (all(abs(tr[i - j]) > abs(tr[i - j - 1]) and np.sign(tr[i - j]) == np.sign(tr[i]) for j in range(k))
+                  and np.sign(tr[i]) == side and abs(dv[i]) > CHOP_PICKUP_DEV)
+        r.update(held=held, ema_move=ema_move, flips=flips, ema_10=tr[i])
         rule1 = abs(dv[i]) <= CHOP_BAND and held < CHOP_HOLD
         rule2 = abs(ema_move) < CHOP_EMA_FLAT or flips >= CHOP_EMA_FLIPS
         if push is not None:
             r["state"] = "push"
         elif brk is not None:
             r.update(state="break", zone_lo=zone[0], zone_hi=zone[1], brk=brk)
+        elif steep or pickup:
+            r["state"] = "trend"
         elif rule1 and rule2:
             r["state"] = "chop"
         rows.append(r)
@@ -504,7 +518,7 @@ def chop(df: pd.DataFrame, n500: pd.Series) -> dict:
     x = chop_series(n500.reindex(df.index).dropna()).iloc[-1]
     g = lambda k: (round(float(x[k]), 2) if pd.notna(x.get(k)) else None) if k in x else None
     out = {"state": x["state"], "on": x["state"] == "chop", "dev": g("dev"), "ema": g("ema"),
-           "ema_move": g("ema_move"), "flips": int(x["flips"]) if pd.notna(x.get("flips")) else None,
+           "ema_move": g("ema_move"), "ema_10": g("ema_10"), "flips": int(x["flips"]) if pd.notna(x.get("flips")) else None,
            "look": CHOP_LOOK, "band": CHOP_BAND, "cong_band": CONG_BAND}
     if x["state"] in ("congestion", "break"):
         out.update(zone_lo=g("zone_lo"), zone_hi=g("zone_hi"))
