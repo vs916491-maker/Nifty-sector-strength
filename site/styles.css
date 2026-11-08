@@ -533,11 +533,12 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .pill.tone-live { background: var(--tone); color: #fff; }
 .ctiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
 .ctile { background: var(--surface); border: 1px solid var(--tone-bg); border-radius: 10px; padding: 9px 12px; min-width: 0; }
-.ctile .k { font-size: 12px; color: var(--ink-2); }
-.ctile .v { font-size: 19px; font-weight: 600; color: var(--tone-text); font-variant-numeric: tabular-nums; }
-.ctile .d { font-size: 12px; color: var(--muted); }
-.ctile.no .v { color: var(--muted); }
-.ctile.ok .mark { color: var(--tone-text); } .ctile.no .mark { color: var(--muted); }
+.ctile .k { font-size: 13px; font-weight: 600; color: var(--ink); }
+.ctile .v { font-size: 19px; font-weight: 700; color: var(--tone-text); font-variant-numeric: tabular-nums; }
+.ctile .d { font-size: 12px; color: var(--ink-2); }
+.ctile.no .v { color: var(--ink); }
+.ctile .mark { font-size: 15px; font-weight: 800; margin-right: 2px; }
+.ctile.ok .mark { color: var(--pos-text); } .ctile.no .mark { color: var(--neg-text); }
 .ctile .bar { position: relative; height: 6px; background: var(--grid); border-radius: 3px; margin-top: 6px; }
 .ctile .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--tone); border-radius: 3px; }
 .ctile .bar u { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--ink-2); text-decoration: none; }
