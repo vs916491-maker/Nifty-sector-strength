@@ -522,6 +522,7 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .hrow:first-of-type { border-top: 0; }
 .hr-date { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 56px; }
 .hr-ev { color: var(--ink); }
+.hrow.latest, .hrow.latest .hr-date, .hrow.latest .hr-ev { font-weight: 700; color: var(--ink); }
 .hrow.stage { justify-content: space-between; }
 .hr-date.r { text-align: right; min-width: 0; }
 .hg-entered { margin-top: 5px; padding-top: 4px; border-top: 1px dashed var(--hair); font-size: 11.5px; color: var(--muted); }
