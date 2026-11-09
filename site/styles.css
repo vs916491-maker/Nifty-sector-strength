@@ -514,8 +514,8 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .ph.live .ph-n { background: #fff; border-color: #fff; color: var(--chip-ink); }
 .cycle-hist summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
 .hist-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.hist-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 8px; }
-.hgroup { border: 1px solid var(--tone-bg); border-top: 3px solid var(--tone-bg); border-radius: 8px; background: var(--tone-wash); padding: 8px 10px; }
+.hist-groups { padding-top: 26px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 8px; }
+.hgroup { position: relative; border: 1px solid var(--tone-bg); border-top: 3px solid var(--tone-bg); border-radius: 8px; background: var(--tone-wash); padding: 8px 10px; }
 .hg-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--tone-text); font-size: 13px; margin-bottom: 4px; }
 .hg-n { font-size: 11.5px; opacity: .8; }
 .hrow { display: flex; gap: 8px; font-size: 12.5px; padding: 3px 0; border-top: 1px solid var(--hair); }
@@ -639,3 +639,7 @@ td.pos { color: var(--q-leading); } td.neg { color: var(--q-lagging); }
 .legend i.zone-key.chop { background: rgba(245, 196, 0, .25); border: 2px solid #e0ac00; }
 .legend i.zone-key.cong { background: rgba(42, 120, 214, .12); border: 1.5px dashed var(--s1); }
 .legend i.sig-dot { display: inline-grid; place-items: center; width: 14px; height: 14px; line-height: 1; border-radius: 50%; border: 2px solid; font-size: 9px; font-style: normal; font-weight: 800; margin-right: 5px; vertical-align: -2px; background: var(--surface); }
+
+.hg-arrow { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; color: var(--ink); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; line-height: 1; pointer-events: none; }
+.hg-arrow .tri { font-size: 13px; margin-top: 1px; }
+.hgroup.live { box-shadow: 0 0 0 1.5px var(--ink); }

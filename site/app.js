@@ -981,19 +981,24 @@ function trackersBlock(T, NAME = "Nifty 500") {
       h("summary", null, `Cycle history · ${C.history.length} changes`),
       // grouped by the phase each change led into, in cycle order; newest first inside each group
       h("div", { class: "hist-groups" }, PH_ORDER.map((ph) => {
+        const liveMark = h("div", { class: "hg-arrow", "aria-label": "Live phase" }, h("span", null, "LIVE"), h("span", { class: "tri", "aria-hidden": "true" }, "▼"));
         const rows = C.history.filter((e) => e.phase === ph).reverse(); // oldest first, latest last
         if (ph === "bottom" || ph === "top") {
           // Seller exhaustion / Distribution: same three stages and dates as the tracker cards below
           const t = tracker(ph);
           const when = (s) => stageWhen(s, t.mode);
-          return h("div", { class: `hgroup tone-${PH_TONE[ph]}` },
+          return h("div", { class: `hgroup tone-${PH_TONE[ph]}${C.phase === ph ? " live" : ""}` },
+            C.phase === ph ? liveMark : null,
             h("div", { class: "hg-head" }, h("b", null, t.title), h("span", { class: "hg-n" }, rows.length ? `${rows.length}×` : "")),
-            t.stages.map((s) => h("div", { class: "hrow stage" },
+            t.stages.map((s, k) => ({ s, k, d: (s.old ? s.last_met : (s.first_met || s.last_met)) || "9999" }))
+              .sort((x, y) => (x.d < y.d ? -1 : x.d > y.d ? 1 : x.k - y.k)).map(({ s }) => s)   // time order, latest last
+              .map((s) => h("div", { class: "hrow stage" },
               h("span", { class: "hr-ev" }, s.name), h("span", { class: "hr-date r" }, when(s)))),
             rows.length ? h("div", { class: "hg-entered" }, `Entered: ${rows.map((e) => fmtDate(e.date, { day: "numeric", month: "short" })).join(", ")}`) : null);
         }
         if (!rows.length) return null;
-        return h("div", { class: `hgroup tone-${PH_TONE[ph]}` },
+        return h("div", { class: `hgroup tone-${PH_TONE[ph]}${C.phase === ph ? " live" : ""}` },
+          C.phase === ph ? liveMark : null,
           h("div", { class: "hg-head" }, h("b", null, PHASE[ph]), h("span", { class: "hg-n" }, `${rows.length}×`)),
           rows.map((e, k) => h("div", { class: `hrow${k === rows.length - 1 ? " latest" : ""}` },
             h("span", { class: "hr-date" }, fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })),
