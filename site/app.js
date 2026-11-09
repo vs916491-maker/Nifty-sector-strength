@@ -969,6 +969,16 @@ function trackersBlock(T, NAME = "Nifty 500") {
       // grouped by the phase each change led into, in cycle order; newest first inside each group
       h("div", { class: "hist-groups" }, PH_ORDER.map((ph) => {
         const rows = C.history.filter((e) => e.phase === ph);
+        if (ph === "bottom" || ph === "top") {
+          // Seller exhaustion / Distribution: same three stages and dates as the tracker cards below
+          const t = tracker(ph);
+          const when = (s) => (s.met_today && t.mode !== "rest" ? "today" : s.last_met ? `${t.mode === "rest" || s.old ? "last " : ""}${dshort(s.last_met)}` : "not yet");
+          return h("div", { class: `hgroup tone-${PH_TONE[ph]}` },
+            h("div", { class: "hg-head" }, h("b", null, t.title), h("span", { class: "hg-n" }, rows.length ? `${rows.length}×` : "")),
+            t.stages.map((s) => h("div", { class: "hrow stage" },
+              h("span", { class: "hr-ev" }, s.name), h("span", { class: "hr-date r" }, when(s)))),
+            rows.length ? h("div", { class: "hg-entered" }, `Entered: ${rows.map((e) => fmtDate(e.date, { day: "numeric", month: "short" })).join(", ")}`) : null);
+        }
         if (!rows.length) return null;
         return h("div", { class: `hgroup tone-${PH_TONE[ph]}` },
           h("div", { class: "hg-head" }, h("b", null, PHASE[ph]), h("span", { class: "hg-n" }, `${rows.length}×`)),
