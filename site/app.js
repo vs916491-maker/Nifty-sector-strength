@@ -631,15 +631,28 @@ function phaseTrack(C) {
   }));
 }
 
+/* Date shown for a tracker stage: the day it was first met in the tracker's latest run (falls back to the
+   last day it was met until the nightly build has written first_met). Stages from before a failed bottom show "last". */
+function stageWhen(s, mode) {
+  const d = s.old ? s.last_met : (s.first_met || s.last_met);
+  if (!d) return "not yet";
+  if (s.met_today && mode !== "rest" && d === s.last_met) return "today";
+  return `${s.old ? "last " : ""}${dshort(d)}`;
+}
 /* Three stage dots; clicking one opens its conditions underneath (click again to close).
    mode: "live" (fill the stages reached in this cycle), "done" (all reached), "rest" (history only). */
 function stageDots(stages, mode, openIdx = -1) {
   let reached = 0, best = Infinity;
   stages.forEach((s, i) => { if (!s.old && isNum(s.sessions_ago) && s.sessions_ago <= 10 && s.sessions_ago <= best) { best = s.sessions_ago; reached = i + 1; } });
   const filled = (s, i) => !s.old && s.last_met && (mode === "done" || (mode === "live" && i < reached));
-  const whenShort = (s) => s.met_today && mode !== "rest" ? "today" : s.last_met ? `${mode === "rest" || s.old ? "last " : ""}${dshort(s.last_met)}` : "not yet";
-  const whenLong = (s) => s.met_today ? (s.key === "b3" ? "Confirmed today." : "Met today.")
-    : s.last_met ? `${s.key === "b3" ? "Confirmed" : "Last met"} ${fmtDate(s.last_met, { day: "numeric", month: "short", year: "numeric" })}${isNum(s.sessions_ago) ? ` (${sessionsTxt(s.sessions_ago)} ago)` : ""}.` : "Not met yet.";
+  const whenShort = (s) => stageWhen(s, mode);
+  const whenLong = (s) => {
+    const d = s.old ? s.last_met : (s.first_met || s.last_met);
+    if (!d) return "Not met yet.";
+    if (s.met_today && d === s.last_met) return s.key === "b3" ? "Confirmed today." : "Met today.";
+    const lab = s.old ? "Last met" : s.key === "b3" ? "Confirmed" : s.first_met ? "First met" : "Last met";
+    return `${lab} ${fmtDate(d, { day: "numeric", month: "short", year: "numeric" })}${s.met_today && !s.old ? ", still holding today" : ""}.`;
+  };
   const detail = h("div", { class: "stage-detail" });
   let open = -1;
   const btns = stages.map((s, i) => h("button", { type: "button", class: `sdot${filled(s, i) ? " on" : ""}`, "aria-expanded": "false",
@@ -972,7 +985,7 @@ function trackersBlock(T, NAME = "Nifty 500") {
         if (ph === "bottom" || ph === "top") {
           // Seller exhaustion / Distribution: same three stages and dates as the tracker cards below
           const t = tracker(ph);
-          const when = (s) => (s.met_today && t.mode !== "rest" ? "today" : s.last_met ? `${t.mode === "rest" || s.old ? "last " : ""}${dshort(s.last_met)}` : "not yet");
+          const when = (s) => stageWhen(s, t.mode);
           return h("div", { class: `hgroup tone-${PH_TONE[ph]}` },
             h("div", { class: "hg-head" }, h("b", null, t.title), h("span", { class: "hg-n" }, rows.length ? `${rows.length}×` : "")),
             t.stages.map((s) => h("div", { class: "hrow stage" },

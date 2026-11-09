@@ -346,12 +346,28 @@ def latest(df: pd.DataFrame, rg: pd.DataFrame) -> dict:
     last = df.index[-1]
     for side, stages in STAGES.items():
         items = []
+        # the tracker's latest run: the last unbroken stretch of days it was live (incl. the day it handed over)
+        live = ((df["phase_prev"] == side) | (df["phase"] == side)).to_numpy()
+        run_start = None
+        if live.any():
+            e = len(live) - 1 - int(np.argmax(live[::-1]))      # last live day
+            s0 = e
+            while s0 > 0 and live[s0 - 1]:
+                s0 -= 1
+            run_start = s0
+            run_end = e
         for key, name, help_ in stages:
             on = df[key].fillna(False).astype(bool)
             days = df.index[on]
+            first_in_run = None
+            if run_start is not None:
+                hit = np.flatnonzero(on.to_numpy()[run_start:run_end + 1])
+                if len(hit):
+                    first_in_run = df.index[run_start + int(hit[0])].date().isoformat()
             parts = df.attrs["parts"][key].loc[last]
             items.append({
                 "key": key, "name": name, "help": help_, "met_today": bool(on.iloc[-1]),
+                "first_met": first_in_run,
                 "last_met": days[-1].date().isoformat() if len(days) else None,
                 "sessions_ago": int(len(df) - 1 - df.index.get_loc(days[-1])) if len(days) else None,
                 "parts": [{"label": k, "ok": bool(v) if pd.notna(v) else False} for k, v in parts.items()],
