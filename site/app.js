@@ -790,7 +790,6 @@ function cycleChart(K, NAME) {
       svg.append(s("text", { x: x(i), y: H - 6, "text-anchor": "middle", class: "axis-text" }, fmtDate(K.dates[i], { month: "short" })));
     const path = (arr) => { let d = "", pen = false; arr.forEach((v, i) => { if (!isNum(v)) { pen = false; return; } d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; }); return d; };
     svg.append(s("path", { d: path(K.sma50), fill: "none", stroke: css("--down"), "stroke-width": 1.6, "stroke-dasharray": "2 4" }));
-    svg.append(s("path", { d: path(K.sma20), fill: "none", stroke: css("--s1"), "stroke-width": 1.4, opacity: 0.85 }));
     // failure line (up: under the bottom; down: above the top)
     const A = K.anchor;
     if (A && isNum(K.fail)) {
@@ -871,7 +870,7 @@ function cycleChart(K, NAME) {
     plot,
     h("div", { class: "legend cc-legend" },
       ["bottom", "up", "top", "down"].map((k) => h("span", null, h("i", { style: `background:var(${PH_VAR[k]});opacity:.35` }), PHASE[k])),
-      sw("--ink", NAME), sw("--s1", "20-day average"), sw("--down", "50-day average", true),
+      sw("--ink", NAME), sw("--down", "50-day average", true),
       K.anchor ? sw(K.anchor.kind === "bottom" ? "--q-leading" : "--q-lagging", K.anchor.kind === "bottom" ? "Bottom → today" : "Top → today") : null,
       K.anchor ? sw(K.anchor.kind === "bottom" ? "--neg-text" : "--pos-text", K.anchor.kind === "bottom" ? "Failure line" : "Top fails above", true) : null,
       K.swings ? h("span", null, h("i", { style: "background:transparent;border:1.8px solid var(--ink)" }), "Real top / bottom (6%+ turn)") : null));
@@ -965,9 +964,18 @@ function trackersBlock(T, NAME = "Nifty 500") {
       h("div", { class: "cycle-title" }, h("span", { class: "eyebrow" }, `Turning-point cycle · ${NAME}`), chopTag(C)),
       chopNote(C, NAME) || h("span", { class: "muted" }, "Next washout restarts the cycle")),
     phaseTrack(C),
-    C.history?.length ? h("details", { class: "cycle-hist" }, h("summary", null, "Cycle history"),
-      h("div", { class: "hist-chips" }, C.history.map((e) => h("span", { class: `hchip tone-${PH_TONE[e.phase]}` },
-        `${fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })} · ${e.event} → ${PHASE[e.phase]}`)))) : null,
+    C.history?.length ? h("details", { class: "cycle-hist" },
+      h("summary", null, `Cycle history · ${C.history.length} changes`),
+      // grouped by the phase each change led into, in cycle order; newest first inside each group
+      h("div", { class: "hist-groups" }, PH_ORDER.map((ph) => {
+        const rows = C.history.filter((e) => e.phase === ph);
+        if (!rows.length) return null;
+        return h("div", { class: `hgroup tone-${PH_TONE[ph]}` },
+          h("div", { class: "hg-head" }, h("b", null, PHASE[ph]), h("span", { class: "hg-n" }, `${rows.length}×`)),
+          rows.map((e) => h("div", { class: "hrow" },
+            h("span", { class: "hr-date" }, fmtDate(e.date, { day: "numeric", month: "short", year: "2-digit" })),
+            h("span", { class: "hr-ev" }, e.event))));
+      }))) : null,
     cycleChart({ ...C.chart, warn: upWarning(C) }, NAME),
     hero,
     h("div", { class: "tcards" }, others));
