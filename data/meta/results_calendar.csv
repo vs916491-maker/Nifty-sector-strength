@@ -1,7 +1,4 @@
 symbol,date,purpose
-BSHSL,2026-10-10,Financial Results
-DMART,2026-10-10,Financial Results
-PREMIERPOL,2026-10-10,Financial Results
 ADROITIND,2026-10-12,Financial Results
 AGRITECH,2026-10-12,Financial Results
 ALKALI,2026-10-12,Financial Results/Other business matters
@@ -40,7 +37,7 @@ GROWW,2026-10-14,Financial Results
 HATHWAY,2026-10-14,Financial Results
 HDBFS,2026-10-14,Financial Results
 ICICIGI,2026-10-14,Financial Results/Dividend
-MRPL,2026-10-14,Financial Results/Dividend
+MRPL,2026-10-14,Financial Results
 RIIL,2026-10-14,Financial Results
 SECURCRED,2026-10-14,Financial Results/Other business matters
 SONA,2026-10-14,Financial Results
@@ -1884,6 +1881,7 @@ GAYAHWS,2026-11-12,Financial Results
 GICHSGFIN,2026-11-12,Financial Results/Other business matters
 GLOBAL,2026-11-12,Financial Results/Other business matters
 GOLDTECH,2026-11-12,Financial Results
+GUJRAFFIA,2026-11-12,Financial Results
 GULPOLY,2026-11-12,Financial Results/Other business matters
 HAL,2026-11-12,Financial Results
 HAVISHA,2026-11-12,Financial Results/Other business matters
@@ -2153,6 +2151,7 @@ ORIENTBELL,2026-11-13,Financial Results
 PALASHSECU,2026-11-13,Financial Results
 PALREDTEC,2026-11-13,Financial Results
 PARKHOSPS,2026-11-13,Financial Results
+PARKHOTELS,2026-11-13,Financial Results
 PEARLPOLY,2026-11-13,Financial Results
 PENIND,2026-11-13,Financial Results/Other business matters
 PENINLAND,2026-11-13,Financial Results
@@ -2274,6 +2273,7 @@ COASTCORP,2026-11-14,Financial Results
 DCMSIL,2026-11-14,Financial Results
 DOLATALGO,2026-11-14,Financial Results
 DSFCL,2026-11-14,Financial Results
+DSSL,2026-11-14,Financial Results
 EUROBOND,2026-11-14,Financial Results
 EXPLEOSOL,2026-11-14,Financial Results
 FIRSTCRY,2026-11-14,Financial Results
