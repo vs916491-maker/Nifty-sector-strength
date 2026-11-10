@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-10T05:56:53+05:30",
+  "run_at_ist": "2026-11-10T19:20:22+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,9 +168,9 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 2407,
-    "upcoming": 638,
-    "next_7_days": 635
+    "fetched": 2429,
+    "upcoming": 660,
+    "next_7_days": 657
   },
   "universe_size": 765,
   "indices": {
