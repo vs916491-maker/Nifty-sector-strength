@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-11T22:20:23+05:30",
+  "run_at_ist": "2026-11-12T04:34:58+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,16 +168,16 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 2454,
-    "upcoming": 662,
-    "next_7_days": 660
+    "fetched": 2441,
+    "upcoming": 612,
+    "next_7_days": 610
   },
   "universe_size": 765,
   "indices": {
     "days_added": 0,
     "first": null,
     "last": null,
-    "days_without_file": 0,
+    "days_without_file": 1,
     "unreadable_files": [],
     "latest_stored": "2026-11-11"
   },
@@ -185,7 +185,7 @@
     "days_added": 0,
     "first": null,
     "last": null,
-    "days_without_file": 0,
+    "days_without_file": 1,
     "unreadable_files": [],
     "latest_stored": "2026-11-11"
   },
@@ -240,5 +240,5 @@
     "TOURISM": "Nifty India Tourism"
   },
   "problems": [],
-  "requests_made": 39
+  "requests_made": 41
 }
