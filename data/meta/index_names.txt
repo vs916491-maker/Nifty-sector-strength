@@ -18,6 +18,7 @@ NIFTY500 Value 50
 Nifty 10 yr Benchmark G-Sec
 Nifty 10 yr Benchmark G-Sec (Clean Price)
 Nifty 100
+Nifty 1000
 Nifty 11-15 yr G-Sec Index
 Nifty 15 yr and above G-Sec Index
 Nifty 1D Rate Index
@@ -139,6 +140,7 @@ Nifty100 ESG Sector Leaders
 Nifty100 Equal Weight
 Nifty100 Liquid 15
 Nifty100 Low Volatility 30
+Nifty1000 Equal Weight
 Nifty200 Alpha 30
 Nifty200 Momentum 30
 Nifty200 Value 30
