@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-18T05:09:38+05:30",
+  "run_at_ist": "2026-11-18T19:20:28+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -163,38 +163,39 @@
   },
   "corporate_actions": {
     "ok": true,
-    "events": 332,
-    "fetched": 28
+    "events": 333,
+    "fetched": 29
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 2350,
-    "upcoming": 12,
-    "next_7_days": 9
+    "fetched": 2351,
+    "upcoming": 13,
+    "next_7_days": 10
   },
   "universe_size": 763,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-18",
+    "last": "2026-11-18",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-17"
+    "latest_stored": "2026-11-18"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-18",
+    "last": "2026-11-18",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-17"
+    "latest_stored": "2026-11-18"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 777
   },
   "mcap": {
     "ok": true,
-    "date": "2026-11-17",
+    "date": "2026-11-18",
     "stocks": 2598
   },
   "price_jump_check": {
