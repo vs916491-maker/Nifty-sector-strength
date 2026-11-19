@@ -1,202 +1,162 @@
 {
-  "run_at_ist": "2026-11-19T19:20:21+05:30",
+  "run_at_ist": "2026-11-19T22:20:31+05:30",
   "constituents": {
     "NIFTY50": {
-      "ok": true,
-      "stocks": 50,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "NIFTY500": {
-      "ok": true,
-      "stocks": 501,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "TOTALMKT": {
-      "ok": true,
-      "stocks": 752,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftytotalmarket_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "AUTO": {
-      "ok": true,
-      "stocks": 15,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyautolist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "BANK": {
-      "ok": true,
-      "stocks": 14,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftybanklist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "FINSERV": {
-      "ok": true,
-      "stocks": 20,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyfinancelist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "FMCG": {
-      "ok": true,
-      "stocks": 15,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyfmcglist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "HEALTHCARE": {
-      "ok": true,
-      "stocks": 20,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyhealthcarelist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "IT": {
-      "ok": true,
-      "stocks": 10,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyitlist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "MEDIA": {
-      "ok": true,
-      "stocks": 10,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftymedialist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "METAL": {
-      "ok": true,
-      "stocks": 15,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftymetallist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "PHARMA": {
-      "ok": true,
-      "stocks": 20,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftypharmalist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "PVTBANK": {
-      "ok": true,
-      "stocks": 10,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_nifty_privatebanklist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "PSUBANK": {
-      "ok": true,
-      "stocks": 12,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftypsubanklist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "REALTY": {
-      "ok": true,
-      "stocks": 10,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyrealtylist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "CONSDUR": {
-      "ok": true,
-      "stocks": 14,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyconsumerdurableslist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "OILGAS": {
-      "ok": true,
-      "stocks": 15,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyoilgaslist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "CHEMICALS": {
-      "ok": true,
-      "stocks": 20,
-      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftychemicals_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "ENERGY": {
-      "ok": true,
-      "stocks": 40,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyenergylist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "INFRA": {
-      "ok": true,
-      "stocks": 30,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyinfralist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "PSE": {
-      "ok": true,
-      "stocks": 20,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftypselist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "CPSE": {
-      "ok": true,
-      "stocks": 11,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftycpselist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "COMMODITIES": {
-      "ok": true,
-      "stocks": 30,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftycommoditieslist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "CONSUMPTION": {
-      "ok": true,
-      "stocks": 30,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyconsumptionlist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "MNC": {
-      "ok": true,
-      "stocks": 30,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftymnclist.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "DEFENCE": {
-      "ok": true,
-      "stocks": 22,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiadefence_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "CAPMKT": {
-      "ok": true,
-      "stocks": 17,
-      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftycapitalmarkets_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "MFG": {
-      "ok": true,
-      "stocks": 77,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiamanufacturing_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "HOUSING": {
-      "ok": true,
-      "stocks": 50,
-      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftyhousing_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "DIGITAL": {
-      "ok": true,
-      "stocks": 50,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiadigital_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "TOURISM": {
-      "ok": true,
-      "stocks": 11,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiatourism_list.csv"
+      "ok": false,
+      "kept_old_file": true
     }
   },
   "fno": {
-    "ok": true,
-    "symbols": 224
+    "ok": false
   },
   "corporate_actions": {
-    "ok": true,
-    "events": 333,
-    "fetched": 28
+    "ok": false
   },
   "results_calendar": {
-    "ok": true,
-    "fetched": 2329,
-    "upcoming": 14,
-    "next_7_days": 11
+    "ok": false
   },
   "universe_size": 763,
   "indices": {
-    "days_added": 1,
-    "first": "2026-11-19",
-    "last": "2026-11-19",
+    "days_added": 0,
+    "first": null,
+    "last": null,
     "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-11-19"
   },
   "stocks": {
-    "days_added": 1,
-    "first": "2026-11-19",
-    "last": "2026-11-19",
+    "days_added": 0,
+    "first": null,
+    "last": null,
     "days_without_file": 0,
     "unreadable_files": [],
     "latest_stored": "2026-11-19"
   },
   "advance_decline": {
-    "days_added": 1,
-    "total_days": 778
+    "days_added": 0
   },
   "mcap": {
-    "ok": true,
-    "date": "2026-11-19",
-    "stocks": 2598
+    "ok": false
   },
   "price_jump_check": {
     "big_drops": 125,
@@ -240,6 +200,11 @@
     "DIGITAL": "Nifty India Digital",
     "TOURISM": "Nifty India Tourism"
   },
-  "problems": [],
-  "requests_made": 41
+  "problems": [
+    "F&O list: BlockedError: Failed after 3 attempts: https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv (403 for https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv)",
+    "Corporate actions: BlockedError: Failed after 3 attempts: https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=22-07-2026&to_date=20-10-2026 (403 for https://www.nseindia.",
+    "Results calendar: BlockedError: Failed after 3 attempts: https://www.nseindia.com/api/event-calendar?index=equities&from_date=20-10-2026&to_date=18-01-2027 (403 for https://www.nseindia.com/api/event-",
+    "Constituent list not found: NIFTY50, NIFTY500, TOTALMKT, AUTO, BANK, FINSERV, FMCG, HEALTHCARE, IT, MEDIA, METAL, PHARMA, PVTBANK, PSUBANK, REALTY, CONSDUR, OILGAS, CHEMICALS, ENERGY, INFRA, PSE, CPSE, COMMODITIES, CONSUMPTION, MNC, DEFENCE, CAPMKT, MFG, HOUSING, DIGITAL, TOURISM"
+  ],
+  "requests_made": 176
 }
