@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-19T04:39:26+05:30",
+  "run_at_ist": "2026-11-19T19:20:21+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,33 +168,34 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 2325,
-    "upcoming": 10,
-    "next_7_days": 7
+    "fetched": 2329,
+    "upcoming": 14,
+    "next_7_days": 11
   },
   "universe_size": 763,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-19",
+    "last": "2026-11-19",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-18"
+    "latest_stored": "2026-11-19"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-19",
+    "last": "2026-11-19",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-18"
+    "latest_stored": "2026-11-19"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 778
   },
   "mcap": {
     "ok": true,
-    "date": "2026-11-18",
+    "date": "2026-11-19",
     "stocks": 2598
   },
   "price_jump_check": {
