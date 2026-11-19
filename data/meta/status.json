@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-19T22:20:31+05:30",
+  "run_at_ist": "2026-11-20T03:20:42+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": false,
@@ -137,19 +137,11 @@
   },
   "universe_size": 763,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 0,
-    "unreadable_files": [],
+    "error": "Failed after 3 attempts: https://nsearchives.nseindia.com/content/indices/ind_close_all_20112026.csv (403 for https://nsearchives.nseindia.com/content/indices/ind_close_all_20112026.csv)",
     "latest_stored": "2026-11-19"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 0,
-    "unreadable_files": [],
+    "error": "Failed after 3 attempts: https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_20112026.csv (403 for https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_20112026.csv)",
     "latest_stored": "2026-11-19"
   },
   "advance_decline": {
@@ -202,9 +194,11 @@
   },
   "problems": [
     "F&O list: BlockedError: Failed after 3 attempts: https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv (403 for https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv)",
-    "Corporate actions: BlockedError: Failed after 3 attempts: https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=22-07-2026&to_date=20-10-2026 (403 for https://www.nseindia.",
-    "Results calendar: BlockedError: Failed after 3 attempts: https://www.nseindia.com/api/event-calendar?index=equities&from_date=20-10-2026&to_date=18-01-2027 (403 for https://www.nseindia.com/api/event-",
+    "Corporate actions: BlockedError: Failed after 3 attempts: https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=23-07-2026&to_date=21-10-2026 (403 for https://www.nseindia.",
+    "Results calendar: BlockedError: Failed after 3 attempts: https://www.nseindia.com/api/event-calendar?index=equities&from_date=21-10-2026&to_date=19-01-2027 (403 for https://www.nseindia.com/api/event-",
+    "indices: Failed after 3 attempts: https://nsearchives.nseindia.com/content/indices/ind_close_all_20112026.csv (403 for https://nsearchives.nseindia.com/content/indices/ind_close_all_20112026.csv)",
+    "stocks: Failed after 3 attempts: https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_20112026.csv (403 for https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_20112026.csv)",
     "Constituent list not found: NIFTY50, NIFTY500, TOTALMKT, AUTO, BANK, FINSERV, FMCG, HEALTHCARE, IT, MEDIA, METAL, PHARMA, PVTBANK, PSUBANK, REALTY, CONSDUR, OILGAS, CHEMICALS, ENERGY, INFRA, PSE, CPSE, COMMODITIES, CONSUMPTION, MNC, DEFENCE, CAPMKT, MFG, HOUSING, DIGITAL, TOURISM"
   ],
-  "requests_made": 176
+  "requests_made": 182
 }
