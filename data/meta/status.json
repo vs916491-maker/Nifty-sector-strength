@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-20T22:20:21+05:30",
+  "run_at_ist": "2026-11-21T03:03:50+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -168,25 +168,17 @@
   },
   "results_calendar": {
     "ok": true,
-    "fetched": 2328,
-    "upcoming": 13,
-    "next_7_days": 10
+    "fetched": 2301,
+    "upcoming": 11,
+    "next_7_days": 9
   },
   "universe_size": 763,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 0,
-    "unreadable_files": [],
+    "error": "Failed after 3 attempts: https://nsearchives.nseindia.com/content/indices/ind_close_all_21112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/content/indices/ind_close_all_21112026.csv)",
     "latest_stored": "2026-11-20"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 0,
-    "unreadable_files": [],
+    "error": "Failed after 3 attempts: https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_21112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_21112026.csv)",
     "latest_stored": "2026-11-20"
   },
   "advance_decline": {
@@ -239,6 +231,9 @@
     "DIGITAL": "Nifty India Digital",
     "TOURISM": "Nifty India Tourism"
   },
-  "problems": [],
-  "requests_made": 39
+  "problems": [
+    "indices: Failed after 3 attempts: https://nsearchives.nseindia.com/content/indices/ind_close_all_21112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/content/indices/ind_close_all_21112026.csv)",
+    "stocks: Failed after 3 attempts: https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_21112026.csv (HTML instead of CSV for https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_21112026.csv)"
+  ],
+  "requests_made": 48
 }
