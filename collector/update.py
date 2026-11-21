@@ -265,7 +265,17 @@ def collect_daily(client: NSEClient, folder: Path, url_tpl: str, parser,
     by_month: dict[str, list[pd.DataFrame]] = {}
     day = start
     while day <= end:
-        text = client.get_text(url_tpl.format(ddmmyyyy=day.strftime("%d%m%Y")))
+        # A weekend (no file unless there is a special session) or today (file not out
+        # yet, or the run started after midnight) answering with a web page instead of
+        # the file just means "nothing to fetch", not that NSE is blocking us.
+        maybe_none = day.weekday() >= 5 or day == end
+        try:
+            text = client.get_text(url_tpl.format(ddmmyyyy=day.strftime("%d%m%Y")),
+                                   **({"attempts": 1} if day.weekday() >= 5 else {}))
+        except BlockedError:
+            if not maybe_none:
+                raise
+            text = None
         if text is not None:
             try:
                 frame = parser(text, day)
