@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-27T06:19:29+05:30",
+  "run_at_ist": "2026-11-27T19:20:25+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -89,7 +89,7 @@
     "CHEMICALS": {
       "ok": true,
       "stocks": 20,
-      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyChemicals_list.csv"
+      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftychemicals_list.csv"
     },
     "ENERGY": {
       "ok": true,
@@ -132,8 +132,9 @@
       "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiadefence_list.csv"
     },
     "CAPMKT": {
-      "ok": false,
-      "kept_old_file": true
+      "ok": true,
+      "stocks": 17,
+      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftycapitalmarkets_list.csv"
     },
     "MFG": {
       "ok": true,
@@ -173,28 +174,29 @@
   },
   "universe_size": 763,
   "indices": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-27",
+    "last": "2026-11-27",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-26"
+    "latest_stored": "2026-11-27"
   },
   "stocks": {
-    "days_added": 0,
-    "first": null,
-    "last": null,
-    "days_without_file": 1,
+    "days_added": 1,
+    "first": "2026-11-27",
+    "last": "2026-11-27",
+    "days_without_file": 0,
     "unreadable_files": [],
-    "latest_stored": "2026-11-26"
+    "latest_stored": "2026-11-27"
   },
   "advance_decline": {
-    "days_added": 0
+    "days_added": 1,
+    "total_days": 783
   },
   "mcap": {
     "ok": true,
-    "date": "2026-11-26",
-    "stocks": 2601
+    "date": "2026-11-27",
+    "stocks": 2604
   },
   "price_jump_check": {
     "big_drops": 125,
@@ -238,8 +240,6 @@
     "DIGITAL": "Nifty India Digital",
     "TOURISM": "Nifty India Tourism"
   },
-  "problems": [
-    "Constituent list not found: CAPMKT"
-  ],
-  "requests_made": 47
+  "problems": [],
+  "requests_made": 41
 }
