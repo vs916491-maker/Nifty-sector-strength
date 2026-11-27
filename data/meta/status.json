@@ -1,5 +1,5 @@
 {
-  "run_at_ist": "2026-11-27T04:07:28+05:30",
+  "run_at_ist": "2026-11-27T06:19:29+05:30",
   "constituents": {
     "NIFTY50": {
       "ok": true,
@@ -89,7 +89,7 @@
     "CHEMICALS": {
       "ok": true,
       "stocks": 20,
-      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftychemicals_list.csv"
+      "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyChemicals_list.csv"
     },
     "ENERGY": {
       "ok": true,
@@ -132,9 +132,8 @@
       "source": "https://nsearchives.nseindia.com/content/indices/ind_niftyindiadefence_list.csv"
     },
     "CAPMKT": {
-      "ok": true,
-      "stocks": 17,
-      "source": "https://www.niftyindices.com/IndexConstituent/ind_niftycapitalmarkets_list.csv"
+      "ok": false,
+      "kept_old_file": true
     },
     "MFG": {
       "ok": true,
@@ -239,6 +238,8 @@
     "DIGITAL": "Nifty India Digital",
     "TOURISM": "Nifty India Tourism"
   },
-  "problems": [],
-  "requests_made": 41
+  "problems": [
+    "Constituent list not found: CAPMKT"
+  ],
+  "requests_made": 47
 }
